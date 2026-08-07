@@ -40,16 +40,35 @@ import threading
 import uuid
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, quote, urlparse
 
+import postgame_page
 import riot
 import tftdata as tft
 
 HOST, PORT = "127.0.0.1", 8000
-GAMES_WANTED = 50   # enough to clear the 30-game bar without a 4-minute wait
+GAMES_WANTED = 50    # enough to clear the 30-game bar without a 4-minute wait
+REFRESH_WANTED = 10  # "check for a new game" only needs the newest few
 
 JOBS = {}
 JOBS_LOCK = threading.Lock()
+
+STATS_CACHE = {}   # (puuid, label) -> (newest match id, rendered stats page)
+
+
+def own_dir(puuid):
+    """matches/ when the player is the owner of this copy, else the pool.
+
+    matches/ is the durable, committed folder and it must contain only the
+    owner's games - but the owner's OWN new games belong there, or the copy
+    that matters would sit in the re-downloadable pool while fetch_matches.py
+    pays a second request to put it where it should have gone.
+    """
+    try:
+        me = json.loads(Path("me.json").read_text())["puuid"]
+    except (FileNotFoundError, KeyError):
+        return None
+    return tft.MATCH_DIR if puuid == me else None
 
 
 def set_job(job_id, **fields):
@@ -74,37 +93,70 @@ def run_job(job_id, riot_id):
             set_job(job_id, status=f"Downloading {label}'s games - {i} of {total} "
                                    f"checked, {have} ready")
 
-        have, _ = riot.backfill(puuid, want=GAMES_WANTED, progress=progress)
+        have, _ = riot.backfill(puuid, want=GAMES_WANTED, progress=progress,
+                                into=own_dir(puuid))
         if not have:
             set_job(job_id, status=None, error=(
                 f"{label} has no ranked TFT games in the current set. "
                 "Only ranked games are analysed."))
             return
 
-        set_job(job_id, status=f"Building the report for {label}...")
-
-        # build_site.py is run as a separate process rather than imported: it
-        # is a top-to-bottom script, so importing it twice would re-execute
-        # it, and a subprocess also means one player's crash can't take the
-        # server down with it.
-        out = Path(tempfile.mkdtemp(prefix="tft-report-"))
-        env = {**os.environ, "TFT_PUUID": puuid, "TFT_OUT": str(out),
-               "TFT_NAME": label}
-        done = subprocess.run([sys.executable, "build_site.py"], env=env,
-                              capture_output=True, text=True, cwd=Path(__file__).parent)
-        if done.returncode != 0:
-            detail = (done.stderr or done.stdout).strip().splitlines()
-            set_job(job_id, status=None,
-                    error="Couldn't build the report: "
-                          + (detail[-1] if detail else "unknown error"))
-            return
-
-        set_job(job_id, status=None, html=(out / "index.html").read_text())
+        set_job(job_id, status=None,
+                redirect=f"/player?p={quote(puuid)}&n={quote(label)}")
 
     except riot.RiotError as problem:
         set_job(job_id, status=None, error=str(problem))
     except Exception as problem:                      # noqa: BLE001
         set_job(job_id, status=None, error=f"{type(problem).__name__}: {problem}")
+
+
+def refresh_job(job_id, puuid, label):
+    """Fetch whatever this player has played since we last looked, then land
+    on the newest game's debrief. A just-finished game shows up in Riot's
+    history within a minute or two of the end screen, so this is the
+    play -> alt-tab -> refresh loop."""
+    try:
+        def progress(i, total, have):
+            set_job(job_id, status=f"Checking recent games - {i} of {total}")
+
+        riot.backfill(puuid, want=REFRESH_WANTED, progress=progress,
+                      into=own_dir(puuid))
+        set_job(job_id, status=None,
+                redirect=f"/game?p={quote(puuid)}&n={quote(label)}")
+    except riot.RiotError as problem:
+        set_job(job_id, status=None, error=str(problem))
+    except Exception as problem:                      # noqa: BLE001
+        set_job(job_id, status=None, error=f"{type(problem).__name__}: {problem}")
+
+
+def build_stats(puuid, label):
+    """The stats page for one player, rebuilt only when their games change.
+
+    build_site.py runs as a separate process rather than an import: it is a
+    top-to-bottom script, so importing it twice would re-execute it, and a
+    subprocess also means one player's crash can't take the server down.
+    TFT_LINKS tells the page it is being served by the app, which is what
+    puts the Stats / Post-game tabs on it.
+    """
+    games, _ = tft.load_games(puuid)
+    newest = games[0]["_match_id"]
+    cached = STATS_CACHE.get((puuid, label))
+    if cached and cached[0] == newest:
+        return cached[1]
+
+    out = Path(tempfile.mkdtemp(prefix="tft-report-"))
+    env = {**os.environ, "TFT_PUUID": puuid, "TFT_OUT": str(out),
+           "TFT_NAME": label, "TFT_LINKS": "1"}
+    done = subprocess.run([sys.executable, "build_site.py"], env=env,
+                          capture_output=True, text=True,
+                          cwd=Path(__file__).parent)
+    if done.returncode != 0:
+        detail = (done.stderr or done.stdout).strip().splitlines()
+        raise RuntimeError(detail[-1] if detail else "unknown error")
+
+    page = (out / "index.html").read_text()
+    STATS_CACHE[(puuid, label)] = (newest, page)
+    return page
 
 
 PAGE = """<!doctype html>
@@ -190,6 +242,50 @@ class Handler(BaseHTTPRequestHandler):
             self.reply(home())
             return
 
+        if route.path == "/player":
+            q = parse_qs(route.query)
+            puuid = (q.get("p") or [""])[0]
+            label = (q.get("n") or [""])[0]
+            if not puuid:
+                self.reply(home("That link is missing a player."), 404)
+                return
+            try:
+                self.reply(build_stats(puuid, label).encode())
+            except SystemExit as problem:
+                # load_games exits a CLI; here it just means "nobody by that
+                # id is on disk", which the front page can say politely.
+                self.reply(home(str(problem)), 404)
+            except Exception as problem:              # noqa: BLE001
+                self.reply(home(f"Couldn't build the report: {problem}"), 500)
+            return
+
+        if route.path == "/game":
+            q = parse_qs(route.query)
+            puuid = (q.get("p") or [""])[0]
+            label = (q.get("n") or [""])[0]
+            try:
+                games, level_par = tft.load_games(puuid or None)
+            except SystemExit as problem:
+                self.reply(home(str(problem)), 404)
+                return
+            set_number = games[0]["_set"]
+            if not label:
+                name = games[0].get("riotIdGameName") or games[0]["puuid"][:8]
+                tag = games[0].get("riotIdTagline") or "?"
+                label = f"{name}#{tag}"
+            try:
+                idx = int((q.get("g") or ["1"])[0])
+            except ValueError:
+                idx = 1
+            idx = min(max(idx, 1), len(games)) - 1
+            try:
+                self.reply(postgame_page.render(
+                    games, level_par, set_number, idx,
+                    label, games[0]["puuid"]).encode())
+            except Exception as problem:              # noqa: BLE001
+                self.reply(home(f"Couldn't build the debrief: {problem}"), 500)
+            return
+
         if route.path.startswith("/job/"):
             job = get_job(route.path.rsplit("/", 1)[-1])
             if not job:
@@ -198,8 +294,10 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply(page(f'<h1>That didn\'t work</h1>'
                                 f'<p class="status error">{html.escape(job["error"])}</p>'
                                 f'<p><a href="/">Try another Riot ID</a></p>'))
-            elif job.get("html"):
-                self.reply(job["html"].encode())
+            elif job.get("redirect"):
+                self.send_response(303)
+                self.send_header("Location", job["redirect"])
+                self.end_headers()
             else:
                 # Poll by meta-refresh rather than JavaScript: no script to
                 # debug, and it works with JS switched off like the report does.
@@ -214,8 +312,25 @@ class Handler(BaseHTTPRequestHandler):
         self.reply(home("Unknown page."), 404)
 
     def do_POST(self):
+        route = urlparse(self.path)
         length = int(self.headers.get("Content-Length") or 0)
         fields = parse_qs(self.rfile.read(length).decode())
+
+        if route.path == "/refresh":
+            puuid = (fields.get("p") or [""])[0]
+            label = (fields.get("n") or [""])[0]
+            if not puuid:
+                self.reply(home("That refresh is missing a player."), 404)
+                return
+            job_id = uuid.uuid4().hex[:12]
+            set_job(job_id, status="Asking Riot for new games...")
+            threading.Thread(target=refresh_job, args=(job_id, puuid, label),
+                             daemon=True).start()
+            self.send_response(303)
+            self.send_header("Location", f"/job/{job_id}")
+            self.end_headers()
+            return
+
         riot_id = (fields.get("riot_id") or [""])[0].strip()
         if "#" not in riot_id:
             self.reply(home("A Riot ID needs the tag too, like orobas#tomo"))

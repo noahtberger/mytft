@@ -41,20 +41,41 @@ def items_held(board):
     return sum(len(u.get("itemNames") or []) for u in tft.shop_units(board))
 
 
+def ordinal(place):
+    return f"{place}{'st nd rd th th th th th'.split()[place - 1]}"
+
+
+def board_facts(board, set_number):
+    """One board's debrief facts, as data.
+
+    Shared by the terminal row below and the web page, so the two views of
+    the same board can never disagree. `prof` is None for a disconnect.
+    """
+    name = board.get("riotIdGameName") or ""
+    tag = board.get("riotIdTagline") or ""
+    return {
+        "place": board["placement"],
+        "name": f"{name}#{tag}" if name else "(unknown player)",
+        "comps": sorted(tft.committed_lines(board, set_number)),
+        "carry": tft.carry_of(board),
+        "items": items_held(board),
+        "prof": tft.playstyle(board, set_number),
+    }
+
+
 def board_line(board, set_number):
     """One board compressed to the facts that matter, as a printed row."""
-    lines = sorted(tft.committed_lines(board, set_number))
-    carry = tft.carry_of(board)
-    prof = tft.playstyle(board, set_number)
-    place = f"{board['placement']}{'st nd rd th th th th th'.split()[board['placement'] - 1]}"
-    built = " + ".join(lines) if lines else "no committed comp"
-    carried = f"carry {carry}" if carry else "no 2-item carry"
-    if prof is None:
+    f = board_facts(board, set_number)
+    place = ordinal(f["place"])
+    built = " + ".join(f["comps"]) if f["comps"] else "no committed comp"
+    carried = f"carry {f['carry']}" if f["carry"] else "no 2-item carry"
+    if f["prof"] is None:
         return f"  {place:<5}{built:<34}(disconnected board)"
     return (f"  {place:<5}{built:<34}{carried:<22}"
-            f"cost {prof['avg_cost']:.1f}  "
-            f"{prof['big_units']:.0f} big  {prof['rerolled']:.0f} rerolled  "
-            f"{items_held(board)} items")
+            f"cost {f['prof']['avg_cost']:.1f}  "
+            f"{f['prof']['big_units']:.0f} big  "
+            f"{f['prof']['rerolled']:.0f} rerolled  "
+            f"{f['items']} items")
 
 
 def margin_bullets(mine, above, set_number, level_par):

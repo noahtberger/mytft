@@ -66,6 +66,18 @@ export RIOT_API_KEY='RGAPI-...'
 .venv/bin/python serve.py         # then open http://127.0.0.1:8000
 ```
 
+The app serves two views per player, linked by tabs at the top:
+
+- **Stats** — the full report page.
+- **Post-game** — the debrief of any recent game: all eight boards with
+  player names, where the margin lived, and the era-wide "what beats you"
+  pattern. The **Check for a new game** button fetches whatever you just
+  played (a finished game reaches Riot's history within a minute or two),
+  so the loop is: play, alt-tab, click, read.
+
+Your own new games land in `matches/` (the committed copy); everyone
+else's land in `pool/`.
+
 **Why this needs a server.** A static page can't fetch anyone's history:
 Riot's API sends no CORS headers so browser JavaScript can't call it at all,
 your key would have to travel to the browser to try, and the published
@@ -123,7 +135,9 @@ Occasional:
 | `pregame.py`       | pre-queue screen: lobby meta, your leaks, proven reads | – |
 | `postgame.py`      | debrief: your board vs the boards that beat you | – |
 | `build_site.py`    | renders the whole analysis to `site/index.html` | – |
-| `serve.py`         | local web app: enter a Riot ID, get their report | API key |
+| `theme.py`         | shared stylesheet, tooltip script, text helpers for every page | – |
+| `postgame_page.py` | the post-game debrief as a page in the app | – |
+| `serve.py`         | local web app: stats + post-game views per player | API key |
 | `riot.py`          | the API client: key, HTTP, match downloading | API key |
 | `peek_live.py`     | inventory of Overwolf live logs in `live/` | – |
 | `matches/`         | **your** raw match JSON, named by match ID (committed) | |
