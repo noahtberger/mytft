@@ -109,7 +109,8 @@ def render(games, level_par, set_number, idx, who, puuid):
     timeline = list(reversed(games))
     era_games = timeline[shift["cut"]:] if shift else timeline
     pattern_rows = pg.pattern(era_games, set_number)
-    tips = pg.advice(pattern_rows)
+    tips = pg.advice(pattern_rows,
+                     pg.flat_context(games, set_number, era_games))
 
     def stat_list():
         return "".join(

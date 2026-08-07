@@ -111,10 +111,15 @@ def margin_bullets(mine, above, set_number, level_par):
                            "they held was one you couldn't hit.")
 
     committed_above = sum(1 for p in above_profs if p["lines_built"] >= 1)
-    if my_prof["lines_built"] == 0 and committed_above:
-        bullets.append("You never fully built a comp this game. "
+    if (my_prof["lines_built"] == 0 and committed_above
+            and my_prof["avg_cost"] < SOUP_COST):
+        # A flat EXPENSIVE board is the fast-9 style played on purpose and
+        # gets no bullet - flat expensive places as well as verticals in
+        # these lobbies. Flat and cheap is the shape that loses.
+        bullets.append("Your board never came together - no comp built and "
+                       "no big units. "
                        f"{committed_above} of the {len(above)} boards that "
-                       "beat you did.")
+                       "beat you finished a comp.")
 
     par = level_par.get(mine["last_round"])
     if par is not None and par - mine["level"] >= LEVEL_SLACK:
@@ -135,6 +140,54 @@ def margin_bullets(mine, above, set_number, level_par):
                        "of that is them surviving longer, but it's worth "
                        "noticing.")
     return bullets
+
+
+SOUP_COST = 3.5   # a flat board at/above this avg cost is the deliberate
+                  # fast-9 style, not a board that failed to come together
+
+
+def flat_context(games, set_number, era_games):
+    """Is this player's flat style deliberate, and does it work here?
+
+    "No comp built" covers two very different boards: the fast-9 flat board
+    of 4- and 5-costs stacking unique traits on purpose, and the cheap board
+    that never came together. Measured across this player's lobbies those
+    place about a full placement apart (flat expensive ~ verticals, flat
+    cheap far worse), so any advice about committing has to know which kind
+    of flat player it is talking to - the user rightly pushed back when the
+    tracker called an intentional soup board "not a real comp".
+    """
+    lobby = {"soup": [], "vertical": [], "stuck": []}
+    for g in games:
+        for b in g["_lobby"]:
+            prof = tft.playstyle(b, set_number)
+            if prof is None:
+                continue
+            kind = ("vertical" if prof["lines_built"] >= 1 else
+                    "soup" if prof["avg_cost"] >= SOUP_COST else "stuck")
+            lobby[kind].append(b["placement"])
+
+    mine = {"soup": 0, "stuck": 0}
+    for g in era_games:
+        prof = tft.playstyle(g, set_number)
+        if prof and prof["lines_built"] == 0:
+            mine["soup" if prof["avg_cost"] >= SOUP_COST else "stuck"] += 1
+
+    judged = (tft.mean_gap(lobby["soup"], lobby["vertical"])
+              if len(lobby["soup"]) >= 2 and len(lobby["vertical"]) >= 2
+              else None)
+    return {
+        # A soup player has real volume in the style, mostly on purpose.
+        "soup_player": mine["soup"] >= 10 and mine["soup"] >= 2 * mine["stuck"],
+        # Placement is a golf score: soup holds up unless it is genuinely
+        # WORSE than verticals by more than the error bar.
+        "soup_ok": judged is not None
+                   and not (judged["real"] and judged["gap"] > 0),
+        "soup_avg": statistics.mean(lobby["soup"]) if lobby["soup"] else None,
+        "vertical_avg": (statistics.mean(lobby["vertical"])
+                         if lobby["vertical"] else None),
+        "stuck_avg": statistics.mean(lobby["stuck"]) if lobby["stuck"] else None,
+    }
 
 
 # The pattern section compares against these; last_round is left out on
@@ -185,7 +238,7 @@ def pattern(era_games, set_number):
     return rows
 
 
-def advice(rows):
+def advice(rows, flat=None):
     """One or two concrete things to try next game, read off the pattern.
 
     Only speaks from gaps that already cleared their error bars, and not
@@ -193,31 +246,50 @@ def advice(rows):
     survived longer, so they stay in the stats list but never become
     advice. A tip has to be about a choice - committing, rerolling, how you
     spend gold and items - or it isn't advice, it's the scoreboard again.
+
+    `flat` is flat_context(): for a player whose flat boards are the
+    deliberate expensive kind, and whose lobbies don't punish that style,
+    "commit to a comp" would be wrong - their real failure mode is the flat
+    board that stays cheap. The reroll tip is skipped for them too: it is
+    the same evidence read from the other side, and it would sit on the
+    page contradicting the tip above it.
     """
     gaps = {k: mean for k, mean, _ in rows}
     tips = []
+    soup = flat and flat["soup_player"] and flat["soup_ok"]
 
     if gaps.get("lines_built", 0) > 0:
-        tips.append("Commit to one comp and build it out instead of "
-                    "splashing traits. The boards that beat you almost "
-                    "always finish with a real comp.")
+        if soup:
+            tips.append("Your flat fast-9 style holds up here: flat "
+                        "expensive boards average "
+                        f"{flat['soup_avg']:.2f} in your lobbies, verticals "
+                        f"{flat['vertical_avg']:.2f}. What loses is the "
+                        "in-between board - flat and still cheap averages "
+                        f"{flat['stuck_avg']:.2f}. When the big units "
+                        "aren't coming, commit to a comp instead of "
+                        "staying stuck between the two plans.")
+        else:
+            tips.append("Commit to one comp and build it out instead of "
+                        "splashing traits. The boards that beat you almost "
+                        "always finish a comp.")
     elif gaps.get("lines_built", 0) < 0:
         tips.append("Stay flexible. The boards that beat you splash more "
                     "than they commit, so forcing a vertical isn't paying "
                     "off here.")
 
     cheaper = gaps.get("avg_cost", 0) < 0 or gaps.get("big_units", 0) < 0
-    if gaps.get("rerolled", 0) > 0 and cheaper:
-        tips.append("Don't default to the expensive board every game. The "
-                    "winners in your lobbies play cheaper units and reroll "
-                    "for 3-stars. Look for those spots instead of always "
-                    "pushing 4-costs.")
-    elif gaps.get("rerolled", 0) > 0:
-        tips.append("Look for reroll spots. The boards that beat you "
-                    "3-star cheap carries more often than you do.")
-    elif gaps.get("rerolled", 0) < 0 and gaps.get("avg_cost", 0) > 0:
-        tips.append("Skip the reroll comps. Leveling up to bigger units is "
-                    "what wins in your lobbies.")
+    if not soup:
+        if gaps.get("rerolled", 0) > 0 and cheaper:
+            tips.append("Don't default to the expensive board every game. "
+                        "The winners in your lobbies play cheaper units and "
+                        "reroll for 3-stars. Look for those spots instead "
+                        "of always pushing 4-costs.")
+        elif gaps.get("rerolled", 0) > 0:
+            tips.append("Look for reroll spots. The boards that beat you "
+                        "3-star cheap carries more often than you do.")
+        elif gaps.get("rerolled", 0) < 0 and gaps.get("avg_cost", 0) > 0:
+            tips.append("Skip the reroll comps. Leveling up to bigger units "
+                        "is what wins in your lobbies.")
 
     if gaps.get("item_focus", 0) > 0.05:
         tips.append("Stack your items on one carry instead of spreading "
@@ -308,7 +380,7 @@ def main():
     era_games = timeline[shift["cut"]:] if shift else timeline
 
     rows = pattern(era_games, set_number)
-    tips = advice(rows)
+    tips = advice(rows, flat_context(games, set_number, era_games))
 
     def stat_rows():
         print()
