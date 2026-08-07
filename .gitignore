@@ -3,6 +3,10 @@
 __pycache__/
 .DS_Store
 
+# Today's Riot API key, one line. Dev keys die every 24h; this file must
+# never be committed - a key in git history outlives its 24 hours.
+.riot_key
+
 # Packaged build of the retired Overwolf logger - the source folder is enough
 *.zip
 

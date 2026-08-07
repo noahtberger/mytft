@@ -15,8 +15,10 @@ back at an older set: `TFT_SET=17 .venv/bin/python stats.py`
 ## Daily use
 
 ```bash
-export RIOT_API_KEY='RGAPI-...'        # dev key, expires every 24h:
+echo 'RGAPI-...' > .riot_key           # today's dev key, expires every 24h:
                                        # https://developer.riotgames.com
+                                       # (gitignored; export RIOT_API_KEY
+                                       #  still works and wins if both exist)
 
 .venv/bin/python fetch_matches.py      # pull new ranked matches -> matches/
 .venv/bin/python stats.py              # full performance report

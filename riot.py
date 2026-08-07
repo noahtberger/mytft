@@ -28,11 +28,26 @@ class RiotError(Exception):
 
 
 def api_key():
+    """The env var if set, else the .riot_key file next to this script.
+
+    The file exists because dev keys expire every 24 hours: pasting the fresh
+    one into a file once beats exporting it in every terminal you open that
+    day. It lives next to the code rather than in the working directory so it
+    is found no matter where you run from, and it is gitignored - a key in
+    the repo would outlive its 24 hours as a public record.
+    """
     key = os.environ.get("RIOT_API_KEY")
     if not key:
+        try:
+            key = Path(__file__).with_name(".riot_key").read_text().strip()
+        except FileNotFoundError:
+            pass
+    if not key:
         raise RiotError(
-            "No API key found. Get one at developer.riotgames.com, then:\n"
-            "  export RIOT_API_KEY='RGAPI-...'")
+            "No API key found. Get one at developer.riotgames.com, then\n"
+            "either:  export RIOT_API_KEY='RGAPI-...'\n"
+            "or paste it into a file called .riot_key next to riot.py\n"
+            "(one line, nothing else - it's gitignored).")
     return key
 
 

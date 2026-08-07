@@ -230,9 +230,12 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    if not os.environ.get("RIOT_API_KEY"):
-        sys.exit("No API key. Get one at developer.riotgames.com, then:\n"
-                 "  export RIOT_API_KEY='RGAPI-...'\n"
+    # Fail at startup, not on the first lookup: riot.api_key() checks the
+    # env var and the .riot_key file, and its message says how to fix both.
+    try:
+        riot.api_key()
+    except riot.RiotError as problem:
+        sys.exit(f"{problem}\n"
                  "It stays in this process and is never sent to the browser.")
     print(f"TFT tracker running at http://{HOST}:{PORT}")
     print("Local only - nothing outside this machine can reach it. Ctrl-C to stop.")
