@@ -66,14 +66,19 @@ export RIOT_API_KEY='RGAPI-...'
 .venv/bin/python serve.py         # then open http://127.0.0.1:8000
 ```
 
-The app serves two views per player, linked by tabs at the top:
+The app serves three views per player, linked by tabs at the top:
 
-- **Stats** — the full report page.
+- **Pre-game** — your leaks as blunt tips with the numbers under them, a
+  **lobby box** (type the names from the loading screen, one per line, and
+  get each player's comps, carries and forced lines — instant for anyone
+  already in your saved games), the meta measured in your own lobbies, and
+  what your record has proven.
 - **Post-game** — the debrief of any recent game: all eight boards with
-  player names, where the margin lived, and the era-wide "what beats you"
-  pattern. The **Check for a new game** button fetches whatever you just
-  played (a finished game reaches Riot's history within a minute or two),
-  so the loop is: play, alt-tab, click, read.
+  player names, where the margin lived, and blunt advice backed by the
+  era-wide pattern. The **Check for a new game** button fetches whatever
+  you just played (a finished game reaches Riot's history within a minute
+  or two), so the loop is: play, alt-tab, click, read.
+- **Stats** — the full report page.
 
 Your own new games land in `matches/` (the committed copy); everyone
 else's land in `pool/`.
@@ -137,6 +142,7 @@ Occasional:
 | `build_site.py`    | renders the whole analysis to `site/index.html` | – |
 | `theme.py`         | shared stylesheet, tooltip script, text helpers for every page | – |
 | `postgame_page.py` | the post-game debrief as a page in the app | – |
+| `pregame_page.py`  | the pre-game screen (leaks, lobby box, meta) as a page | – |
 | `serve.py`         | local web app: stats + post-game views per player | API key |
 | `riot.py`          | the API client: key, HTTP, match downloading | API key |
 | `peek_live.py`     | inventory of Overwolf live logs in `live/` | – |

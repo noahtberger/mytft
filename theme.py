@@ -185,6 +185,16 @@ code { font-family:var(--mono); font-size:.92em; background:var(--track);
 .picker { margin:18px 0 0; }
 tr.me td { font-weight:700; }
 tr.me td:first-child { box-shadow:inset 3px 0 0 var(--accent); }
+.scoutbox textarea {
+  width:100%; min-height:120px; box-sizing:border-box;
+  font-family:var(--mono); font-size:14px; padding:12px 14px;
+  border:1px solid var(--line); border-radius:3px;
+  background:var(--panel); color:var(--ink); resize:vertical; }
+.scoutbox button {
+  margin-top:10px; font-family:var(--display); font-weight:700;
+  font-size:15px; padding:11px 20px; border:0; border-radius:3px;
+  cursor:pointer; background:var(--accent); color:#fff; }
+.scoutbox button:hover { filter:brightness(1.08); }
 """
 
 SCRIPT = """

@@ -498,8 +498,9 @@ else:
 if os.environ.get("TFT_LINKS"):
     from urllib.parse import quote
     q = f"p={quote(games[0]['puuid'])}&n={quote(WHO)}"
-    body.append(f'<nav class="tabs"><a class="active" href="/player?{q}">'
-                f'Stats</a><a href="/game?{q}">Post-game</a></nav>')
+    body.append(f'<nav class="tabs"><a href="/pregame?{q}">Pre-game</a>'
+                f'<a href="/game?{q}">Post-game</a>'
+                f'<a class="active" href="/player?{q}">Stats</a></nav>')
 
 body.append(f"""
 <header class="masthead">

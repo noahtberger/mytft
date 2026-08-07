@@ -159,8 +159,9 @@ def render(games, level_par, set_number, idx, who, puuid):
     headline = "You won" if won else f"You placed {placed}"
     body = f"""
 <nav class="tabs">
-  <a href="/player?{q}">Stats</a>
+  <a href="/pregame?{q}">Pre-game</a>
   <a class="active" href="/game?{q}">Post-game</a>
+  <a href="/player?{q}">Stats</a>
   <form method="post" action="/refresh" style="margin:0">
     <input type="hidden" name="p" value="{esc(puuid)}">
     <input type="hidden" name="n" value="{esc(who)}">

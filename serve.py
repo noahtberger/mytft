@@ -33,6 +33,7 @@ person's download also fills in seven other people's history for free.
 import html
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -43,7 +44,9 @@ from pathlib import Path
 from urllib.parse import parse_qs, quote, urlparse
 
 import postgame_page
+import pregame_page
 import riot
+import scout
 import tftdata as tft
 
 HOST, PORT = "127.0.0.1", 8000
@@ -127,6 +130,75 @@ def refresh_job(job_id, puuid, label):
         set_job(job_id, status=None, error=str(problem))
     except Exception as problem:                      # noqa: BLE001
         set_job(job_id, status=None, error=f"{type(problem).__name__}: {problem}")
+
+
+def scout_job(job_id, puuid, label, raw_names):
+    """Scout the typed lobby, then hand back the pre-game page with the
+    results filled in. Names already in the saved games cost nothing; a
+    stranger costs a resolve plus a few match downloads."""
+    try:
+        names = [n.strip() for n in re.split(r"[\n,]+", raw_names)
+                 if n.strip()][:8]
+        if not names:
+            set_job(job_id, status=None,
+                    error="No names to scout - type one per line.")
+            return
+
+        games, _ = tft.load_games(puuid)
+        set_number = games[0]["_set"]
+        boards_by_puuid, _ = scout.local_boards(set_number)
+
+        # Names live inside the match files, so anyone you've already met
+        # can be found with no network at all - including tagless names
+        # from the loading screen, when they're unambiguous.
+        by_full, by_game_name = {}, {}
+        for pid, boards in boards_by_puuid.items():
+            b = boards[-1]
+            gname = (b.get("riotIdGameName") or "").lower()
+            tag = (b.get("riotIdTagline") or "").lower()
+            if gname:
+                by_full[f"{gname}#{tag}"] = pid
+                by_game_name.setdefault(gname, set()).add(pid)
+
+        results = []
+        for i, who in enumerate(names, start=1):
+            set_job(job_id, status=f"Scouting {who} - {i} of {len(names)}...")
+            pid, shown = by_full.get(who.lower()), who
+            if pid is None and "#" not in who:
+                candidates = by_game_name.get(who.lower(), set())
+                if len(candidates) == 1:
+                    pid = next(iter(candidates))
+            if pid is None:
+                if "#" not in who:
+                    results.append({"label": who, "error":
+                                    "not in your saved games - add the #tag "
+                                    "(like name#NA1) so Riot can find them"})
+                    continue
+                try:
+                    pid, shown = riot.resolve(who)
+                except riot.RiotError as problem:
+                    results.append({"label": who, "error": str(problem)})
+                    continue
+
+            have = boards_by_puuid.get(pid, [])
+            note = None
+            if len(have) < scout.ENOUGH_LOCALLY:
+                set_job(job_id, status=f"Downloading {shown}'s games...")
+                try:
+                    riot.backfill(pid, want=scout.FETCH_PER_PLAYER,
+                                  set_number=set_number)
+                    boards_by_puuid, _ = scout.local_boards(set_number)
+                    have = boards_by_puuid.get(pid, [])
+                except riot.RiotError as problem:
+                    note = f"showing saved games only: {problem}"
+            results.append(pregame_page.player_read(shown, have,
+                                                    set_number, note))
+
+        set_job(job_id, status=None,
+                html=pregame_page.render(games, set_number, label, puuid,
+                                         scouted=results))
+    except (Exception, SystemExit) as problem:  # noqa: BLE001
+        set_job(job_id, status=None, error=str(problem))
 
 
 def build_stats(puuid, label):
@@ -259,6 +331,28 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply(home(f"Couldn't build the report: {problem}"), 500)
             return
 
+        if route.path == "/pregame":
+            q = parse_qs(route.query)
+            puuid = (q.get("p") or [""])[0]
+            label = (q.get("n") or [""])[0]
+            try:
+                games, _ = tft.load_games(puuid or None)
+            except SystemExit as problem:
+                self.reply(home(str(problem)), 404)
+                return
+            set_number = games[0]["_set"]
+            if not label:
+                name = games[0].get("riotIdGameName") or games[0]["puuid"][:8]
+                tag = games[0].get("riotIdTagline") or "?"
+                label = f"{name}#{tag}"
+            try:
+                self.reply(pregame_page.render(
+                    games, set_number, label, games[0]["puuid"]).encode())
+            except Exception as problem:              # noqa: BLE001
+                self.reply(home(f"Couldn't build the pre-game screen: "
+                                f"{problem}"), 500)
+            return
+
         if route.path == "/game":
             q = parse_qs(route.query)
             puuid = (q.get("p") or [""])[0]
@@ -298,6 +392,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_response(303)
                 self.send_header("Location", job["redirect"])
                 self.end_headers()
+            elif job.get("html"):
+                self.reply(job["html"].encode())
             else:
                 # Poll by meta-refresh rather than JavaScript: no script to
                 # debug, and it works with JS switched off like the report does.
@@ -315,6 +411,23 @@ class Handler(BaseHTTPRequestHandler):
         route = urlparse(self.path)
         length = int(self.headers.get("Content-Length") or 0)
         fields = parse_qs(self.rfile.read(length).decode())
+
+        if route.path == "/scout":
+            puuid = (fields.get("p") or [""])[0]
+            label = (fields.get("n") or [""])[0]
+            names = (fields.get("names") or [""])[0]
+            if not puuid:
+                self.reply(home("That scout is missing a player."), 404)
+                return
+            job_id = uuid.uuid4().hex[:12]
+            set_job(job_id, status="Reading your saved games...")
+            threading.Thread(target=scout_job,
+                             args=(job_id, puuid, label, names),
+                             daemon=True).start()
+            self.send_response(303)
+            self.send_header("Location", f"/job/{job_id}")
+            self.end_headers()
+            return
 
         if route.path == "/refresh":
             puuid = (fields.get("p") or [""])[0]

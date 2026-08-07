@@ -45,6 +45,37 @@ def wrap(text, indent="  ", first=None):
                         subsequent_indent=indent))
 
 
+def lobby_boards(games, set_number):
+    """(placement, committed comps, is it you) for all 8 seats of every game.
+
+    The raw material for both the meta table and the rate gaps, and for the
+    web page's versions of them - one builder so nobody's loop drifts.
+    """
+    me = games[0]["puuid"]
+    rows = []
+    for g in games:
+        for p in g["_lobby"]:
+            rows.append((p["placement"],
+                         tft.committed_lines(p, set_number),
+                         p["puuid"] == me))
+    return rows
+
+
+def bucket(row):
+    """Which coaching group one rate gap belongs to."""
+    line, my_pct, room_pct, v = row
+    under = my_pct < room_pct
+    wins = v and v["solid"] and v["gap"] > 0
+    loses = v and v["solid"] and v["gap"] < 0
+    if under and wins:
+        return "leak"
+    if not under and loses:
+        return "bad_force"
+    if not under:
+        return "force"
+    return "skip_loser" if loses else "skip_neutral"
+
+
 def room_table(board_rows, set_number):
     """Every line the room commits to often enough to judge, best first.
 
@@ -108,19 +139,6 @@ def disagree_section(gaps):
     sentence: they are the same fact repeated, and six identical paragraphs
     would bury the two that matter.
     """
-    def bucket(row):
-        line, my_pct, room_pct, v = row
-        under = my_pct < room_pct
-        wins = v and v["solid"] and v["gap"] > 0
-        loses = v and v["solid"] and v["gap"] < 0
-        if under and wins:
-            return "leak"
-        if not under and loses:
-            return "bad_force"
-        if not under:
-            return "force"
-        return "skip_loser" if loses else "skip_neutral"
-
     grouped = {}
     for row in gaps:
         grouped.setdefault(bucket(row), []).append(row)
@@ -244,13 +262,7 @@ def main():
     set_number = games[0]["_set"]
     baseline = tft.summarise([g["placement"] for g in games])
 
-    me = games[0]["puuid"]
-    board_rows = []   # (placement, committed lines, is it you) for all 8 seats
-    for g in games:
-        for p in g["_lobby"]:
-            board_rows.append((p["placement"],
-                               tft.committed_lines(p, set_number),
-                               p["puuid"] == me))
+    board_rows = lobby_boards(games, set_number)
 
     patches = sorted({g["_patch"] for g in games},
                      key=lambda s: tuple(int(x) for x in s.split(".")))
