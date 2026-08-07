@@ -207,53 +207,98 @@ def playstyle_chart(rows):
     "same as the room" you sit. That is dimensionless, so every metric is
     comparable, and it encodes the significance test directly: past the
     dashed line at 1 the difference is bigger than luck, inside it isn't.
+
+    Two lessons from the first version of this chart are load-bearing here:
+
+      - The axis is capped at CLIP error bars. Scaling to the largest gap let
+        one nine-error-bar habit crush the whole scale, which shoved the
+        dashed lines into the centre axis and printed the three bottom labels
+        on top of each other. Past ~3 error bars the length carries no extra
+        meaning anyway - "definitely real" is as real as it gets - so bars
+        that would overrun are clipped and notched instead.
+      - The actual values are printed under each habit name. They used to
+        live only in the hover tooltip, which made the tooltip the sole way
+        to read the chart - and made the bars, in their statistician's units,
+        genuinely confusing on their own.
     """
     w = 680
-    row_h, gap_h = 26, 8
-    # The right gutter has to fit the read word ("more expensive", "less
-    # rerolling") - 14 characters of 11px mono is ~92px, and at 60 they ran
-    # off the canvas entirely.
-    label_w, right_pad = 168, 108
+    row_h, gap_h = 40, 10
+    # The left gutter fits two lines (habit name, then the real values); the
+    # right one fits the read word ("more expensive", "less rerolling").
+    label_w, right_pad = 190, 108
     plot = w - label_w - right_pad
-    h = len(rows) * (row_h + gap_h) + 40
+    top, bottom = 24, 28
+    h = top + len(rows) * (row_h + gap_h) - gap_h + bottom
     mid = label_w + plot / 2
-    reach = max(2.2, max(abs(r[3] / r[4]) for r in rows) * 1.1)
+    CLIP = 4.0
+    reach = min(CLIP, max(2.2, max(abs(r[3] / r[4]) for r in rows) * 1.1))
 
     def px(z):
         return mid + (plot / 2) * z / reach
 
     parts = [f'<svg viewBox="0 0 {w} {h}" class="chart" role="img" '
-             'aria-label="Playstyle differences from the rest of the lobby">']
+             'aria-label="Playstyle differences from the rest of the lobby, '
+             'in error-bar units">']
 
-    # The significance threshold, drawn rather than described.
+    # The significance threshold, drawn rather than described. The dashed
+    # lines carry no labels: the three that used to sit under them collided
+    # whenever the scale compressed, and the caption already says what they
+    # mean. The words that remain can't collide - one centred on top, one
+    # anchored to each bottom corner.
     for z in (-1, 1):
-        parts.append(f'<line x1="{px(z):.1f}" y1="6" x2="{px(z):.1f}" '
-                     f'y2="{h - 26}" class="rule-dash"/>')
-    parts.append(f'<line x1="{mid}" y1="6" x2="{mid}" y2="{h - 26}" class="axis"/>')
-    parts.append(f'<text x="{mid}" y="{h - 8}" class="tick" text-anchor="middle">'
-                 'same as the room</text>')
-    parts.append(f'<text x="{px(-1):.1f}" y="{h - 8}" class="tick" '
-                 'text-anchor="middle">−1 error bar</text>')
-    parts.append(f'<text x="{px(1):.1f}" y="{h - 8}" class="tick" '
-                 'text-anchor="middle">+1</text>')
+        parts.append(f'<line x1="{px(z):.1f}" y1="{top - 4}" x2="{px(z):.1f}" '
+                     f'y2="{h - bottom + 6}" class="rule-dash"/>')
+    parts.append(f'<line x1="{mid}" y1="{top - 4}" x2="{mid}" '
+                 f'y2="{h - bottom + 6}" class="axis"/>')
+    parts.append(f'<text x="{mid}" y="{top - 11}" class="tick" '
+                 'text-anchor="middle">same as the room</text>')
+    parts.append(f'<text x="{label_w}" y="{h - 8}" class="tick">'
+                 '&#8592; less than the room</text>')
+    parts.append(f'<text x="{label_w + plot}" y="{h - 8}" class="tick" '
+                 'text-anchor="end">more than the room &#8594;</text>')
 
     for i, (label, you, them, gap, moe, more, less) in enumerate(rows):
-        y = 6 + i * (row_h + gap_h)
-        z = max(-reach, min(reach, gap / moe))
+        y = top + i * (row_h + gap_h)
+        true_z = gap / moe
+        z = max(-reach, min(reach, true_z))
+        clipped = abs(true_z) > reach
         real = abs(gap) > moe
         x0, x1 = (mid, px(z)) if z >= 0 else (px(z), mid)
-        colour = ("var(--pos)" if z > 0 else "var(--neg)") if real else "var(--muted)"
-        parts.append(f'<text x="{label_w - 10}" y="{y + row_h * 0.7:.0f}" '
+        # Amber for a real habit, grey for noise - and never the green/red
+        # the placement charts use, because those mean better/worse and no
+        # direction here is either. A red bar on "3-starred cheap units"
+        # read as a verdict the section explicitly refuses to make.
+        colour = "var(--accent)" if real else "var(--muted)"
+
+        parts.append(f'<text x="{label_w - 10}" y="{y + 15}" '
                      f'class="rowlabel" text-anchor="end">'
                      f'{esc(fit(label, label_w - 14, 12))}</text>')
+        parts.append(f'<text x="{label_w - 10}" y="{y + 31}" '
+                     f'class="sublabel" text-anchor="end">'
+                     f'you {you:.2f} &middot; room {them:.2f}</text>')
+
+        detail = (f"{abs(true_z):.1f}&times; its error bar"
+                  f"{', drawn clipped' if clipped else ''}" if real
+                  else "inside the error bar - could be luck")
         parts.append(
-            f'<rect x="{x0:.1f}" y="{y + 4}" width="{max(abs(x1 - x0), 1.5):.1f}" '
-            f'height="{row_h - 8}" rx="3" fill="{colour}" class="mark" '
+            f'<rect x="{x0:.1f}" y="{y + 10}" width="{max(abs(x1 - x0), 1.5):.1f}" '
+            f'height="20" rx="3" fill="{colour}" class="mark" '
             f'data-tip="{esc(label)} &middot; you {you:.2f} vs room {them:.2f} '
-            f'&middot; {esc(more if gap > 0 else less)}'
-            f'{" (bigger than luck)" if real else " (inside the error bar)"}"/>')
+            f'&middot; {esc(more if gap > 0 else less)} &middot; {detail}"/>')
+
+        # An axis-break notch on bars the cap cut short: two surface-colour
+        # slashes, so a clipped bar can't be mistaken for a measured length.
+        if clipped:
+            xe = x1 if z > 0 else x0
+            step = -1 if z > 0 else 1
+            for k in (8, 13):
+                sx = xe + step * k
+                parts.append(f'<line x1="{sx - 3}" y1="{y + 32}" x2="{sx + 3}" '
+                             f'y2="{y + 8}" stroke="var(--panel)" '
+                             'stroke-width="2.5"/>')
+
         read = fit(more if gap > 0 else less, right_pad - 10, 11) if real else "—"
-        parts.append(f'<text x="{label_w + plot + 6}" y="{y + row_h * 0.7:.0f}" '
+        parts.append(f'<text x="{label_w + plot + 6}" y="{y + 24}" '
                      f'class="tick">{esc(read)}</text>')
 
     parts.append("</svg>")
@@ -727,11 +772,12 @@ if style_rows:
   &mdash; an expensive board is an expensive board in Set 18 too. {era_note}</p>
   <figure>
     {playstyle_chart(style_rows)}
-    <figcaption>Each bar is the gap between you and the other seven players
-    in your lobbies, divided by its own error bar &mdash; because unit cost,
-    board size and rounds survived don&rsquo;t share a scale. Past the dashed
-    line the difference is bigger than luck; inside it, you play like the room
-    does. {summary}</figcaption>
+    <figcaption>Seven habits, you against the other seven players in your
+    lobbies &mdash; the real numbers sit under each habit&rsquo;s name. The
+    bar shows how far apart those two numbers are relative to the wobble in
+    the data: a bar past the dashed line is a real habit, a short one means
+    you play like the room. A notch means the bar was cut off &mdash; that
+    gap runs far beyond the scale. {summary}</figcaption>
   </figure>
 </section>""")
 
