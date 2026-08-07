@@ -1,0 +1,1499 @@
+{
+  "metadata": {
+    "data_version": "6",
+    "match_id": "NA1_5570798454",
+    "participants": [
+      "jsutID4yT9JeUPTWGI83jo6Kbgb1SOPMVUen9K0LTKfe1Cp_xidyWMDagUI3px5W1X5oQlOWmxvc9w",
+      "KeN_BlyriJdHYQoMCu54h6kGKuG9ZZjN4hFXf5w8dS8oQAk7OhM2nCnv_deB_Gd7Zk04R96Evz95KA",
+      "mMB3PMcNwffey7l0N6vmMgQY7FVTItANByg2a15TeYoss5AZhOrvEGxujGMgeNBY9O8dfHSdz50iag",
+      "40p2Sq0aguhBZgHchprNAmbygCn2QeZGdsJLIqPWYh_eWkHaiDKYHtLnQWXUWJVc0Lt6ZFnAPyrcnw",
+      "2esZbkc9tqcgcWcvC0J942O36bbMGBrmvRATB2TPpsj5YPgRL30PZnRF24TzT8mI3yVG7H-f2veubA",
+      "FlhbnJmA-tfxOyt3iIH4VoLxHbjhzQq0kULCvr1bhVrO-B9d1M0FZuIylqeXqwZeYhSVNLSKaMR6eQ",
+      "ldiOTs5A1ah7o-Gwv9I852I51K_Ljpp2X5TvHEJ1wARsSm69-CinHo_igXm1yQaPD0tNzUN7WCCgjA",
+      "ipiYrWyPCRm12GC9Dmuo5Cf3-8VBUpVAOtgrWMBlogRTDYFjrY52fj-WUZKvMSZq6DNwAKVHK8GCeA"
+    ]
+  },
+  "info": {
+    "endOfGameResult": "GameComplete",
+    "gameCreation": 1780083367000,
+    "gameId": 5570798454,
+    "game_datetime": 1780085467010,
+    "game_length": 2073.968017578125,
+    "game_version": "Linux Version 16.11.781.1789 (May 27 2026/20:55:59) [PUBLIC] <Releases/16.11>",
+    "mapId": 22,
+    "participants": [
+      {
+        "companion": {
+          "content_ID": "9a78016d-8088-4a13-b8e9-d57e22838938",
+          "item_ID": 27012,
+          "skin_ID": 12,
+          "species": "PetChoncc"
+        },
+        "gold_left": 46,
+        "last_round": 27,
+        "level": 8,
+        "missions": {
+          "PlayerScore2": 80
+        },
+        "placement": 6,
+        "players_eliminated": 0,
+        "puuid": "jsutID4yT9JeUPTWGI83jo6Kbgb1SOPMVUen9K0LTKfe1Cp_xidyWMDagUI3px5W1X5oQlOWmxvc9w",
+        "riotIdGameName": "gast\u00f3n",
+        "riotIdTagline": "omen",
+        "time_eliminated": 1600.5205078125,
+        "total_damage_to_players": 47,
+        "traits": [
+          {
+            "name": "TFT17_APTrait",
+            "num_units": 2,
+            "style": 1,
+            "tier_current": 1,
+            "tier_total": 2
+          },
+          {
+            "name": "TFT17_AssassinTrait",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 4
+          },
+          {
+            "name": "TFT17_Astronaut",
+            "num_units": 7,
+            "style": 4,
+            "tier_current": 3,
+            "tier_total": 4
+          },
+          {
+            "name": "TFT17_DarkStar",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 4
+          },
+          {
+            "name": "TFT17_Fateweaver",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 2
+          },
+          {
+            "name": "TFT17_FlexTrait",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 5
+          },
+          {
+            "name": "TFT17_RangedTrait",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 3
+          },
+          {
+            "name": "TFT17_ResistTank",
+            "num_units": 2,
+            "style": 1,
+            "tier_current": 1,
+            "tier_total": 3
+          },
+          {
+            "name": "TFT17_SummonTrait",
+            "num_units": 2,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 3
+          }
+        ],
+        "units": [
+          {
+            "character_id": "TFT17_Poppy",
+            "itemNames": [
+              "TFT_Item_RedBuff"
+            ],
+            "name": "",
+            "rarity": 0,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Veigar",
+            "itemNames": [
+              "TFT_Item_JeweledGauntlet",
+              "TFT_Item_Leviathan",
+              "TFT_Item_StatikkShiv"
+            ],
+            "name": "",
+            "rarity": 0,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Lissandra",
+            "itemNames": [],
+            "name": "",
+            "rarity": 0,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Gnar",
+            "itemNames": [],
+            "name": "",
+            "rarity": 1,
+            "tier": 1
+          },
+          {
+            "character_id": "TFT17_IvernMinion",
+            "itemNames": [
+              "TFT_Item_ThiefsGloves",
+              "TFT_Item_JeweledGauntlet",
+              "TFT_Item_RunaansHurricane"
+            ],
+            "name": "",
+            "rarity": 1,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Fizz",
+            "itemNames": [],
+            "name": "",
+            "rarity": 2,
+            "tier": 1
+          },
+          {
+            "character_id": "TFT17_Rammus",
+            "itemNames": [
+              "TFT_Item_NightHarvester",
+              "TFT_Item_GargoyleStoneplate",
+              "TFT_Item_DragonsClaw"
+            ],
+            "name": "",
+            "rarity": 4,
+            "tier": 1
+          },
+          {
+            "character_id": "TFT17_Corki",
+            "itemNames": [
+              "TFT_Item_InfinityEdge",
+              "TFT_Item_Quicksilver"
+            ],
+            "name": "",
+            "rarity": 4,
+            "tier": 2
+          }
+        ],
+        "win": false
+      },
+      {
+        "companion": {
+          "content_ID": "371069f3-259c-49e7-93fa-6489156953f8",
+          "item_ID": 67001,
+          "skin_ID": 1,
+          "species": "PetPoroFluft"
+        },
+        "gold_left": 0,
+        "last_round": 35,
+        "level": 9,
+        "missions": {
+          "PlayerScore2": 200
+        },
+        "placement": 3,
+        "players_eliminated": 2,
+        "puuid": "KeN_BlyriJdHYQoMCu54h6kGKuG9ZZjN4hFXf5w8dS8oQAk7OhM2nCnv_deB_Gd7Zk04R96Evz95KA",
+        "riotIdGameName": "SSaRangyi",
+        "riotIdTagline": "NA1",
+        "time_eliminated": 2003.674560546875,
+        "total_damage_to_players": 145,
+        "traits": [
+          {
+            "name": "TFT17_APTrait",
+            "num_units": 2,
+            "style": 1,
+            "tier_current": 1,
+            "tier_total": 2
+          },
+          {
+            "name": "TFT17_AnimaSquad",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 2
+          },
+          {
+            "name": "TFT17_Astronaut",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 4
+          },
+          {
+            "name": "TFT17_DarkStar",
+            "num_units": 2,
+            "style": 1,
+            "tier_current": 1,
+            "tier_total": 4
+          },
+          {
+            "name": "TFT17_FlexTrait",
+            "num_units": 3,
+            "style": 2,
+            "tier_current": 2,
+            "tier_total": 5
+          },
+          {
+            "name": "TFT17_ManaTrait",
+            "num_units": 2,
+            "style": 1,
+            "tier_current": 1,
+            "tier_total": 4
+          },
+          {
+            "name": "TFT17_Mecha",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 3
+          },
+          {
+            "name": "TFT17_PsyOps",
+            "num_units": 2,
+            "style": 1,
+            "tier_current": 1,
+            "tier_total": 2
+          },
+          {
+            "name": "TFT17_RhaastUniqueTrait",
+            "num_units": 1,
+            "style": 3,
+            "tier_current": 1,
+            "tier_total": 1
+          },
+          {
+            "name": "TFT17_ShieldTank",
+            "num_units": 2,
+            "style": 1,
+            "tier_current": 1,
+            "tier_total": 3
+          },
+          {
+            "name": "TFT17_SpaceGroove",
+            "num_units": 1,
+            "style": 1,
+            "tier_current": 1,
+            "tier_total": 5
+          },
+          {
+            "name": "TFT17_SummonTrait",
+            "num_units": 3,
+            "style": 1,
+            "tier_current": 1,
+            "tier_total": 3
+          }
+        ],
+        "units": [
+          {
+            "character_id": "TFT17_Lissandra",
+            "itemNames": [],
+            "name": "",
+            "rarity": 0,
+            "tier": 1
+          },
+          {
+            "character_id": "TFT17_Pyke",
+            "itemNames": [
+              "TFT_Item_GuardianAngel",
+              "TFT_Item_MadredsBloodrazor",
+              "TFT17_Item_PsyOps_ChemicalCapacitorMod"
+            ],
+            "name": "",
+            "rarity": 1,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_IvernMinion",
+            "itemNames": [],
+            "name": "",
+            "rarity": 1,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Mordekaiser",
+            "itemNames": [
+              "TFT_Item_NeedlesslyLargeRod"
+            ],
+            "name": "",
+            "rarity": 1,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Illaoi",
+            "itemNames": [
+              "TFT_Item_FrozenHeart"
+            ],
+            "name": "",
+            "rarity": 2,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Viktor",
+            "itemNames": [
+              "TFT_Item_JeweledGauntlet",
+              "TFT_Item_Artifact_BlightingJewel",
+              "TFT_Item_ArchangelsStaff"
+            ],
+            "name": "",
+            "rarity": 2,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Rhaast",
+            "itemNames": [],
+            "name": "",
+            "rarity": 2,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Galio",
+            "itemNames": [
+              "TFT_Item_ThiefsGloves",
+              "TFT_Item_Quicksilver",
+              "TFT_Item_DragonsClaw"
+            ],
+            "name": "",
+            "rarity": 4,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Nami",
+            "itemNames": [
+              "TFT_Item_SpearOfShojin",
+              "TFT_Item_StatikkShiv",
+              "TFT_Item_Morellonomicon"
+            ],
+            "name": "",
+            "rarity": 4,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Summon",
+            "itemNames": [],
+            "name": "",
+            "rarity": 9,
+            "tier": 1
+          }
+        ],
+        "win": true
+      },
+      {
+        "companion": {
+          "content_ID": "8a910892-0a08-4e5a-8fdc-66740907e982",
+          "item_ID": 146001,
+          "skin_ID": 1,
+          "species": "PetSpaceCat"
+        },
+        "gold_left": 44,
+        "last_round": 23,
+        "level": 8,
+        "missions": {
+          "PlayerScore2": 67
+        },
+        "placement": 8,
+        "players_eliminated": 0,
+        "puuid": "mMB3PMcNwffey7l0N6vmMgQY7FVTItANByg2a15TeYoss5AZhOrvEGxujGMgeNBY9O8dfHSdz50iag",
+        "riotIdGameName": "Dah Say Lay",
+        "riotIdTagline": "DGEY",
+        "time_eliminated": 1346.345947265625,
+        "total_damage_to_players": 26,
+        "traits": [
+          {
+            "name": "TFT17_ADMIN",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 2
+          },
+          {
+            "name": "TFT17_DRX",
+            "num_units": 2,
+            "style": 1,
+            "tier_current": 1,
+            "tier_total": 2
+          },
+          {
+            "name": "TFT17_DarkStar",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 4
+          },
+          {
+            "name": "TFT17_HPTank",
+            "num_units": 2,
+            "style": 1,
+            "tier_current": 1,
+            "tier_total": 3
+          },
+          {
+            "name": "TFT17_ManaTrait",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 4
+          },
+          {
+            "name": "TFT17_RangedTrait",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 3
+          },
+          {
+            "name": "TFT17_ResistTank",
+            "num_units": 2,
+            "style": 1,
+            "tier_current": 1,
+            "tier_total": 3
+          },
+          {
+            "name": "TFT17_ShenUniqueTrait",
+            "num_units": 1,
+            "style": 3,
+            "tier_current": 1,
+            "tier_total": 1
+          },
+          {
+            "name": "TFT17_ShieldTank",
+            "num_units": 3,
+            "style": 1,
+            "tier_current": 1,
+            "tier_total": 3
+          },
+          {
+            "name": "TFT17_Stargazer_Huntress",
+            "num_units": 3,
+            "style": 1,
+            "tier_current": 1,
+            "tier_total": 3
+          },
+          {
+            "name": "TFT17_TahmKenchUniqueTrait",
+            "num_units": 1,
+            "style": 3,
+            "tier_current": 1,
+            "tier_total": 1
+          }
+        ],
+        "units": [
+          {
+            "character_id": "TFT17_Aatrox",
+            "itemNames": [],
+            "name": "",
+            "rarity": 0,
+            "tier": 1
+          },
+          {
+            "character_id": "TFT17_Leona",
+            "itemNames": [],
+            "name": "",
+            "rarity": 0,
+            "tier": 3
+          },
+          {
+            "character_id": "TFT17_Mordekaiser",
+            "itemNames": [],
+            "name": "",
+            "rarity": 1,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Maokai",
+            "itemNames": [],
+            "name": "",
+            "rarity": 2,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Nunu",
+            "itemNames": [],
+            "name": "",
+            "rarity": 4,
+            "tier": 1
+          },
+          {
+            "character_id": "TFT17_Xayah",
+            "itemNames": [
+              "TFT_Item_RunaansHurricane",
+              "TFT_Item_Artifact_TitanicHydra",
+              "TFT_Item_RapidFireCannon"
+            ],
+            "name": "",
+            "rarity": 4,
+            "tier": 1
+          },
+          {
+            "character_id": "TFT17_TahmKench",
+            "itemNames": [],
+            "name": "",
+            "rarity": 4,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Shen",
+            "itemNames": [
+              "TFT17_Item_StargazerEmblemItem"
+            ],
+            "name": "",
+            "rarity": 6,
+            "tier": 1
+          }
+        ],
+        "win": false
+      },
+      {
+        "companion": {
+          "content_ID": "5b408497-53bb-42bd-9009-7ea3e41cc715",
+          "item_ID": 91001,
+          "skin_ID": 1,
+          "species": "PetChibiOrianna"
+        },
+        "gold_left": 1,
+        "last_round": 37,
+        "level": 9,
+        "missions": {
+          "PlayerScore2": 206
+        },
+        "placement": 1,
+        "players_eliminated": 2,
+        "puuid": "40p2Sq0aguhBZgHchprNAmbygCn2QeZGdsJLIqPWYh_eWkHaiDKYHtLnQWXUWJVc0Lt6ZFnAPyrcnw",
+        "riotIdGameName": "orobas",
+        "riotIdTagline": "tomo",
+        "time_eliminated": 2065.656005859375,
+        "total_damage_to_players": 178,
+        "traits": [
+          {
+            "name": "TFT17_AnimaSquad",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 2
+          },
+          {
+            "name": "TFT17_BlitzcrankUniqueTrait",
+            "num_units": 1,
+            "style": 3,
+            "tier_current": 1,
+            "tier_total": 1
+          },
+          {
+            "name": "TFT17_DRX",
+            "num_units": 2,
+            "style": 1,
+            "tier_current": 1,
+            "tier_total": 2
+          },
+          {
+            "name": "TFT17_FioraUniqueTrait",
+            "num_units": 1,
+            "style": 3,
+            "tier_current": 1,
+            "tier_total": 1
+          },
+          {
+            "name": "TFT17_GravesTrait",
+            "num_units": 1,
+            "style": 3,
+            "tier_current": 1,
+            "tier_total": 1
+          },
+          {
+            "name": "TFT17_MeleeTrait",
+            "num_units": 2,
+            "style": 1,
+            "tier_current": 1,
+            "tier_total": 3
+          },
+          {
+            "name": "TFT17_ResistTank",
+            "num_units": 2,
+            "style": 1,
+            "tier_current": 1,
+            "tier_total": 3
+          },
+          {
+            "name": "TFT17_RhaastUniqueTrait",
+            "num_units": 1,
+            "style": 3,
+            "tier_current": 1,
+            "tier_total": 1
+          },
+          {
+            "name": "TFT17_ShenUniqueTrait",
+            "num_units": 1,
+            "style": 3,
+            "tier_current": 1,
+            "tier_total": 1
+          },
+          {
+            "name": "TFT17_ShieldTank",
+            "num_units": 2,
+            "style": 1,
+            "tier_current": 1,
+            "tier_total": 3
+          },
+          {
+            "name": "TFT17_SpaceGroove",
+            "num_units": 1,
+            "style": 1,
+            "tier_current": 1,
+            "tier_total": 5
+          },
+          {
+            "name": "TFT17_Stargazer_Huntress",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 3
+          },
+          {
+            "name": "TFT17_VexUniqueTrait",
+            "num_units": 1,
+            "style": 3,
+            "tier_current": 1,
+            "tier_total": 1
+          }
+        ],
+        "units": [
+          {
+            "character_id": "TFT17_Aatrox",
+            "itemNames": [],
+            "name": "",
+            "rarity": 0,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Akali",
+            "itemNames": [],
+            "name": "",
+            "rarity": 1,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Rhaast",
+            "itemNames": [],
+            "name": "",
+            "rarity": 2,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Nunu",
+            "itemNames": [
+              "TFT_Item_FrozenHeart",
+              "TFT_Item_Redemption",
+              "TFT_Item_RedBuff"
+            ],
+            "name": "",
+            "rarity": 4,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Fiora",
+            "itemNames": [
+              "TFT_Item_ThiefsGloves",
+              "TFT_Item_MadredsBloodrazor",
+              "TFT_Item_RedBuff"
+            ],
+            "name": "",
+            "rarity": 6,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Blitzcrank",
+            "itemNames": [
+              "TFT_Item_RecurveBow"
+            ],
+            "name": "",
+            "rarity": 6,
+            "tier": 1
+          },
+          {
+            "character_id": "TFT17_Vex",
+            "itemNames": [
+              "TFT_Item_GuinsoosRageblade",
+              "TFT_Item_GuinsoosRageblade",
+              "TFT_Item_MadredsBloodrazor"
+            ],
+            "name": "",
+            "rarity": 6,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Shen",
+            "itemNames": [
+              "TFT_Item_ThiefsGloves",
+              "TFT_Item_Quicksilver",
+              "TFT_Item_RabadonsDeathcap"
+            ],
+            "name": "",
+            "rarity": 6,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Graves",
+            "itemNames": [
+              "TFT_Item_MadredsBloodrazor",
+              "TFT_Item_Quicksilver",
+              "TFT_Item_Deathblade"
+            ],
+            "name": "",
+            "rarity": 6,
+            "tier": 2
+          }
+        ],
+        "win": true
+      },
+      {
+        "companion": {
+          "content_ID": "b44708a1-ebac-4eff-a0fc-b4b97bbe9f3d",
+          "item_ID": 37,
+          "skin_ID": 37,
+          "species": "PetTFTAvatar"
+        },
+        "gold_left": 4,
+        "last_round": 37,
+        "level": 10,
+        "missions": {
+          "PlayerScore2": 206
+        },
+        "placement": 2,
+        "players_eliminated": 2,
+        "puuid": "2esZbkc9tqcgcWcvC0J942O36bbMGBrmvRATB2TPpsj5YPgRL30PZnRF24TzT8mI3yVG7H-f2veubA",
+        "riotIdGameName": "DoDGemE888",
+        "riotIdTagline": "NA1",
+        "time_eliminated": 2065.656005859375,
+        "total_damage_to_players": 173,
+        "traits": [
+          {
+            "name": "TFT17_APTrait",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 2
+          },
+          {
+            "name": "TFT17_AssassinTrait",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 4
+          },
+          {
+            "name": "TFT17_DarkStar",
+            "num_units": 6,
+            "style": 4,
+            "tier_current": 3,
+            "tier_total": 4
+          },
+          {
+            "name": "TFT17_FlexTrait",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 5
+          },
+          {
+            "name": "TFT17_HPTank",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 3
+          },
+          {
+            "name": "TFT17_JhinUniqueTrait",
+            "num_units": 1,
+            "style": 3,
+            "tier_current": 1,
+            "tier_total": 1
+          },
+          {
+            "name": "TFT17_ManaTrait",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 4
+          },
+          {
+            "name": "TFT17_RangedTrait",
+            "num_units": 2,
+            "style": 1,
+            "tier_current": 1,
+            "tier_total": 3
+          },
+          {
+            "name": "TFT17_ResistTank",
+            "num_units": 2,
+            "style": 1,
+            "tier_current": 1,
+            "tier_total": 3
+          },
+          {
+            "name": "TFT17_ShenUniqueTrait",
+            "num_units": 1,
+            "style": 3,
+            "tier_current": 1,
+            "tier_total": 1
+          },
+          {
+            "name": "TFT17_ShieldTank",
+            "num_units": 2,
+            "style": 1,
+            "tier_current": 1,
+            "tier_total": 3
+          },
+          {
+            "name": "TFT17_Stargazer_Huntress",
+            "num_units": 3,
+            "style": 1,
+            "tier_current": 1,
+            "tier_total": 3
+          },
+          {
+            "name": "TFT17_SummonTrait",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 3
+          }
+        ],
+        "units": [
+          {
+            "character_id": "TFT17_Chogath",
+            "itemNames": [],
+            "name": "",
+            "rarity": 0,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Lissandra",
+            "itemNames": [],
+            "name": "",
+            "rarity": 0,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Jax",
+            "itemNames": [],
+            "name": "",
+            "rarity": 1,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Mordekaiser",
+            "itemNames": [],
+            "name": "",
+            "rarity": 1,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Kaisa",
+            "itemNames": [
+              "TFT_Item_Deathblade",
+              "TFT_Item_RapidFireCannon",
+              "TFT_Item_StatikkShiv"
+            ],
+            "name": "",
+            "rarity": 2,
+            "tier": 3
+          },
+          {
+            "character_id": "TFT17_Karma",
+            "itemNames": [],
+            "name": "",
+            "rarity": 4,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Nunu",
+            "itemNames": [
+              "TFT_Item_DragonsClaw",
+              "TFT_Item_Crownguard",
+              "TFT_Item_SpectralGauntlet"
+            ],
+            "name": "",
+            "rarity": 4,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Xayah",
+            "itemNames": [
+              "TFT_Item_GuinsoosRageblade"
+            ],
+            "name": "",
+            "rarity": 4,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Jhin",
+            "itemNames": [
+              "TFT_Item_Deathblade",
+              "TFT_Item_InfinityEdge",
+              "TFT_Item_UnstableConcoction"
+            ],
+            "name": "",
+            "rarity": 6,
+            "tier": 1
+          },
+          {
+            "character_id": "TFT17_Shen",
+            "itemNames": [
+              "TFT_Item_BrambleVest",
+              "TFT_Item_GiantsBelt"
+            ],
+            "name": "",
+            "rarity": 6,
+            "tier": 2
+          }
+        ],
+        "win": true
+      },
+      {
+        "companion": {
+          "content_ID": "f19d341e-b037-4b9e-934b-fd7a0dc0e665",
+          "item_ID": 1017,
+          "skin_ID": 17,
+          "species": "PetGhosty"
+        },
+        "gold_left": 0,
+        "last_round": 28,
+        "level": 9,
+        "missions": {
+          "PlayerScore2": 83
+        },
+        "placement": 5,
+        "players_eliminated": 0,
+        "puuid": "FlhbnJmA-tfxOyt3iIH4VoLxHbjhzQq0kULCvr1bhVrO-B9d1M0FZuIylqeXqwZeYhSVNLSKaMR6eQ",
+        "riotIdGameName": "ELTanqu3",
+        "riotIdTagline": "3405",
+        "time_eliminated": 1664.5594482421875,
+        "total_damage_to_players": 70,
+        "traits": [
+          {
+            "name": "TFT17_APTrait",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 2
+          },
+          {
+            "name": "TFT17_AssassinTrait",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 4
+          },
+          {
+            "name": "TFT17_Astronaut",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 4
+          },
+          {
+            "name": "TFT17_RangedTrait",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 3
+          },
+          {
+            "name": "TFT17_ResistTank",
+            "num_units": 2,
+            "style": 1,
+            "tier_current": 1,
+            "tier_total": 3
+          },
+          {
+            "name": "TFT17_ShieldTank",
+            "num_units": 2,
+            "style": 1,
+            "tier_current": 1,
+            "tier_total": 3
+          },
+          {
+            "name": "TFT17_SpaceGroove",
+            "num_units": 6,
+            "style": 2,
+            "tier_current": 3,
+            "tier_total": 5
+          },
+          {
+            "name": "TFT17_Stargazer_Huntress",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 3
+          },
+          {
+            "name": "TFT17_SummonTrait",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 3
+          }
+        ],
+        "units": [
+          {
+            "character_id": "TFT17_Poppy",
+            "itemNames": [],
+            "name": "",
+            "rarity": 0,
+            "tier": 1
+          },
+          {
+            "character_id": "TFT17_Teemo",
+            "itemNames": [],
+            "name": "",
+            "rarity": 0,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Nasus",
+            "itemNames": [],
+            "name": "",
+            "rarity": 0,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Gwen",
+            "itemNames": [],
+            "name": "",
+            "rarity": 1,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Samira",
+            "itemNames": [
+              "TFT_Item_SpearOfShojin"
+            ],
+            "name": "",
+            "rarity": 2,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Ornn",
+            "itemNames": [
+              "TFT_Item_SpectralGauntlet"
+            ],
+            "name": "",
+            "rarity": 2,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Nami",
+            "itemNames": [
+              "TFT_Item_Leviathan",
+              "TFT_Item_Morellonomicon",
+              "TFT_Item_HextechGunblade"
+            ],
+            "name": "",
+            "rarity": 4,
+            "tier": 1
+          },
+          {
+            "character_id": "TFT17_Nunu",
+            "itemNames": [
+              "TFT_Item_FrozenHeart",
+              "TFT_Item_FrozenHeart",
+              "TFT_Item_RedBuff"
+            ],
+            "name": "",
+            "rarity": 4,
+            "tier": 1
+          }
+        ],
+        "win": false
+      },
+      {
+        "companion": {
+          "content_ID": "0f359678-cda8-480c-be49-877f113365f7",
+          "item_ID": 64002,
+          "skin_ID": 2,
+          "species": "PetChibiTeemo"
+        },
+        "gold_left": 30,
+        "last_round": 33,
+        "level": 9,
+        "missions": {
+          "PlayerScore2": 188
+        },
+        "placement": 4,
+        "players_eliminated": 1,
+        "puuid": "ldiOTs5A1ah7o-Gwv9I852I51K_Ljpp2X5TvHEJ1wARsSm69-CinHo_igXm1yQaPD0tNzUN7WCCgjA",
+        "riotIdGameName": "Omion",
+        "riotIdTagline": "NA1",
+        "time_eliminated": 1886.6807861328125,
+        "total_damage_to_players": 124,
+        "traits": [
+          {
+            "name": "TFT17_AnimaSquad",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 2
+          },
+          {
+            "name": "TFT17_Astronaut",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 4
+          },
+          {
+            "name": "TFT17_DarkStar",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 4
+          },
+          {
+            "name": "TFT17_FlexTrait",
+            "num_units": 5,
+            "style": 2,
+            "tier_current": 4,
+            "tier_total": 5
+          },
+          {
+            "name": "TFT17_HPTank",
+            "num_units": 2,
+            "style": 1,
+            "tier_current": 1,
+            "tier_total": 3
+          },
+          {
+            "name": "TFT17_ManaTrait",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 4
+          },
+          {
+            "name": "TFT17_Mecha",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 3
+          },
+          {
+            "name": "TFT17_MeleeTrait",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 3
+          },
+          {
+            "name": "TFT17_PsyOps",
+            "num_units": 4,
+            "style": 4,
+            "tier_current": 2,
+            "tier_total": 2
+          },
+          {
+            "name": "TFT17_SummonTrait",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 3
+          },
+          {
+            "name": "TFT17_TahmKenchUniqueTrait",
+            "num_units": 1,
+            "style": 3,
+            "tier_current": 1,
+            "tier_total": 1
+          }
+        ],
+        "units": [
+          {
+            "character_id": "TFT17_Pyke",
+            "itemNames": [
+              "TFT_Item_UnstableConcoction",
+              "TFT_Item_InfinityEdge",
+              "TFT17_Item_PsyOps_ChemicalCapacitorMod_Radiant"
+            ],
+            "name": "",
+            "rarity": 1,
+            "tier": 3
+          },
+          {
+            "character_id": "TFT17_Gragas",
+            "itemNames": [],
+            "name": "",
+            "rarity": 1,
+            "tier": 3
+          },
+          {
+            "character_id": "TFT17_IvernMinion",
+            "itemNames": [],
+            "name": "",
+            "rarity": 1,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Aurora",
+            "itemNames": [],
+            "name": "",
+            "rarity": 2,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Viktor",
+            "itemNames": [
+              "TFT_Item_BlueBuff",
+              "TFT17_Item_PsyOps_DroneMod_Radiant",
+              "TFT_Item_StatikkShiv"
+            ],
+            "name": "",
+            "rarity": 2,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Karma",
+            "itemNames": [],
+            "name": "",
+            "rarity": 4,
+            "tier": 1
+          },
+          {
+            "character_id": "TFT17_Galio",
+            "itemNames": [
+              "TFT_Item_SpectralGauntlet",
+              "TFT_Item_Redemption",
+              "TFT_Item_WarmogsArmor"
+            ],
+            "name": "",
+            "rarity": 4,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_MasterYi",
+            "itemNames": [
+              "TFT_Item_Bloodthirster",
+              "TFT_Item_RecurveBow",
+              "TFT_Item_UnstableConcoction"
+            ],
+            "name": "",
+            "rarity": 4,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_TahmKench",
+            "itemNames": [],
+            "name": "",
+            "rarity": 4,
+            "tier": 1
+          }
+        ],
+        "win": true
+      },
+      {
+        "companion": {
+          "content_ID": "b4acb78e-14af-4b05-9129-f4e69ae44d68",
+          "item_ID": 96003,
+          "skin_ID": 3,
+          "species": "PetChibiYuumi"
+        },
+        "gold_left": 5,
+        "last_round": 24,
+        "level": 9,
+        "missions": {
+          "PlayerScore2": 71
+        },
+        "placement": 7,
+        "players_eliminated": 0,
+        "puuid": "ipiYrWyPCRm12GC9Dmuo5Cf3-8VBUpVAOtgrWMBlogRTDYFjrY52fj-WUZKvMSZq6DNwAKVHK8GCeA",
+        "riotIdGameName": "Tosspebble",
+        "riotIdTagline": "NA1",
+        "time_eliminated": 1424.2882080078125,
+        "total_damage_to_players": 36,
+        "traits": [
+          {
+            "name": "TFT17_APTrait",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 2
+          },
+          {
+            "name": "TFT17_FlexTrait",
+            "num_units": 2,
+            "style": 1,
+            "tier_current": 1,
+            "tier_total": 5
+          },
+          {
+            "name": "TFT17_GravesTrait",
+            "num_units": 1,
+            "style": 3,
+            "tier_current": 1,
+            "tier_total": 1
+          },
+          {
+            "name": "TFT17_HPTank",
+            "num_units": 3,
+            "style": 1,
+            "tier_current": 1,
+            "tier_total": 3
+          },
+          {
+            "name": "TFT17_Mecha",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 3
+          },
+          {
+            "name": "TFT17_MeleeTrait",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 3
+          },
+          {
+            "name": "TFT17_PsyOps",
+            "num_units": 4,
+            "style": 4,
+            "tier_current": 2,
+            "tier_total": 2
+          },
+          {
+            "name": "TFT17_ResistTank",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 3
+          },
+          {
+            "name": "TFT17_ShenUniqueTrait",
+            "num_units": 1,
+            "style": 3,
+            "tier_current": 1,
+            "tier_total": 1
+          },
+          {
+            "name": "TFT17_SonaUniqueTrait",
+            "num_units": 1,
+            "style": 3,
+            "tier_current": 1,
+            "tier_total": 1
+          },
+          {
+            "name": "TFT17_SummonTrait",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 3
+          },
+          {
+            "name": "TFT17_TahmKenchUniqueTrait",
+            "num_units": 1,
+            "style": 3,
+            "tier_current": 1,
+            "tier_total": 1
+          },
+          {
+            "name": "TFT17_Timebreaker",
+            "num_units": 1,
+            "style": 0,
+            "tier_current": 0,
+            "tier_total": 3
+          }
+        ],
+        "units": [
+          {
+            "character_id": "TFT17_Pyke",
+            "itemNames": [
+              "TFT_Item_ThiefsGloves",
+              "TFT_Item_SteraksGage",
+              "TFT_Item_RabadonsDeathcap"
+            ],
+            "name": "",
+            "rarity": 1,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Gragas",
+            "itemNames": [],
+            "name": "",
+            "rarity": 1,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Pantheon",
+            "itemNames": [],
+            "name": "",
+            "rarity": 1,
+            "tier": 1
+          },
+          {
+            "character_id": "TFT17_Galio",
+            "itemNames": [],
+            "name": "",
+            "rarity": 4,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_MasterYi",
+            "itemNames": [
+              "TFT17_Item_PsyOps_ChemicalCapacitorMod_Radiant",
+              "TFT_Item_UnstableConcoction",
+              "TFT_Item_BFSword"
+            ],
+            "name": "",
+            "rarity": 4,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_TahmKench",
+            "itemNames": [
+              "TFT_Item_GargoyleStoneplate",
+              "TFT_Item_WarmogsArmor"
+            ],
+            "name": "",
+            "rarity": 4,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Sona",
+            "itemNames": [
+              "TFT_Item_JeweledGauntlet",
+              "TFT17_Item_PsyOps_SympatheticImplantMod_Radiant",
+              "TFT_Item_TearOfTheGoddess"
+            ],
+            "name": "",
+            "rarity": 6,
+            "tier": 1
+          },
+          {
+            "character_id": "TFT17_Shen",
+            "itemNames": [],
+            "name": "",
+            "rarity": 6,
+            "tier": 2
+          },
+          {
+            "character_id": "TFT17_Graves",
+            "itemNames": [],
+            "name": "",
+            "rarity": 6,
+            "tier": 1
+          }
+        ],
+        "win": false
+      }
+    ],
+    "queueId": 1100,
+    "queue_id": 1100,
+    "tft_game_type": "standard",
+    "tft_set_core_name": "TFTSet17",
+    "tft_set_number": 17
+  }
+}

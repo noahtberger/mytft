@@ -1,0 +1,36 @@
+{
+  "manifest_version": 1,
+  "type": "WebApp",
+  "meta": {
+    "name": "TFT Round Logger",
+    "version": "0.1.0",
+    "minimum-overwolf-version": "0.170.0",
+    "author": "noah",
+    "icon": "icon.png",
+    "icon_gray": "icon.png",
+    "launcher_icon": "icon.png",
+    "description": "Headless logger: records TFT round-by-round events to disk for post-game analysis. No overlay, no UI."
+  },
+  "permissions": ["GameInfo", "FileSystem"],
+  "data": {
+    "start_window": "background",
+    "windows": {
+      "background": {
+        "file": "background.html",
+        "is_background_page": true
+      }
+    },
+    "game_targeting": {
+      "type": "dedicated",
+      "game_ids": [5426]
+    },
+    "game_events": [5426],
+    "launch_events": [
+      {
+        "event": "GameLaunch",
+        "event_data": { "game_ids": [5426] },
+        "start_minimized": true
+      }
+    ]
+  }
+}

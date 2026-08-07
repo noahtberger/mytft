@@ -1,0 +1,4 @@
+mss==9.0.2            # fast screen capture
+opencv-python==4.10.0.84   # crop/threshold/upscale + the calibration box picker
+numpy==1.26.4
+pytesseract==0.3.13   # thin wrapper - needs the Tesseract binary installed too

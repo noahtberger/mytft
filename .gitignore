@@ -1,0 +1,7 @@
+# Machine-specific, rebuilt with `python -m venv .venv` + pip install requests
+.venv/
+__pycache__/
+.DS_Store
+
+# Packaged build of the retired Overwolf logger - the source folder is enough
+*.zip
