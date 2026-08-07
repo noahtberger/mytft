@@ -148,6 +148,15 @@ def report(label, subset, games, level_par, baseline, note=""):
     print(f"  avg {s['avg']:.2f}  |  top4 {s['top4']:.0f}%  |  firsts {s['wins']}"
           f"  |  level vs lobby {delta:+.2f}")
     print(f"  {recent} of them in your last {RECENT_WINDOW} games")
+
+    # No games without it means nothing to compare against. Early in a set a
+    # cheap frontline trait really is active in every game you have, so this
+    # is the normal state for a week, not a freak case.
+    if c is None:
+        print(f"  You have no games WITHOUT it, so there is nothing to compare")
+        print(f"  against - this number can't be judged until that changes.")
+        return
+
     print(f"  without it you average {c['rest_avg']:.2f}")
 
     if s["games"] < MIN_CONFIDENT:
@@ -208,10 +217,16 @@ def table(title, groups, all_placements, worst=False):
         if len(placements) < MIN_CONFIDENT:
             continue
         c = compare(placements, all_placements)
+        if c is None:      # in every game - nothing to compare it against
+            continue
         if c["real"] and ((c["diff"] > 0) == worst):
             rows.append((name, len(placements), c))
 
-    rows.sort(key=lambda r: r[2]["diff"], reverse=worst)
+    # Name breaks ties. It matters more here than it looks: the list is cut
+    # to six, so without a tiebreak two lines on the same gap can swap which
+    # one is shown at all from one run to the next (these groups are built by
+    # iterating sets of strings, whose order changes per process).
+    rows.sort(key=lambda r: (-r[2]["diff"] if worst else r[2]["diff"], r[0]))
     print(f"\n{title}  ({MIN_CONFIDENT}+ games, gap bigger than the error bars)")
     for name, n, c in rows[:6]:
         print(f"  {name:<20} {n:>4} games   avg {c['avg']:.2f}   "

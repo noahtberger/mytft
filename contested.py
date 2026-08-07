@@ -23,23 +23,8 @@ import tftdata as tft
 
 MIN_CELL = 10   # one side of a split needs this many games before a gap prints
 
-
-def committed(trait):
-    """Past the splash stage: second breakpoint, or 4+ units when the trait
-    only has one breakpoint to hit."""
-    return trait["tier_current"] >= 2 or (
-        trait["tier_current"] > 0 and trait.get("num_units", 0) >= 4)
-
-
-def gap_moe(n1, n2):
-    """95% margin of error on a DIFFERENCE of two average placements.
-
-    Wider than either side's own margin: subtracting two noisy numbers adds
-    their variances. The sqrt(1/n1 + 1/n2) is why a split needs more games
-    than either column would need alone.
-    """
-    return 1.96 * tft.PLACEMENT_SD * (1 / n1 + 1 / n2) ** 0.5
-
+committed = tft.committed   # shared with coverage.py - see tftdata for why
+gap_moe = tft.gap_moe
 
 games, _ = tft.load_games()
 set_number = games[0]["_set"]
@@ -93,8 +78,10 @@ for line, d in by_line.items():
         thin.append((line, len(d["alone"]) + len(d["shared"])))
 
 # Worst-when-contested first: those are the scouting decisions that matter.
-rows.sort(key=lambda r: (tft.summarise(r[1]["shared"])["avg"]
-                         - tft.summarise(r[1]["alone"])["avg"]), reverse=True)
+# Name breaks ties so the table doesn't reshuffle between runs on identical
+# data (these dicts are filled by iterating sets, whose order varies).
+rows.sort(key=lambda r: (tft.summarise(r[1]["alone"])["avg"]
+                         - tft.summarise(r[1]["shared"])["avg"], r[0]))
 
 for line, d in rows:
     a, s = tft.summarise(d["alone"]), tft.summarise(d["shared"])
@@ -135,7 +122,7 @@ if not rows:
 
 if thin:
     names = ", ".join(f"{line} ({n})"
-                      for line, n in sorted(thin, key=lambda t: -t[1]))
+                      for line, n in sorted(thin, key=lambda t: (-t[1], t[0])))
     print("\n  Too few committed games to judge yet (game counts):")
     print(textwrap.fill(names, width=62,
                         initial_indent="     ", subsequent_indent="     "))
@@ -152,16 +139,26 @@ total_carry = sum(len(v) for v in by_carry_rivals.values())
 shared_carry = total_carry - len(by_carry_rivals.get(0, []))
 
 print("\nYOUR CARRY")
-print(f"\n  A rival fields copies of your carry in "
-      f"{100 * shared_carry / total_carry:.0f}% of your games "
-      f"({shared_carry} of {total_carry}) -")
-print("  every copy they hold is one you can't roll into.\n")
 
-labels = {0: "carry all to yourself", 1: "one rival", 2: "two or more rivals"}
-for n in sorted(by_carry_rivals):
-    s = tft.summarise(by_carry_rivals[n])
-    print(f"     {labels[n]:<22} avg {s['avg']:.2f}, top-4 {s['top4']:.0f}%"
-          f"  ({s['games']} games)")
+# No carry in any game means no denominator. That is not hypothetical early in
+# a set: carry_of only names a unit holding 2+ items, so a run of games that
+# ended before you completed an item leaves this empty.
+if not total_carry:
+    print("\n  No game here had a unit holding two or more items, so there is")
+    print("  no carry to talk about yet. This fills in as games accumulate.")
+else:
+    # "of the games you had a carry", not "of your games": the denominator is
+    # games where carry_of found a 2+ item unit, which is not every game.
+    print(f"\n  A rival fields copies of your carry in "
+          f"{100 * shared_carry / total_carry:.0f}% of the {total_carry} games "
+          f"where you had one ({shared_carry} of {total_carry}) -")
+    print("  every copy they hold is one you can't roll into.\n")
+
+    labels = {0: "carry all to yourself", 1: "one rival", 2: "two or more rivals"}
+    for n in sorted(by_carry_rivals):
+        s = tft.summarise(by_carry_rivals[n])
+        print(f"     {labels[n]:<22} avg {s['avg']:.2f}, top-4 {s['top4']:.0f}%"
+              f"  ({s['games']} games)")
 
 # Compare every pair of rows; only call out a difference luck can't explain.
 sig = None

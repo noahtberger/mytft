@@ -1,0 +1,239 @@
+"""A little local web app: type a Riot ID, get that player's report.
+
+Run:  export RIOT_API_KEY='RGAPI-...'
+      python serve.py
+      open http://127.0.0.1:8000
+
+Why this is a server and not just a page
+----------------------------------------
+The generated site/index.html is a static file, and a static file cannot go
+and fetch someone's match history. Three separate walls stop it:
+
+  - Riot's API sends no CORS headers, so browser JavaScript cannot call it
+    at all, from any page.
+  - Your API key would have to travel to the browser to make that call, which
+    means handing it to anyone who opens the page.
+  - The published claude.ai copy runs under a strict CSP that blocks every
+    external host outright.
+
+So the key stays here, on your machine, and this process does the fetching.
+It binds to 127.0.0.1 on purpose: nothing outside this computer can reach it,
+which is what makes holding the key in memory safe. Putting it on the open
+internet would need a rethink, starting with not trusting whoever connects.
+
+What it costs
+-------------
+A player nobody has looked up before needs their history downloaded, and a
+personal key allows 100 requests every 2 minutes - so a first lookup takes
+roughly a minute for GAMES_WANTED games. After that they are cached in
+matches/ and it is instant. Because every match file holds all 8 boards, one
+person's download also fills in seven other people's history for free.
+"""
+
+import html
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import threading
+import uuid
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
+from pathlib import Path
+from urllib.parse import parse_qs, urlparse
+
+import riot
+import tftdata as tft
+
+HOST, PORT = "127.0.0.1", 8000
+GAMES_WANTED = 50   # enough to clear the 30-game bar without a 4-minute wait
+
+JOBS = {}
+JOBS_LOCK = threading.Lock()
+
+
+def set_job(job_id, **fields):
+    with JOBS_LOCK:
+        JOBS.setdefault(job_id, {}).update(fields)
+
+
+def get_job(job_id):
+    with JOBS_LOCK:
+        return dict(JOBS.get(job_id) or {})
+
+
+def run_job(job_id, riot_id):
+    """Resolve, backfill, render. Runs on its own thread so the page can poll."""
+    try:
+        set_job(job_id, status="Looking up the account...")
+        puuid, label = riot.resolve(riot_id)
+
+        set_job(job_id, status=f"Found {label}. Checking saved games...", label=label)
+
+        def progress(i, total, have):
+            set_job(job_id, status=f"Downloading {label}'s games - {i} of {total} "
+                                   f"checked, {have} ready")
+
+        have, _ = riot.backfill(puuid, want=GAMES_WANTED, progress=progress)
+        if not have:
+            set_job(job_id, status=None, error=(
+                f"{label} has no ranked TFT games in the current set. "
+                "Only ranked games are analysed."))
+            return
+
+        set_job(job_id, status=f"Building the report for {label}...")
+
+        # build_site.py is run as a separate process rather than imported: it
+        # is a top-to-bottom script, so importing it twice would re-execute
+        # it, and a subprocess also means one player's crash can't take the
+        # server down with it.
+        out = Path(tempfile.mkdtemp(prefix="tft-report-"))
+        env = {**os.environ, "TFT_PUUID": puuid, "TFT_OUT": str(out),
+               "TFT_NAME": label}
+        done = subprocess.run([sys.executable, "build_site.py"], env=env,
+                              capture_output=True, text=True, cwd=Path(__file__).parent)
+        if done.returncode != 0:
+            detail = (done.stderr or done.stdout).strip().splitlines()
+            set_job(job_id, status=None,
+                    error="Couldn't build the report: "
+                          + (detail[-1] if detail else "unknown error"))
+            return
+
+        set_job(job_id, status=None, html=(out / "index.html").read_text())
+
+    except riot.RiotError as problem:
+        set_job(job_id, status=None, error=str(problem))
+    except Exception as problem:                      # noqa: BLE001
+        set_job(job_id, status=None, error=f"{type(problem).__name__}: {problem}")
+
+
+PAGE = """<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TFT tracker</title>
+{refresh}
+<style>
+:root {{
+  --bg:#F5F6F8; --panel:#fff; --line:#DFE3EA; --ink:#171B22; --muted:#5A6478;
+  --accent:#B4761A; --neg:#C24A52;
+  --display:"Avenir Next","Avenir",ui-sans-serif,system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}}
+@media (prefers-color-scheme: dark) {{
+  :root {{ --bg:#0B0E14; --panel:#141A24; --line:#232C3A; --ink:#E4E8F0;
+           --muted:#8792A8; --accent:#BE831A; --neg:#D25A61; }}
+}}
+* {{ box-sizing:border-box; }}
+body {{ margin:0; min-height:100vh; display:grid; place-items:center;
+       background:var(--bg); color:var(--ink); font-family:var(--display);
+       line-height:1.6; padding:24px; }}
+.card {{ width:100%; max-width:480px; }}
+.eyebrow {{ font-family:var(--mono); font-size:11px; letter-spacing:.16em;
+           text-transform:uppercase; color:var(--muted); margin:0 0 8px; }}
+h1 {{ font-size:34px; letter-spacing:-.03em; line-height:1.1; margin:0 0 10px;
+     font-weight:800; }}
+p {{ color:var(--muted); margin:0 0 22px; }}
+form {{ display:flex; gap:10px; flex-wrap:wrap; }}
+input {{ flex:1 1 220px; font-family:var(--mono); font-size:16px; padding:12px 14px;
+        border:1px solid var(--line); border-radius:3px; background:var(--panel);
+        color:var(--ink); }}
+button {{ font-family:var(--display); font-weight:700; font-size:15px;
+         padding:12px 20px; border:0; border-radius:3px; cursor:pointer;
+         background:var(--accent); color:#fff; }}
+button:hover {{ filter:brightness(1.08); }}
+:focus-visible {{ outline:2px solid var(--accent); outline-offset:2px; }}
+.status {{ font-family:var(--mono); font-size:13.5px; color:var(--muted);
+          border-left:3px solid var(--accent); padding:10px 14px;
+          background:var(--panel); border-radius:3px; }}
+.error {{ border-left-color:var(--neg); color:var(--ink); }}
+a {{ color:var(--accent); }}
+</style></head><body><div class="card">
+<p class="eyebrow">TFT tracker</p>
+{content}
+</div></body></html>
+"""
+
+
+def page(content, refresh=None):
+    tag = f'<meta http-equiv="refresh" content="{refresh}">' if refresh else ""
+    return PAGE.format(content=content, refresh=tag).encode()
+
+
+def home(message=""):
+    note = f'<p class="status error">{html.escape(message)}</p>' if message else ""
+    return page(f"""
+<h1>Whose games?</h1>
+<p>Type any Riot ID. A player nobody has looked up yet takes about a minute
+to download; after that it is instant.</p>
+<form method="post" action="/go">
+  <input name="riot_id" placeholder="orobas#tomo" autofocus
+         aria-label="Riot ID" required>
+  <button type="submit">Analyse</button>
+</form>
+{note}""")
+
+
+class Handler(BaseHTTPRequestHandler):
+    def log_message(self, *args):
+        pass          # the default logger writes a line per request; too noisy
+
+    def reply(self, body, code=200, content_type="text/html; charset=utf-8"):
+        self.send_response(code)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_GET(self):
+        route = urlparse(self.path)
+        if route.path == "/":
+            self.reply(home())
+            return
+
+        if route.path.startswith("/job/"):
+            job = get_job(route.path.rsplit("/", 1)[-1])
+            if not job:
+                self.reply(home("That lookup expired - try again."), 404)
+            elif job.get("error"):
+                self.reply(page(f'<h1>That didn\'t work</h1>'
+                                f'<p class="status error">{html.escape(job["error"])}</p>'
+                                f'<p><a href="/">Try another Riot ID</a></p>'))
+            elif job.get("html"):
+                self.reply(job["html"].encode())
+            else:
+                # Poll by meta-refresh rather than JavaScript: no script to
+                # debug, and it works with JS switched off like the report does.
+                self.reply(page(
+                    f'<h1>Working on it</h1>'
+                    f'<p class="status">{html.escape(job.get("status") or "Starting...")}</p>'
+                    f'<p>This page refreshes itself. A first lookup is about a '
+                    f'minute &mdash; Riot allows 100 requests every 2 minutes.</p>',
+                    refresh=2))
+            return
+
+        self.reply(home("Unknown page."), 404)
+
+    def do_POST(self):
+        length = int(self.headers.get("Content-Length") or 0)
+        fields = parse_qs(self.rfile.read(length).decode())
+        riot_id = (fields.get("riot_id") or [""])[0].strip()
+        if "#" not in riot_id:
+            self.reply(home("A Riot ID needs the tag too, like orobas#tomo"))
+            return
+
+        job_id = uuid.uuid4().hex[:12]
+        set_job(job_id, status="Starting...")
+        threading.Thread(target=run_job, args=(job_id, riot_id), daemon=True).start()
+        self.send_response(303)
+        self.send_header("Location", f"/job/{job_id}")
+        self.end_headers()
+
+
+if __name__ == "__main__":
+    if not os.environ.get("RIOT_API_KEY"):
+        sys.exit("No API key. Get one at developer.riotgames.com, then:\n"
+                 "  export RIOT_API_KEY='RGAPI-...'\n"
+                 "It stays in this process and is never sent to the browser.")
+    print(f"TFT tracker running at http://{HOST}:{PORT}")
+    print("Local only - nothing outside this machine can reach it. Ctrl-C to stop.")
+    ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
