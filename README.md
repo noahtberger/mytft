@@ -25,8 +25,8 @@ echo 'RGAPI-...' > .riot_key           # today's dev key, expires every 24h:
 .venv/bin/python ask.py                # pre-game companion (interactive)
 .venv/bin/python ask.py best           # proven strengths
 .venv/bin/python ask.py traps          # proven leaks
-.venv/bin/python ask.py stargazer boar # your record with any line
-.venv/bin/python contested.py          # alone-vs-shared record per line
+.venv/bin/python ask.py stargazer boar # your record with any comp
+.venv/bin/python contested.py          # alone-vs-shared record per comp
 .venv/bin/python coverage.py           # what you've tested enough to judge
 .venv/bin/python playstyle.py          # how you play, vs your own lobbies
 .venv/bin/python pregame.py            # the one screen to read before you queue
@@ -35,7 +35,7 @@ echo 'RGAPI-...' > .riot_key           # today's dev key, expires every 24h:
 
 `pregame.py` folds the coaching into one screen: what wins in your own
 lobbies (all 8 boards of every game, so it reaches verdicts your personal
-per-line record can't), where your build rates disagree with that meta,
+per-comp record can't), where your build rates disagree with that meta,
 what your own record has actually proven, and your current-era playstyle
 sentence. Add `name#tag ...` to scout people at the same time.
 
@@ -116,8 +116,8 @@ Occasional:
 | `me.json`          | the puuid reports default to (see "More than one player") | |
 | `stats.py`         | full report over `matches/` | – |
 | `ask.py`           | pre-game companion, plain-English queries | – |
-| `contested.py`     | placement when a line/carry is contested vs alone | – |
-| `coverage.py`      | which lines have the games to be judged, and which are blank | – |
+| `contested.py`     | placement when a comp/carry is contested vs alone | – |
+| `coverage.py`      | which comps have the games to be judged, and which are blank | – |
 | `scout.py`         | what other players build, from public match history | API key |
 | `playstyle.py`     | how you play vs your lobbies; set-independent | – |
 | `pregame.py`       | pre-queue screen: lobby meta, your leaks, proven reads | – |
@@ -187,8 +187,8 @@ background.
 
 - **~30 games minimum** before a number is actionable; under that it's a
   hint. Margin of error on avg placement ≈ `4.5/sqrt(n)` places.
-- **Compare with-vs-without**, not line-vs-overall-average (the average
-  already contains the line).
+- **Compare with-vs-without**, not comp-vs-overall-average (the average
+  already contains the comp).
 - **Normalize against the lobby** (all 8 players are in every match file);
   that self-corrects for rank and patch.
 - **gold_left is not an econ signal** — it inverts (winners hold gold).

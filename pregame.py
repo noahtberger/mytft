@@ -12,7 +12,7 @@ Four questions, in the order they matter at the queue screen:
      patches - 8 boards per game, which is why this table reaches verdicts
      your per-line personal record never will.
   2. Where do you and that meta disagree?  The intersection is the
-     coaching: a line the room wins with that you never build is a leak
+     coaching: a comp the lobby wins with that you never build is a leak
      no public site can see, because it needs your history AND your
      lobbies' in one place.
   3. What has your own record actually proven?  Only things past the
@@ -103,8 +103,8 @@ def rate_gaps(games, board_rows, set_number, room_rows):
 def disagree_section(gaps):
     """Print the rate gaps, loudest first, quietest compressed to one line.
 
-    A leak - a line the room wins with that you rarely build - gets its own
-    rows. Lines you skip that the room gets nothing from get one shared
+    A leak - a comp the lobby wins with that you rarely build - gets its own
+    rows. Comps you skip that the lobby gets nothing from get one shared
     sentence: they are the same fact repeated, and six identical paragraphs
     would bury the two that matter.
     """
@@ -125,40 +125,40 @@ def disagree_section(gaps):
     for row in gaps:
         grouped.setdefault(bucket(row), []).append(row)
 
-    # Within the leaks, the room's payoff ranks them: a +0.74 line you skip
+    # Within the leaks, the lobby's payoff ranks them: a +0.74 comp you skip
     # outranks a +0.44 one, whatever the rate gaps are.
     for line, my_pct, room_pct, v in sorted(
             grouped.get("leak", ()), key=lambda r: (-r[3]["gap"], r[0])):
-        print(f"\n  {line:<16} you {my_pct:>4.1f}%   room {room_pct:>4.1f}%")
-        wrap(f"the room wins with this (+{v['gap']:.2f}) and you almost "
+        print(f"\n  {line:<16} you {my_pct:>4.1f}%   lobby {room_pct:>4.1f}%")
+        wrap(f"the lobby wins with this (+{v['gap']:.2f}) and you almost "
              "never build it - the clearest kind of leak", indent="        ",
              first="     -> ")
 
     for line, my_pct, room_pct, v in sorted(
             grouped.get("bad_force", ()), key=lambda r: (r[3]["gap"], r[0])):
-        print(f"\n  {line:<16} you {my_pct:>4.1f}%   room {room_pct:>4.1f}%")
-        wrap(f"you force a line the room loses with ({v['gap']:+.2f})",
+        print(f"\n  {line:<16} you {my_pct:>4.1f}%   lobby {room_pct:>4.1f}%")
+        wrap(f"you force a comp the lobby loses with ({v['gap']:+.2f})",
              indent="        ", first="     -> ")
 
     for line, my_pct, room_pct, v in sorted(
             grouped.get("force", ()), key=lambda r: (r[2] - r[1], r[0])):
-        print(f"\n  {line:<16} you {my_pct:>4.1f}%   room {room_pct:>4.1f}%")
-        note = (f"you're heavy on a line the room also wins with "
+        print(f"\n  {line:<16} you {my_pct:>4.1f}%   lobby {room_pct:>4.1f}%")
+        note = (f"you're heavy on a comp the lobby also wins with "
                 f"(+{v['gap']:.2f})" if v and v["solid"] else
-                "you build it well above the room's rate, and nothing in "
-                "the room's results says it pays a premium")
+                "you build it well above the lobby's rate, and nothing in "
+                "the lobby's results says it pays a premium")
         wrap(note, indent="        ", first="     -> ")
 
     quiet = sorted(r[0] for r in grouped.get("skip_neutral", ()))
     if quiet:
         print()
-        wrap(f"You also build {', '.join(quiet)} less than the room does, "
-             "but the room's results with them are ordinary - nothing "
+        wrap(f"You also build {', '.join(quiet)} less than the lobby does, "
+             "but the lobby's results with them are ordinary - nothing "
              "proven is being missed there.")
     losers = sorted(r[0] for r in grouped.get("skip_loser", ()))
     if losers:
         print()
-        wrap(f"And you skip {', '.join(losers)}, which the room loses "
+        wrap(f"And you skip {', '.join(losers)}, which the lobby loses "
              "with - the right call.")
 
 
@@ -170,7 +170,7 @@ def proven(games, data):
         judged = tft.with_without([line in mine for mine in data["my_built"]],
                                   placements)
         if judged:
-            rows.append((f"{line} (line)", judged))
+            rows.append((f"{line} (comp)", judged))
     for name, pl in sorted(data["by_carry"].items(),
                            key=lambda kv: (-len(kv[1]), kv[0])):
         if len(pl) < tft.MIN_ACTIONABLE:
@@ -270,36 +270,36 @@ def main():
         print(f"\n  {'':<16}{'boards':>7}{'rate':>7}{'with':>7}{'without':>9}"
               f"{'gap':>7}   verdict")
         for line, n, judged in room_rows:
-            verdict = ("the room WINS with it" if judged["solid"]
+            verdict = ("the lobby WINS with it" if judged["solid"]
                        and judged["gap"] > 0 else
-                       "the room LOSES with it" if judged["solid"]
+                       "the lobby LOSES with it" if judged["solid"]
                        else "no real difference")
             print(f"  {line:<16}{n:>7}{100 * n / len(board_rows):>6.1f}%"
                   f"{judged['with']['avg']:>7.2f}{judged['without']['avg']:>9.2f}"
                   f"{judged['gap']:>+7.2f}   {verdict}")
         print()
-        wrap("Positive gap means boards committed to the line place better "
-             "than boards without it. Only rows marked as a verdict clear "
+        wrap("Positive gap means boards that built the comp place better "
+             "than boards without it. Only rows with a WINS or LOSES clear "
              "their own error bars; the rest are hints, listed so you can "
              "see the whole field.")
         print()
         wrap(f"One caveat, always: these games span patches "
-             f"{patches[0]}-{patches[-1]}, and strong lines move between "
+             f"{patches[0]}-{patches[-1]}, and strong comps move between "
              f"patches. Your last {min(RECENT_WINDOW, len(games))} games are "
-             f"{', '.join(recent)}. A line nerfed last week still carries "
+             f"{', '.join(recent)}. A comp nerfed last week still carries "
              "its old wins in this table.")
     else:
-        wrap(f"No line has {MIN_BOARDS}+ committed boards yet - early in a "
+        wrap(f"No comp has {MIN_BOARDS}+ built boards yet - early in a "
              "set this table is empty on purpose. It fills in on its own.")
 
     # ---- 2. where you and the meta disagree ------------------------------
     gaps = rate_gaps(games, board_rows, set_number, room_rows)
-    print("\nWHERE YOU DISAGREE WITH THE ROOM")
+    print("\nWHERE YOU DISAGREE WITH THE LOBBY")
     if gaps:
         disagree_section(gaps)
     else:
         print()
-        wrap("Your build rates match the room's everywhere it matters - "
+        wrap("Your build rates match the lobby's everywhere it matters - "
              "no real gaps to coach on.")
 
     # ---- 3. what your own record has proven ------------------------------
@@ -330,13 +330,13 @@ def main():
     print(f"\nHOW YOU PLAY RIGHT NOW  (current era, {era_n} games)")
     print()
     wrap(sentence if sentence else
-         "Nothing about how you play is far enough from the room to name - "
-         "you play like the lobby does.")
+         "Nothing about how you play is far enough from the lobby to name - "
+         "you play the way your lobbies do.")
     real = [(tft.PLAYSTYLE_LABELS[i][1], verdicts[k])
             for i, (k, *_rest) in enumerate(tft.PLAYSTYLE_LABELS)
             if k in verdicts and verdicts[k]["real"]]
     for label, v in real:
-        print(f"     {label:<24} you {v['a']:>5.2f}   room {v['b']:>5.2f}")
+        print(f"     {label:<24} you {v['a']:>5.2f}   lobby {v['b']:>5.2f}")
 
     # ---- 5. the people you're about to face ------------------------------
     if args:

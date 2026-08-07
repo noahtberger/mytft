@@ -72,15 +72,16 @@ print(f"  SET {set_number} COVERAGE - {n_games} ranked games")
 print("=" * 68)
 print()
 wrap("This is about what your data can and cannot answer yet. The bar is "
-     f"{tft.MIN_ACTIONABLE} committed games per line: at 30 games an average "
+     f"{tft.MIN_ACTIONABLE} built games per comp: at 30 games an average "
      "placement carries a margin of error of about +/- 0.8 places, at 10 "
      "games it is +/- 1.5 - wide enough to hide the entire difference "
-     "between a good line and a bad one.")
+     "between a good comp and a bad one.")
 
 ready, building, blind = data["ready"], data["building"], data["blind"]
 
 # ---- lines you can actually judge ---------------------------------------
-print(f"\nVERDICT-READY  ({tft.MIN_ACTIONABLE}+ games where you built the line)")
+print(f"\nENOUGH GAMES TO JUDGE  ({tft.MIN_ACTIONABLE}+ games where you "
+      "built the comp)")
 
 if ready:
     print(f"\n  {'':<16}{'games':>6}{'with':>7}{'without':>9}{'gap':>7}   verdict")
@@ -100,16 +101,16 @@ else:
     spread = len(built_games) or 1
     print("\n  Nothing has reached the bar yet.")
     print()
-    wrap(f"Your {n_games} games contain {total_commits} committed line-games "
-         f"spread across {spread} different lines - an average of "
-         f"{total_commits / spread:.0f} per line. That is the "
-         "finding: it is not that the lines are untested by accident, it is "
-         "that playing a different direction most games means no direction "
-         "ever accumulates a sample. Repetition is what buys a verdict.")
+    wrap(f"Your {n_games} games contain {total_commits} built-comp games "
+         f"spread across {spread} different comps - an average of "
+         f"{total_commits / spread:.0f} per comp. That is the "
+         "finding: it is not that the comps are untested by accident, it is "
+         "that playing something different most games means nothing ever "
+         "accumulates a sample. Repetition is what buys an answer.")
 
 # ---- lines on their way there -------------------------------------------
 if building:
-    print("\nBUILDING TOWARD A VERDICT")
+    print("\nPARTWAY TO ENOUGH GAMES")
     print(f"\n  {'':<16}{'built':>6}{'more':>6}  {'progress':<{BAR_WIDTH}}"
           f"  {'lobby':>6}")
     for line in building:
@@ -117,10 +118,10 @@ if building:
         print(f"  {line:<16}{n:>6}{tft.MIN_ACTIONABLE - n:>6}  {bar(n)}"
               f"  {lobby_rate[line]:>5.1f}%")
     print()
-    wrap("'more' is how many further games building that line would take it "
-         "to a verdict. 'lobby' is how often the other seven players commit "
-         "to it, so you can spend those games on something the meta actually "
-         "rewards rather than on a line nobody builds.")
+    wrap("'more' is how many further games building that comp would get it "
+         "to enough games to judge. 'lobby' is how often the other seven "
+         "players build it, so you can spend those games on something the "
+         "meta actually rewards rather than on a comp nobody plays.")
 
 # ---- lines you have no read on at all -----------------------------------
 if blind:
@@ -136,7 +137,7 @@ if blind:
             print(f"  {line:<16}{lobby_rate[line]:>5.1f}% of lobby boards"
                   f"   ({note})")
         print()
-        wrap("These are ranked by how often your lobbies build them. A line "
+        wrap("These are ranked by how often your lobbies build them. A comp "
              "high on this list is one your opponents keep winning games "
              "with while you have zero data on it - that is a blind spot. "
              "It is not advice to force it; it is where your report is "
@@ -154,17 +155,17 @@ divergence = sorted(
     key=lambda t: (-abs(t[0]), t[1]))[:6]
 
 if divergence:
-    print("\nYOUR HABITS vs THE ROOM")
+    print("\nWHAT YOU BUILD vs THE LOBBY")
     print(f"\n  {'':<16}{'you':>6}{'lobby':>8}")
     for diff, line in sorted(divergence, key=lambda t: (-t[0], t[1])):
         arrow = "much more often" if diff > 0 else "much less often"
         print(f"  {line:<16}{my_rate[line]:>5.0f}%{lobby_rate[line]:>7.1f}%"
               f"   you build it {arrow}")
     print()
-    wrap("Playing off-meta is not automatically wrong - a line you know well "
-         "can beat one the room forces. This table is here because the gaps "
+    wrap("Playing off-meta is not automatically wrong - a comp you know well "
+         "can beat one the lobby forces. This table is here because the gaps "
          "explain the shape of your data: what you over-play is what you "
-         "will get a verdict on first.")
+         "will get an answer on first.")
 
 # ---- carries -------------------------------------------------------------
 by_carry = data["by_carry"]
@@ -205,20 +206,20 @@ if by_carry:
 
     print()
     wrap(f"{len(by_carry)} different carries across {carried} games. Carries "
-         "spread thinner than lines do, so treat every carry average in the "
+         "spread thinner than comps do, so treat every carry average in the "
          "other reports as a hint until one of these bars fills.")
 
 # ---- what this means -----------------------------------------------------
 print("\nWHERE THIS LEAVES YOU")
 print()
 if ready:
-    wrap(f"{len(ready)} of {len(roster)} lines are judgeable, "
+    wrap(f"{len(ready)} of {len(roster)} comps have enough games to judge, "
          f"{len(building)} are partway, {len(blind)} are blank.")
 else:
-    wrap(f"None of the {len(roster)} lines in set {set_number} are judgeable "
-         f"yet, {len(building)} are partway there, and {len(blind)} are "
-         "blank. Every line number in the other reports is a hint at this "
-         "point, not a conclusion.")
+    wrap(f"None of the {len(roster)} comps in set {set_number} have enough "
+         f"games to judge yet, {len(building)} are partway there, and "
+         f"{len(blind)} are blank. Every comp number in the other reports "
+         "is a hint at this point, not a conclusion.")
 print()
 if judged_carries:
     names = ", ".join(name for name, _ in judged_carries)
@@ -226,5 +227,5 @@ if judged_carries:
          "and it is the only number here you can lean on.")
     print()
 wrap("Run this again after a session: the bars only move when you repeat a "
-     "line, and repeating a line is the only thing that turns this tracker "
+     "comp, and repeating a comp is the only thing that turns this tracker "
      "from a log into an answer.")

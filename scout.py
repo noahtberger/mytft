@@ -273,7 +273,7 @@ def main():
 
     print(f"""
   How to read this: 'builds' is what they committed to, not what they
-  splashed, so it is their actual direction. A line that shows up in most
+  splashed, so it is their actual direction. A comp that shows up in most
   of someone's games is a player who forces it - that is the one worth
   avoiding or punishing. Anything under ~5 games is a hint, not a read.
 

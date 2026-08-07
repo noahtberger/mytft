@@ -71,7 +71,7 @@ print()
 wrap(f"Measured against the {len(room)} boards played by everyone else in "
      "your lobbies, so this is your rank and your patches.")
 
-print(f"\n  {'':<24}{'you':>8}{'them':>8}{'gap':>8}   read")
+print(f"\n  {'':<24}{'you':>8}{'lobby':>8}{'gap':>8}   read")
 verdicts = {}
 for key, label, more, less in tft.PLAYSTYLE_LABELS:
     judged = tft.mean_gap([p[key] for p in era], [p[key] for p in room])
@@ -79,20 +79,20 @@ for key, label, more, less in tft.PLAYSTYLE_LABELS:
         continue
     verdicts[key] = judged
     read = (more if judged["gap"] > 0 else less) if judged["real"] \
-        else "same as the room"
+        else "same as the lobby"
     print(f"  {label:<24}{judged['a']:>8.2f}{judged['b']:>8.2f}"
           f"{judged['gap']:>+8.2f}   {read}")
 
 print()
 wrap("A gap only gets a word for it when it is bigger than its own error "
-     "bar; anything smaller reads as 'same as the room'.")
+     "bar; anything smaller reads as 'same as the lobby'.")
 
 print("\nIN A SENTENCE")
 print()
 sentence = tft.playstyle_sentence(verdicts)
 wrap(sentence if sentence else
-     "Nothing about how you play is far enough from the room to name yet. "
-     "That is a real answer: you play like the lobby does.")
+     "Nothing about how you play is far enough from the lobby to name yet. "
+     "That is a real answer: you play the way your lobbies do.")
 
 # ---- how it has moved -----------------------------------------------------
 if len(mine) >= 2 * WINDOW:
@@ -148,6 +148,6 @@ if shift:
          "the meta moved together and neither can be credited on its own.")
 
 print()
-wrap("None of this says the room is right and you are wrong. It says where "
+wrap("None of this says the lobby is right and you are wrong. It says where "
      "you differ, which is where a habit lives - and habits are the part of "
      "your game you can actually change on purpose.")

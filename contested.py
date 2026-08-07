@@ -61,14 +61,14 @@ for g in games:
 
 
 print("=" * 60)
-print(f"  CONTESTED LINES - {len(games)} ranked games, set {set_number}")
+print(f"  CONTESTED COMPS - {len(games)} ranked games, set {set_number}")
 print("=" * 60)
 print("\n  When you and a rival build the same thing, who should blink?")
 
 # ---- lines --------------------------------------------------------------
-print("\nYOUR LINES")
-print("  (a line counts when you truly built it: 4+ units or the second")
-print("   trait breakpoint. A 2-unit splash is not a direction.)")
+print("\nYOUR COMPS")
+print("  (a comp counts when you truly built it: 4+ units or the second")
+print("   trait breakpoint - two splashed units don't count.)")
 
 rows, thin = [], []
 for line, d in by_line.items():
@@ -117,7 +117,7 @@ for line, d in rows:
     print(f"     Why: {why}.")
 
 if not rows:
-    print("\n  Nothing to judge yet: no line has 10+ games both alone and")
+    print("\n  Nothing to judge yet: no comp has 10+ games both alone and")
     print("  contested. Keep playing - this fills in on its own.")
 
 if thin:
@@ -128,10 +128,10 @@ if thin:
                         initial_indent="     ", subsequent_indent="     "))
 
 rate = 100 * committed_games / len(games)
-print(f"\n  For scale: you truly commit to a line in {rate:.0f}% of your"
+print(f"\n  For scale: you truly commit to a comp in {rate:.0f}% of your"
       " games.")
 if len(rows) < 3 and thin:
-    print("  Those commits are spread across many different lines, which is")
+    print("  Those commits are spread across many different comps, which is")
     print("  why the list above is short - it fills in as repeats pile up.")
 
 # ---- carry --------------------------------------------------------------
@@ -182,7 +182,7 @@ else:
     print("  near 100 games.")
 
 print("""
-  One warning before acting on any of this: when a line is strong,
+  One warning before acting on any of this: when a comp is strong,
   everyone forces it at once - so "contested" partly just means "it
   was the meta that patch". Respect big gaps, but don't read them as
   pure cause and effect.""")

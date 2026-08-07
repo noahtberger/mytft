@@ -47,7 +47,7 @@ def board_line(board, set_number):
     carry = tft.carry_of(board)
     prof = tft.playstyle(board, set_number)
     place = f"{board['placement']}{'st nd rd th th th th th'.split()[board['placement'] - 1]}"
-    built = " + ".join(lines) if lines else "no committed line"
+    built = " + ".join(lines) if lines else "no committed comp"
     carried = f"carry {carry}" if carry else "no 2-item carry"
     if prof is None:
         return f"  {place:<5}{built:<34}(disconnected board)"
@@ -75,7 +75,7 @@ def margin_bullets(mine, above, set_number, level_par):
         who = ", ".join(f"the {b['placement']}-place board" for b in contested)
         shared = sorted(set().union(*(tft.committed_lines(b, set_number) & my_lines
                                       for b in contested)))
-        bullets.append(f"{who} finished committed to your line "
+        bullets.append(f"{who} finished committed to your comp "
                        f"({', '.join(shared)}) - you were contested and "
                        "they came out ahead of you in it.")
     if my_carry:
@@ -88,7 +88,7 @@ def margin_bullets(mine, above, set_number, level_par):
     committed_above = sum(1 for p in above_profs if p["lines_built"] >= 1)
     if my_prof["lines_built"] == 0 and committed_above:
         bullets.append(f"{committed_above} of the {len(above)} boards above "
-                       "you were committed to at least one line; you ended "
+                       "you were committed to at least one comp; you ended "
                        "on splashes only.")
 
     par = level_par.get(mine["last_round"])
@@ -211,7 +211,7 @@ def main():
             when = datetime.fromtimestamp(g["_datetime"] / 1000).strftime("%b %d")
             lines = sorted(tft.committed_lines(g, set_number))
             print(f"  {i:>2}  {when}  placed {g['placement']}   "
-                  f"{' + '.join(lines) if lines else 'no committed line'}")
+                  f"{' + '.join(lines) if lines else 'no committed comp'}")
         return
 
     games, level_par = tft.load_games()

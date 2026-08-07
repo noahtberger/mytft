@@ -1,4 +1,4 @@
-"""Pre-game companion: ask about a line and get your own record with it.
+"""Pre-game companion: ask about a comp and get your own record with it.
 
   python ask.py                      interactive
   python ask.py stargazer boar       one-shot
@@ -238,7 +238,7 @@ def table(title, groups, all_placements, worst=False):
         # A trait you have in most games is partly a symptom of a working
         # board, not only a cause of one - you rarely have a full frontline
         # in games where you died early. Treat those gaps as inflated.
-        print("  note: lines you play in most games are partly a marker of")
+        print("  note: comps you play in most games are partly a marker of")
         print("  games that were already going well - read those gaps as a")
         print("  ceiling, not a measurement.")
 
@@ -274,13 +274,13 @@ def main():
     def run(query):
         q = query.strip().lower()
         if q in ("best", "strengths"):
-            table("YOUR BEST LINES", by_trait, all_placements)
+            table("YOUR BEST COMPS", by_trait, all_placements)
             table("YOUR BEST CARRIES", by_carry, all_placements)
         elif q in ("traps", "worst", "weaknesses"):
             table("YOUR TRAPS", by_trait, all_placements, worst=True)
             table("CARRIES THAT LET YOU DOWN", by_carry, all_placements, worst=True)
         elif q in ("help", "?"):
-            print("\n  Ask about any line:  'thinking about stargazer boar'")
+            print("\n  Ask about any comp:  'thinking about stargazer boar'")
             print("  Commands: best | traps | help | quit")
         else:
             answer(query, games, level_par, vocab, baseline)
