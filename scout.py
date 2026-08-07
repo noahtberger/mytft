@@ -26,7 +26,7 @@ player is thin locally does this go to the network, which matters because a
 dev key allows 100 requests per two minutes and a full lobby could blow
 through that in one go.
 
-Downloaded games land in scout_cache/, never in matches/ - that folder is
+Downloaded games land in pool/, never in matches/ - that folder is
 your own history and the reports assume every file in it contains you.
 """
 
@@ -63,7 +63,7 @@ def riot_get(*a, **kw):
 def local_boards(set_number=None):
     """Return ({puuid: boards}, set_number) from every match file on disk.
 
-    Reads matches/ and scout_cache/ together: a game saved for one reason is
+    Reads matches/ and pool/ together: a game saved for one reason is
     just as good evidence for another.
 
     set_number=None means "whatever set the newest saved game belongs to",
@@ -115,7 +115,7 @@ def top(counter, games):
 
 
 def fetch_player_games(puuid, set_number, have):
-    """Download a few of this player's recent ranked games into scout_cache/.
+    """Download a few of this player's recent ranked games into pool/.
 
     Returns (boards, set_number). Stops as soon as the set stops matching: IDs
     come back newest first, so once we're into the previous set everything
@@ -175,101 +175,103 @@ def report(label, prof, set_number):
 
 KNOWN_FLAGS = {"--offline"}
 
-args = [a for a in sys.argv[1:] if not a.startswith("--")]
-flags = [a for a in sys.argv[1:] if a.startswith("--")]
 
-# Reject a flag we don't recognise rather than dropping it. --offline is a
-# promise not to touch the network, so silently ignoring "--offlien" or
-# "--offline=1" would send requests the caller explicitly asked not to send -
-# the one failure mode this flag exists to prevent.
-unknown = [f for f in flags if f not in KNOWN_FLAGS]
-if unknown:
-    sys.exit(f"Unknown option: {' '.join(unknown)}\n"
-             f"The only flag here is --offline (exactly that spelling).")
+def main():
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    flags = [a for a in sys.argv[1:] if a.startswith("--")]
 
-offline = "--offline" in flags
+    # Reject a flag we don't recognise rather than dropping it. --offline is a
+    # promise not to touch the network, so silently ignoring "--offlien" or
+    # "--offline=1" would send requests the caller explicitly asked not to send -
+    # the one failure mode this flag exists to prevent.
+    unknown = [f for f in flags if f not in KNOWN_FLAGS]
+    if unknown:
+        sys.exit(f"Unknown option: {' '.join(unknown)}\n"
+                 f"The only flag here is --offline (exactly that spelling).")
 
-if not args:
-    sys.exit(__doc__.strip().split("\n\n")[0] + "\n\n"
-             "Usage: python scout.py lobby\n"
-             "       python scout.py name#tag [name#tag ...]\n"
-             "       add --offline to skip the network entirely")
+    offline = "--offline" in flags
 
-# Which set to report on comes from the saved games themselves, not from the
-# operator's own history. TFT_SET still overrides, as everywhere else.
-wanted_set = os.environ.get("TFT_SET")
-if wanted_set:
-    try:
-        wanted_set = int(wanted_set)
-    except ValueError:
-        sys.exit(f"TFT_SET must be a set number, not {wanted_set!r}")
-else:
-    wanted_set = None
+    if not args:
+        sys.exit(__doc__.strip().split("\n\n")[0] + "\n\n"
+                 "Usage: python scout.py lobby\n"
+                 "       python scout.py name#tag [name#tag ...]\n"
+                 "       add --offline to skip the network entirely")
 
-boards_by_puuid, set_number = local_boards(wanted_set)
-targets = []   # (label, puuid)
+    # Which set to report on comes from the saved games themselves, not from the
+    # operator's own history. TFT_SET still overrides, as everywhere else.
+    wanted_set = os.environ.get("TFT_SET")
+    if wanted_set:
+        try:
+            wanted_set = int(wanted_set)
+        except ValueError:
+            sys.exit(f"TFT_SET must be a set number, not {wanted_set!r}")
+    else:
+        wanted_set = None
 
-if args == ["lobby"]:
-    if offline:
-        sys.exit("--offline can't ask Riot who is in your lobby. Name the "
-                 "players instead: python scout.py name#tag ...")
-    print("Checking whether you're in a game...")
-    puuids = lobby_puuids()
+    boards_by_puuid, set_number = local_boards(wanted_set)
+    targets = []   # (label, puuid)
 
-    if puuids is FORBIDDEN:
-        sys.exit(
-            "Riot won't let this key read live lobbies (403 from\n"
-            "spectator-tft-v5). That is a permission, not a mistake you can\n"
-            "fix: a personal key doesn't include spectator, so `lobby` mode\n"
-            "needs the production key - the same one the multi-user plan is\n"
-            "waiting on. Verified Aug 7 2026, don't burn an evening on it.\n\n"
-            "Everything else here works today. Scout by name instead:\n"
-            "  python scout.py name#tag name#tag ...")
+    if args == ["lobby"]:
+        if offline:
+            sys.exit("--offline can't ask Riot who is in your lobby. Name the "
+                     "players instead: python scout.py name#tag ...")
+        print("Checking whether you're in a game...")
+        puuids = lobby_puuids()
 
-    if puuids is None:
-        sys.exit("You're not in a game right now.\n"
-                 "Riot only lists a lobby while the game is live, so run this "
-                 "once the game has started.\n"
-                 "To scout specific people any time: python scout.py name#tag ...")
+        if puuids is FORBIDDEN:
+            sys.exit(
+                "Riot won't let this key read live lobbies (403 from\n"
+                "spectator-tft-v5). That is a permission, not a mistake you can\n"
+                "fix: a personal key doesn't include spectator, so `lobby` mode\n"
+                "needs the production key - the same one the multi-user plan is\n"
+                "waiting on. Verified Aug 7 2026, don't burn an evening on it.\n\n"
+                "Everything else here works today. Scout by name instead:\n"
+                "  python scout.py name#tag name#tag ...")
 
-    print(f"Found your game: {len(puuids)} opponents.")
-    targets = [(f"opponent {i}", p) for i, p in enumerate(puuids, start=1)]
-else:
-    # A raw puuid is accepted as well as a Riot ID. Match files identify
-    # players only by puuid - Riot IDs appear nowhere in them - so this is
-    # the only way to scout a recurring opponent you have games on but no
-    # name for, and it is the one form that works with --offline.
-    for who in args:
-        if "#" not in who:
-            targets.append((f"{who[:8]}... (puuid)", who))
-        elif offline:
-            sys.exit(f"--offline can't turn '{who}' into an account id - that "
-                     "needs Riot. Pass a raw puuid instead, or drop --offline.")
-        else:
-            puuid, label = resolve(who)
-            targets.append((label, puuid))
+        if puuids is None:
+            sys.exit("You're not in a game right now.\n"
+                     "Riot only lists a lobby while the game is live, so run this "
+                     "once the game has started.\n"
+                     "To scout specific people any time: python scout.py name#tag ...")
 
-if offline and set_number is None:
-    sys.exit("Nothing saved yet, and --offline can't ask Riot which set we're "
-             "in.\nRun fetch_matches.py first, or drop --offline.")
+        print(f"Found your game: {len(puuids)} opponents.")
+        targets = [(f"opponent {i}", p) for i, p in enumerate(puuids, start=1)]
+    else:
+        # A raw puuid is accepted as well as a Riot ID. Match files identify
+        # players only by puuid - Riot IDs appear nowhere in them - so this is
+        # the only way to scout a recurring opponent you have games on but no
+        # name for, and it is the one form that works with --offline.
+        for who in args:
+            if "#" not in who:
+                targets.append((f"{who[:8]}... (puuid)", who))
+            elif offline:
+                sys.exit(f"--offline can't turn '{who}' into an account id - that "
+                         "needs Riot. Pass a raw puuid instead, or drop --offline.")
+            else:
+                puuid, label = resolve(who)
+                targets.append((label, puuid))
 
-print("=" * 68)
-print(f"  SCOUTING {len(targets)} players"
-      f"{f' - set {set_number}' if set_number is not None else ''}")
-print("=" * 68)
+    if offline and set_number is None:
+        sys.exit("Nothing saved yet, and --offline can't ask Riot which set we're "
+                 "in.\nRun fetch_matches.py first, or drop --offline.")
 
-for label, puuid in targets:
-    have = boards_by_puuid.get(puuid, [])
-    if len(have) < ENOUGH_LOCALLY and not offline:
-        print(f"\n  {label}: {len(have)} games locally, asking Riot for more...")
-        # The first player scouted on an empty disk also settles which set
-        # we're reporting on, so later targets are filtered consistently.
-        have, set_number = fetch_player_games(puuid, set_number, have)
-    report(label, profile(have, set_number) if have
-           else {"games": 0, "avg": 0, "lines": Counter(), "carries": Counter()},
-           set_number)
+    print("=" * 68)
+    print(f"  SCOUTING {len(targets)} players"
+          f"{f' - set {set_number}' if set_number is not None else ''}")
+    print("=" * 68)
 
-print(f"""
+    for label, puuid in targets:
+        have = boards_by_puuid.get(puuid, [])
+        if len(have) < ENOUGH_LOCALLY and not offline:
+            print(f"\n  {label}: {len(have)} games locally, asking Riot for more...")
+            # The first player scouted on an empty disk also settles which set
+            # we're reporting on, so later targets are filtered consistently.
+            have, set_number = fetch_player_games(puuid, set_number, have)
+        report(label, profile(have, set_number) if have
+               else {"games": 0, "avg": 0, "lines": Counter(), "carries": Counter()},
+               set_number)
+
+    print(f"""
   How to read this: 'builds' is what they committed to, not what they
   splashed, so it is their actual direction. A line that shows up in most
   of someone's games is a player who forces it - that is the one worth
@@ -277,3 +279,7 @@ print(f"""
 
   This is public match history from before the game starts. Nothing here
   looks at the live board, which is the line Riot's rules draw.""")
+
+
+if __name__ == "__main__":
+    main()

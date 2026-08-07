@@ -45,17 +45,10 @@ def wrap(text, indent="  "):
 
 games, _ = tft.load_games()
 set_number = games[0]["_set"]
-me = games[0]["puuid"]
 
 # Oldest first: everything below is chronological.
 timeline = list(reversed(games))
-mine, room = [], []
-for g in timeline:
-    for board in g["_lobby"]:
-        prof = tft.playstyle(board, set_number)
-        if prof is None:
-            continue
-        (mine if board["puuid"] == me else room).append(prof)
+mine, room = tft.lobby_profiles(games, set_number)
 
 shift = tft.biggest_shift(mine)
 era = mine[shift["cut"]:] if shift else mine

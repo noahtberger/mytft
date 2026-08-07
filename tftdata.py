@@ -310,6 +310,27 @@ def playstyle(board, set_number):
     }
 
 
+def lobby_profiles(games, set_number):
+    """(yours, the room's) playstyle profiles, oldest game first.
+
+    One pass over every board in every lobby, split into the loaded player's
+    boards and everyone else's. Chronological because biggest_shift scans for
+    where a style changed, and that question only makes sense oldest-first.
+
+    Boards with no shop units (a disconnect) are dropped, the same way
+    playstyle() reports them: they describe a network problem, not a player.
+    """
+    me = games[0]["puuid"]
+    mine, room = [], []
+    for g in reversed(games):
+        for board in g["_lobby"]:
+            prof = playstyle(board, set_number)
+            if prof is None:
+                continue
+            (mine if board["puuid"] == me else room).append(prof)
+    return mine, room
+
+
 # Display order and labels for a playstyle profile, plus which direction reads
 # as "more" of that trait, so a report can phrase the comparison in English.
 MIN_ERA = 20        # games either side before a style change is worth naming

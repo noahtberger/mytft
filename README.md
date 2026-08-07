@@ -27,7 +27,21 @@ export RIOT_API_KEY='RGAPI-...'        # dev key, expires every 24h:
 .venv/bin/python contested.py          # alone-vs-shared record per line
 .venv/bin/python coverage.py           # what you've tested enough to judge
 .venv/bin/python playstyle.py          # how you play, vs your own lobbies
+.venv/bin/python pregame.py            # the one screen to read before you queue
+.venv/bin/python postgame.py           # your board vs the boards that beat you
 ```
+
+`pregame.py` folds the coaching into one screen: what wins in your own
+lobbies (all 8 boards of every game, so it reaches verdicts your personal
+per-line record can't), where your build rates disagree with that meta,
+what your own record has actually proven, and your current-era playstyle
+sentence. Add `name#tag ...` to scout people at the same time.
+
+`postgame.py` is the debrief: your final board against the boards that
+beat you in that same lobby — same patch, same eight players, so the
+comparison is naturally controlled. Per game it states facts only; its
+PATTERN section averages the comparison over your whole current era and
+only speaks where a gap clears its error bar.
 
 `playstyle.py` is the one that survives a new set. Comps and augments reset
 to zero every September; "expensive board", "rarely rerolls", "splashes
@@ -104,6 +118,8 @@ Occasional:
 | `coverage.py`      | which lines have the games to be judged, and which are blank | – |
 | `scout.py`         | what other players build, from public match history | API key |
 | `playstyle.py`     | how you play vs your lobbies; set-independent | – |
+| `pregame.py`       | pre-queue screen: lobby meta, your leaks, proven reads | – |
+| `postgame.py`      | debrief: your board vs the boards that beat you | – |
 | `build_site.py`    | renders the whole analysis to `site/index.html` | – |
 | `serve.py`         | local web app: enter a Riot ID, get their report | API key |
 | `riot.py`          | the API client: key, HTTP, match downloading | API key |
