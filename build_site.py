@@ -940,15 +940,11 @@ if gap_rows:
   </figure>
   <ul class="notes">{contested_note}{spread_note}</ul>
 </section>""")
-elif contested_note or spread_note:
-    body.append(f"""
-<section>
-  <p class="eyebrow">Not testable yet</p>
-  <h2>Nothing has the games to be judged</h2>
-  <p class="lede">No line and no carry has reached {TARGET} games, so there is
-  no gap here worth drawing. These two counts hold regardless.</p>
-  <ul class="notes">{contested_note}{spread_note}</ul>
-</section>""")
+# No else: a player with nothing past TARGET games used to get a "Not
+# testable yet" section here, which meant the first thing every fresh
+# lookup saw was the page announcing it had nothing to say. The coverage
+# section above already shows how far each line is from the bar, so the
+# verdict section now simply doesn't exist until something can be judged.
 
 def pill(n):
     """Sample-size badge. Kept as a function rather than inlined into the row
