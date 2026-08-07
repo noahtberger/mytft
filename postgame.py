@@ -78,6 +78,11 @@ def board_line(board, set_number):
             f"{f['items']} items")
 
 
+def short_name(board):
+    """A player's name, or their seat when a name is somehow missing."""
+    return board.get("riotIdGameName") or f"the {ordinal(board['placement'])} board"
+
+
 def margin_bullets(mine, above, set_number, level_par):
     """Facts about where this one game's margin lived. Facts only: at one
     game of evidence a bullet describes, it must not conclude."""
@@ -93,43 +98,42 @@ def margin_bullets(mine, above, set_number, level_par):
     contested = [b for b in above
                  if tft.committed_lines(b, set_number) & my_lines]
     if contested:
-        who = ", ".join(f"the {b['placement']}-place board" for b in contested)
+        who = ", ".join(short_name(b) for b in contested)
         shared = sorted(set().union(*(tft.committed_lines(b, set_number) & my_lines
                                       for b in contested)))
-        bullets.append(f"{who} finished committed to your comp "
-                       f"({', '.join(shared)}) - you were contested and "
-                       "they came out ahead of you in it.")
+        bullets.append(f"You were contested: {who} played your comp "
+                       f"({', '.join(shared)}) and finished ahead of you.")
     if my_carry:
         holders = [b for b in above if my_carry in tft.board_units(b)]
         if holders:
-            bullets.append(f"{len(holders)} of the boards above you fielded "
-                           f"your carry {my_carry} - every copy they held "
-                           "was one you couldn't roll into.")
+            bullets.append(f"{len(holders)} of the boards that beat you had "
+                           f"copies of your carry {my_carry}. Every copy "
+                           "they held was one you couldn't hit.")
 
     committed_above = sum(1 for p in above_profs if p["lines_built"] >= 1)
     if my_prof["lines_built"] == 0 and committed_above:
-        bullets.append(f"{committed_above} of the {len(above)} boards above "
-                       "you were committed to at least one comp; you ended "
-                       "on splashes only.")
+        bullets.append("You never fully built a comp this game. "
+                       f"{committed_above} of the {len(above)} boards that "
+                       "beat you did.")
 
     par = level_par.get(mine["last_round"])
     if par is not None and par - mine["level"] >= LEVEL_SLACK:
-        bullets.append(f"you were eliminated at level {mine['level']}; "
-                       f"players who die at round {mine['last_round']} "
-                       f"average level {par:.1f} - you were behind on "
-                       "experience for how long you lasted.")
+        bullets.append(f"You died at level {mine['level']}. Players who "
+                       f"last to round {mine['last_round']} average level "
+                       f"{par:.1f}, so you were behind on XP.")
 
     if mine.get("gold_left", 0) >= GOLD_FLOOR:
-        bullets.append(f"you were eliminated holding {mine['gold_left']} "
-                       "gold. Sometimes that is a slow-roll bank, but gold "
-                       "you die with bought nothing.")
+        bullets.append(f"You died holding {mine['gold_left']} gold. Unless "
+                       "you were banking for a slow roll, that gold did "
+                       "nothing.")
 
     my_items, their_items = items_held(mine), \
         statistics.mean(items_held(b) for b in above)
     if their_items - my_items >= 2:
-        bullets.append(f"the boards above you averaged {their_items:.0f} "
-                       f"items to your {my_items} - a slot-machine gap, "
-                       "but also what fighting earlier and longer buys.")
+        bullets.append(f"The boards that beat you averaged "
+                       f"{their_items:.0f} items to your {my_items}. Part "
+                       "of that is them surviving longer, but it's worth "
+                       "noticing.")
     return bullets
 
 
@@ -181,6 +185,50 @@ def pattern(era_games, set_number):
     return rows
 
 
+def advice(rows):
+    """One or two concrete things to try next game, read off the pattern.
+
+    Only speaks from gaps that already cleared their error bars, and not
+    every gap earns a tip: item count and board size mostly describe having
+    survived longer, so they stay in the stats list but never become
+    advice. A tip has to be about a choice - committing, rerolling, how you
+    spend gold and items - or it isn't advice, it's the scoreboard again.
+    """
+    gaps = {k: mean for k, mean, _ in rows}
+    tips = []
+
+    if gaps.get("lines_built", 0) > 0:
+        tips.append("Commit to one comp and build it out instead of "
+                    "splashing traits. The boards that beat you almost "
+                    "always finish with a real comp.")
+    elif gaps.get("lines_built", 0) < 0:
+        tips.append("Stay flexible. The boards that beat you splash more "
+                    "than they commit, so forcing a vertical isn't paying "
+                    "off here.")
+
+    cheaper = gaps.get("avg_cost", 0) < 0 or gaps.get("big_units", 0) < 0
+    if gaps.get("rerolled", 0) > 0 and cheaper:
+        tips.append("Don't default to the expensive board every game. The "
+                    "winners in your lobbies play cheaper units and reroll "
+                    "for 3-stars. Look for those spots instead of always "
+                    "pushing 4-costs.")
+    elif gaps.get("rerolled", 0) > 0:
+        tips.append("Look for reroll spots. The boards that beat you "
+                    "3-star cheap carries more often than you do.")
+    elif gaps.get("rerolled", 0) < 0 and gaps.get("avg_cost", 0) > 0:
+        tips.append("Skip the reroll comps. Leveling up to bigger units is "
+                    "what wins in your lobbies.")
+
+    if gaps.get("item_focus", 0) > 0.05:
+        tips.append("Stack your items on one carry instead of spreading "
+                    "them around.")
+    elif gaps.get("item_focus", 0) < -0.05:
+        tips.append("Spread your items out. Going all-in on one carry "
+                    "isn't how the winners here itemize.")
+
+    return tips[:2]
+
+
 def show_game(g, games, level_par, set_number):
     when = datetime.fromtimestamp(g["_datetime"] / 1000).strftime("%b %d")
     idx = games.index(g) + 1
@@ -205,22 +253,21 @@ def show_game(g, games, level_par, set_number):
         return
 
     label = "BOARD" if len(above) == 1 else "BOARDS"
-    print(f"\nTHE {len(above)} {label} THAT BEAT YOU  (same lobby, same "
-          "patch, same items dropping)")
+    print(f"\nTHE {len(above)} {label} THAT BEAT YOU  (same lobby, same patch)")
     for b in above:
         print(board_line(b, set_number))
 
     bullets = margin_bullets(g, above, set_number, level_par)
-    print("\nWHERE THE MARGIN LIVED - facts from this game, not conclusions")
+    print("\nWHERE THE MARGIN LIVED  (this game only)")
     if bullets:
         for b in bullets:
             print()
             wrap(b, indent="    ", first="  - ")
     else:
         print()
-        wrap("Nothing structural stands out - no contest, no level or item "
-             "deficit, no unspent gold. Games like this are usually lost "
-             "on fights, not on the board's shape.")
+        wrap("Nothing obvious on the board side - no contest, no level or "
+             "item gap, no wasted gold. This one probably came down to "
+             "fights.")
 
 
 def main():
@@ -261,29 +308,39 @@ def main():
     era_games = timeline[shift["cut"]:] if shift else timeline
 
     rows = pattern(era_games, set_number)
-    print(f"\nTHE PATTERN - what beats you  (current era, {len(era_games)} "
-          "games)")
-    print()
-    if rows:
-        wrap("Averaged over every game in your era, the boards that beat "
-             "you consistently differ from yours here (gaps that cleared "
-             "their error bars, biggest first):")
+    tips = advice(rows)
+
+    def stat_rows():
         print()
-        for k, mean, n in rows:
+        for k, mean, _n in rows:
             label, more, less = PATTERN_WORDS[k]
             print(f"    {label:<24} {more if mean > 0 else less:<16} "
                   f"({mean:+.2f})")
         print()
-        wrap("Part of every gap is survival itself - a board that lives "
-             "longer is richer, bigger and more levelled. Read these as "
-             "directions to look at, not sizes to chase. And they describe "
-             "the boards that beat you, which partly means: the boards "
-             "that were ahead. The habit worth changing is the one that "
-             "shows up here AND in pregame.py's coaching.")
+
+    print(f"\nFOR YOUR NEXT GAME  (from your last {len(era_games)} games, "
+          "not just this one)")
+    print()
+    if tips:
+        for tip in tips:
+            wrap(tip, first="  -> ", indent="     ")
+            print()
+        wrap("Why: the boards that beat you keep differing from yours in "
+             "the same ways. Only gaps too big to be luck are listed:")
+        stat_rows()
+        wrap("One caution: boards that beat you also lived longer, which "
+             "inflates the size and item rows by itself. The tips above "
+             "only come from the choice-shaped gaps - committing, "
+             "rerolling, itemizing - never from the scoreboard ones.")
+    elif rows:
+        wrap("No tip this time: the boards that beat you do differ from "
+             "yours, but only in ways that come from surviving longer - "
+             "size and items - not from a choice you could copy:")
+        stat_rows()
     else:
         wrap("No consistent difference between your boards and the ones "
-             "that beat you has cleared its error bar this era. Losses are "
-             "landing for varied reasons, not one repeated one.")
+             "that beat you has cleared its error bar. Losses are landing "
+             "for varied reasons, not one repeated one.")
 
 
 if __name__ == "__main__":

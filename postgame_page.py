@@ -23,6 +23,11 @@ def query(puuid, who):
     return f"p={quote(puuid)}&n={quote(who)}"
 
 
+def cap(text):
+    """Sentence-case a label without lower-casing the rest of it."""
+    return text[0].upper() + text[1:] if text else text
+
+
 def board_row(facts, me):
     """One lobby seat as a table row. Your row is marked, not just styled -
     colour alone shouldn't be the only thing saying which seat is yours."""
@@ -76,62 +81,76 @@ def render(games, level_par, set_number, idx, who, puuid):
     # -- what this one game says -------------------------------------------
     if won:
         margin = """<div class="verdict"><p class="eyebrow">This game</p>
-        <p style="margin:0"><strong>You won this one</strong> &mdash; nothing
-        in the lobby beat you, so there is no margin to debrief. The table
-        above is the room you beat.</p></div>"""
+        <p style="margin:0"><strong>You won this one.</strong> Nothing to
+        debrief &mdash; the table above is the lobby you beat.</p></div>"""
     else:
         bullets = pg.margin_bullets(g, above, set_number, level_par)
         if bullets:
             items = "".join(f"<li>{esc(b)}</li>" for b in bullets)
             margin = f"""<section>
   <p class="eyebrow">This game</p>
-  <h2>Where the margin lived</h2>
-  <p class="lede">Facts from this one game, not conclusions &mdash; the
-  pattern below is where conclusions live.</p>
+  <h2>What stood out</h2>
+  <p class="lede">Just this one game. One game proves nothing on its own,
+  which is why the advice below is built from all of them.</p>
   <ul class="notes">{items}</ul>
 </section>"""
         else:
             margin = """<section>
   <p class="eyebrow">This game</p>
-  <h2>Where the margin lived</h2>
-  <p class="lede">Nothing structural stands out &mdash; no contest, no level
-  or item deficit, no unspent gold. Games like this are usually lost on
-  fights, not on the board&rsquo;s shape.</p>
+  <h2>What stood out</h2>
+  <p class="lede">Nothing obvious on the board side &mdash; no contest, no
+  level or item gap, no wasted gold. This one probably came down to
+  fights.</p>
 </section>"""
 
-    # -- the era-wide pattern ----------------------------------------------
+    # -- the advice, and the numbers it came from --------------------------
     mine, _ = tft.lobby_profiles(games, set_number)
     shift = tft.biggest_shift(mine)
     timeline = list(reversed(games))
     era_games = timeline[shift["cut"]:] if shift else timeline
     pattern_rows = pg.pattern(era_games, set_number)
+    tips = pg.advice(pattern_rows)
 
-    if pattern_rows:
-        lines = "".join(
-            f'<li><strong>{esc(pg.PATTERN_WORDS[k][0])}</strong> &mdash; '
+    def stat_list():
+        return "".join(
+            f'<li><strong>{esc(cap(pg.PATTERN_WORDS[k][0]))}</strong>: '
             f'{esc(pg.PATTERN_WORDS[k][1] if mean > 0 else pg.PATTERN_WORDS[k][2])} '
             f'({mean:+.2f})</li>'
             for k, mean, _n in pattern_rows)
+
+    if tips:
+        tip_html = "".join(f'<p style="margin:0 0 10px"><strong>'
+                           f'{esc(t)}</strong></p>' for t in tips)
         pattern = f"""<section>
-  <p class="eyebrow">The pattern</p>
-  <h2>What beats you</h2>
-  <p class="lede">The same comparison averaged over all
-  {len(era_games)} games of your current era &mdash; only gaps bigger than
-  luck are listed. Boards that beat you are, compared with yours:</p>
-  <ul class="notes">{lines}</ul>
-  <p class="lede" style="margin-top:14px">Part of every gap is just having
-  survived longer &mdash; a board that lives longer is richer and bigger.
-  Read these as directions to look at. The habit worth changing is the one
-  that shows up here <em>and</em> in your pre-game leaks.</p>
+  <p class="eyebrow">Next game</p>
+  <h2>What to work on</h2>
+  <div class="verdict">{tip_html}</div>
+  <p class="lede" style="margin-top:22px">Why: over your last
+  {len(era_games)} games, the boards that beat you keep differing from
+  yours in the same ways. Only gaps too big to be luck are listed.</p>
+  <ul class="notes">{stat_list()}</ul>
+  <p class="lede" style="margin-top:14px">One caution: boards that beat you
+  also lived longer, which inflates the size and item rows by itself. The
+  advice only comes from the choice-shaped gaps &mdash; committing,
+  rerolling, itemizing &mdash; never from the scoreboard ones.</p>
+</section>"""
+    elif pattern_rows:
+        pattern = f"""<section>
+  <p class="eyebrow">Next game</p>
+  <h2>What to work on</h2>
+  <p class="lede">No tip this time: the boards that beat you do differ from
+  yours, but only in ways that come from surviving longer &mdash; size and
+  items &mdash; not from a choice you could copy.</p>
+  <ul class="notes">{stat_list()}</ul>
 </section>"""
     else:
         pattern = f"""<section>
-  <p class="eyebrow">The pattern</p>
-  <h2>What beats you</h2>
-  <p class="lede">Across the {len(era_games)} games of your current era, no
+  <p class="eyebrow">Next game</p>
+  <h2>What to work on</h2>
+  <p class="lede">Nothing yet. Across your last {len(era_games)} games, no
   consistent difference between your boards and the ones that beat you has
-  cleared its error bar. Losses are landing for varied reasons, not one
-  repeated one.</p>
+  cleared its error bar &mdash; losses are landing for varied reasons, not
+  one repeated one.</p>
 </section>"""
 
     headline = "You won" if won else f"You placed {placed}"
@@ -155,8 +174,8 @@ def render(games, level_par, set_number, idx, who, puuid):
 <section>
   <p class="eyebrow">The lobby</p>
   <h2>All eight boards</h2>
-  <p class="lede">Same game, same patch, same items dropping &mdash; whatever
-  the boards above yours did differently, it wasn&rsquo;t a different meta.</p>
+  <p class="lede">Sorted by final placement. Everyone here played the same
+  game you did, so the boards above yours are worth a look.</p>
   {table}
 </section>
 {margin}
