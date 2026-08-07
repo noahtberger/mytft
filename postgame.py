@@ -258,45 +258,61 @@ def advice(rows, flat=None):
     tips = []
     soup = flat and flat["soup_player"] and flat["soup_ok"]
 
+    # Blunt on purpose (user's request): the tip is the order, the "why" is
+    # the receipt. Explanations live under the tip, never inside it.
     if gaps.get("lines_built", 0) > 0:
         if soup:
-            tips.append("Your flat fast-9 style holds up here: flat "
-                        "expensive boards average "
-                        f"{flat['soup_avg']:.2f} in your lobbies, verticals "
-                        f"{flat['vertical_avg']:.2f}. What loses is the "
-                        "in-between board - flat and still cheap averages "
-                        f"{flat['stuck_avg']:.2f}. When the big units "
-                        "aren't coming, commit to a comp instead of "
-                        "staying stuck between the two plans.")
+            tips.append({
+                "do": "Not hitting your 4- and 5-costs? Pivot into a comp. "
+                      "Don't sit on a flat board of cheap units.",
+                "why": "your flat style is fine when it finishes - flat "
+                       f"expensive boards average {flat['soup_avg']:.2f} "
+                       f"here, verticals {flat['vertical_avg']:.2f}. Flat "
+                       f"and cheap is the losing shape: "
+                       f"{flat['stuck_avg']:.2f}."})
         else:
-            tips.append("Commit to one comp and build it out instead of "
-                        "splashing traits. The boards that beat you almost "
-                        "always finish a comp.")
+            tips.append({
+                "do": "Pick a comp and finish it. Stop ending games on "
+                      "splashes.",
+                "why": "the boards that beat you build more comps than you "
+                       f"do ({gaps['lines_built']:+.2f} traits built)."})
     elif gaps.get("lines_built", 0) < 0:
-        tips.append("Stay flexible. The boards that beat you splash more "
-                    "than they commit, so forcing a vertical isn't paying "
-                    "off here.")
+        tips.append({
+            "do": "Stop forcing verticals. Play what the game gives you.",
+            "why": "the boards that beat you splash more than they commit "
+                   f"({gaps['lines_built']:+.2f} traits built)."})
 
     cheaper = gaps.get("avg_cost", 0) < 0 or gaps.get("big_units", 0) < 0
     if not soup:
         if gaps.get("rerolled", 0) > 0 and cheaper:
-            tips.append("Don't default to the expensive board every game. "
-                        "The winners in your lobbies play cheaper units and "
-                        "reroll for 3-stars. Look for those spots instead "
-                        "of always pushing 4-costs.")
+            tips.append({
+                "do": "Stop forcing the expensive board every game. Take "
+                      "the reroll spot when it's there.",
+                "why": "the winners in your lobbies play cheaper units and "
+                       f"3-star them ({gaps['rerolled']:+.2f} 3-stars, "
+                       f"{gaps.get('avg_cost', 0):+.2f} avg cost)."})
         elif gaps.get("rerolled", 0) > 0:
-            tips.append("Look for reroll spots. The boards that beat you "
-                        "3-star cheap carries more often than you do.")
+            tips.append({
+                "do": "Take reroll spots more often.",
+                "why": "the boards that beat you 3-star cheap carries more "
+                       f"than you do ({gaps['rerolled']:+.2f})."})
         elif gaps.get("rerolled", 0) < 0 and gaps.get("avg_cost", 0) > 0:
-            tips.append("Skip the reroll comps. Leveling up to bigger units "
-                        "is what wins in your lobbies.")
+            tips.append({
+                "do": "Skip the reroll comps. Level up and play bigger "
+                      "units.",
+                "why": "the boards that beat you run fewer 3-stars and "
+                       "more big units than you do."})
 
     if gaps.get("item_focus", 0) > 0.05:
-        tips.append("Stack your items on one carry instead of spreading "
-                    "them around.")
+        tips.append({
+            "do": "Put your items on one carry.",
+            "why": "the winners here stack one unit; you spread "
+                   f"({gaps['item_focus']:+.2f} item focus)."})
     elif gaps.get("item_focus", 0) < -0.05:
-        tips.append("Spread your items out. Going all-in on one carry "
-                    "isn't how the winners here itemize.")
+        tips.append({
+            "do": "Stop stacking every item on one unit.",
+            "why": "the winners here spread items more than you do "
+                   f"({gaps['item_focus']:+.2f} item focus)."})
 
     return tips[:2]
 
@@ -395,10 +411,11 @@ def main():
     print()
     if tips:
         for tip in tips:
-            wrap(tip, first="  -> ", indent="     ")
+            wrap(tip["do"], first="  -> ", indent="     ")
+            wrap(f"why: {tip['why']}", first="     ", indent="     ")
             print()
-        wrap("Why: the boards that beat you keep differing from yours in "
-             "the same ways. Only gaps too big to be luck are listed:")
+        wrap("The full pattern - how the boards that beat you differ from "
+             "yours, gaps too big to be luck only:")
         stat_rows()
         wrap("One caution: boards that beat you also lived longer, which "
              "inflates the size and item rows by itself. The tips above "

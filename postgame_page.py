@@ -120,15 +120,17 @@ def render(games, level_par, set_number, idx, who, puuid):
             for k, mean, _n in pattern_rows)
 
     if tips:
-        tip_html = "".join(f'<p style="margin:0 0 10px"><strong>'
-                           f'{esc(t)}</strong></p>' for t in tips)
+        tip_html = "".join(
+            f'<p style="margin:0 0 12px"><strong>{esc(t["do"])}</strong><br>'
+            f'<span style="color:var(--muted);font-size:14px">why: '
+            f'{esc(t["why"])}</span></p>' for t in tips)
         pattern = f"""<section>
   <p class="eyebrow">Next game</p>
   <h2>What to work on</h2>
   <div class="verdict">{tip_html}</div>
-  <p class="lede" style="margin-top:22px">Why: over your last
-  {len(era_games)} games, the boards that beat you keep differing from
-  yours in the same ways. Only gaps too big to be luck are listed.</p>
+  <p class="lede" style="margin-top:22px">The full pattern behind that,
+  from your last {len(era_games)} games &mdash; how the boards that beat
+  you differ from yours. Gaps too big to be luck only.</p>
   <ul class="notes">{stat_list()}</ul>
   <p class="lede" style="margin-top:14px">One caution: boards that beat you
   also lived longer, which inflates the size and item rows by itself. The
