@@ -126,7 +126,7 @@ def coverage_chart(rows):
     h = len(rows) * (row_h + gap) + 26
 
     parts = [f'<svg viewBox="0 0 {w} {h}" class="chart" role="img" '
-             f'aria-label="Games built per line against the {TARGET}-game bar">']
+             f'aria-label="Games built per comp against the {TARGET}-game bar">']
     parts.append(f'<line x1="{label_w + plot}" y1="6" x2="{label_w + plot}" '
                  f'y2="{h - 20}" class="rule-dash"/>')
     parts.append(f'<text x="{label_w + plot + 6}" y="{h - 6}" class="tick">'
@@ -145,7 +145,7 @@ def coverage_chart(rows):
             f'<rect x="{label_w}" y="{y}" width="{bar:.1f}" height="{row_h}" rx="4" '
             f'fill="{"var(--pos)" if done else "var(--accent)"}" class="mark" '
             f'data-tip="{esc(name)} &middot; built in {n} games &middot; '
-            f'{"past the bar" if done else f"{TARGET - n} more for a verdict"} '
+            f'{"enough games" if done else f"{TARGET - n} more games needed"} '
             f'&middot; lobby builds it in {lobby:.1f}% of boards"/>')
         parts.append(f'<text x="{label_w + plot + 6}" y="{y + row_h * 0.72:.0f}" '
                      f'class="val">{n}</text>')
@@ -251,11 +251,11 @@ def playstyle_chart(rows):
     parts.append(f'<line x1="{mid}" y1="{top - 4}" x2="{mid}" '
                  f'y2="{h - bottom + 6}" class="axis"/>')
     parts.append(f'<text x="{mid}" y="{top - 11}" class="tick" '
-                 'text-anchor="middle">same as the room</text>')
+                 'text-anchor="middle">lobby average</text>')
     parts.append(f'<text x="{label_w}" y="{h - 8}" class="tick">'
-                 '&#8592; less than the room</text>')
+                 '&#8592; less than the lobby</text>')
     parts.append(f'<text x="{label_w + plot}" y="{h - 8}" class="tick" '
-                 'text-anchor="end">more than the room &#8594;</text>')
+                 'text-anchor="end">more than the lobby &#8594;</text>')
 
     for i, (label, you, them, gap, moe, more, less) in enumerate(rows):
         y = top + i * (row_h + gap_h)
@@ -275,7 +275,7 @@ def playstyle_chart(rows):
                      f'{esc(fit(label, label_w - 14, 12))}</text>')
         parts.append(f'<text x="{label_w - 10}" y="{y + 31}" '
                      f'class="sublabel" text-anchor="end">'
-                     f'you {you:.2f} &middot; room {them:.2f}</text>')
+                     f'you {you:.2f} &middot; lobby {them:.2f}</text>')
 
         detail = (f"{abs(true_z):.1f}&times; its error bar"
                   f"{', drawn clipped' if clipped else ''}" if real
@@ -283,7 +283,7 @@ def playstyle_chart(rows):
         parts.append(
             f'<rect x="{x0:.1f}" y="{y + 10}" width="{max(abs(x1 - x0), 1.5):.1f}" '
             f'height="20" rx="3" fill="{colour}" class="mark" '
-            f'data-tip="{esc(label)} &middot; you {you:.2f} vs room {them:.2f} '
+            f'data-tip="{esc(label)} &middot; you {you:.2f} vs lobby {them:.2f} '
             f'&middot; {esc(more if gap > 0 else less)} &middot; {detail}"/>')
 
         # An axis-break notch on bars the cap cut short: two surface-colour
@@ -653,11 +653,11 @@ lines_touched = len(data["building"]) + len(data["ready"])
 per_line = total_commits / max(lines_touched, 1)
 
 if data["ready"]:
-    headline = (f"<strong>{len(data['ready'])} of your lines have reached the "
-                f"{TARGET} games</strong> it takes to tell them apart from luck")
+    headline = (f"<strong>{len(data['ready'])} of your comps have the "
+                f"{TARGET}+ games</strong> it takes to trust their numbers")
 else:
-    headline = (f"<strong>not one comp direction has reached the {TARGET} "
-                f"games</strong> it takes to tell it apart from luck")
+    headline = (f"<strong>no comp has the {TARGET} games</strong> it takes "
+                f"to trust its numbers")
 
 if gap_rows:
     names = esc(", ".join(n for n, _, _, _ in gap_rows))
@@ -686,16 +686,15 @@ else:
 body.append(f"""
 <header class="masthead">
   <div class="who">{esc(WHO)} &middot; Set {set_number} ranked</div>
-  <h1>What {n_games} games can and can&rsquo;t tell you</h1>
-  <p class="standfirst">A tracker for one player, built on the rule that a
-  number nobody can trust is worse than no number at all.</p>
+  <h1>Your Set {set_number} ranked stats</h1>
+  <p class="standfirst">Everything here comes from your own ranked games.
+  Numbers without enough games behind them say so instead of pretending.</p>
   <div class="verdict">
-    <p class="eyebrow">The reading</p>
-    <p style="margin:0">Across {n_games} ranked games, {headline}. You committed
-    to a line {plural(total_commits, "time")}, spread over
-    {plural(lines_touched, "different line")} &mdash; about
-    {plural(round(per_line), "game")} each.{exception} Everything below is
-    shown with the error bars that lead to that conclusion.</p>
+    <p class="eyebrow">Summary</p>
+    <p style="margin:0">Across {n_games} ranked games, {headline}. You fully
+    built a comp {plural(total_commits, "time")}, spread over
+    {plural(lines_touched, "different comp")} &mdash; about
+    {plural(round(per_line), "game")} each.{exception}</p>
   </div>
 </header>""")
 
@@ -731,8 +730,8 @@ for key, label, more, less in tft.PLAYSTYLE_LABELS:
 # is exactly what it did at four games.
 counts = [placements.count(p) for p in range(1, 9)]
 if n_games < TARGET:
-    shape = (f"At {plural(n_games, 'game')} the silhouette here is mostly noise; "
-             "it takes a few hundred before the shape itself says anything.")
+    shape = (f"At {plural(n_games, 'game')} this shape is mostly noise; "
+             "it takes a few hundred games before it means much.")
 else:
     swing = (max(counts) - min(counts)) / (n_games / 8)
     if swing < 0.8:
@@ -751,54 +750,52 @@ if style_rows:
     # and coverage of it can't describe the same player differently.
     said = tft.playstyle_sentence(style_verdicts)
     summary = (f"<strong>{esc(said)}</strong>" if said else
-               "Nothing about how you play is far enough from the room to "
-               "name yet, which is itself an answer: you play like the lobby.")
+               "Nothing here stands out from the lobby yet &mdash; you play "
+               "the way your lobbies do.")
     if style_shift:
         era_note = (
-            f"Your last {len(style_era)} games only. Around game "
-            f"{style_shift['cut'] + 1} (patch {esc(era_games[0]['_patch'])}) your "
-            f"{esc(style_shift['label'])} went {style_shift['before']:.2f} &rarr; "
-            f"{style_shift['after']:.2f} &mdash; a different player from the "
-            f"{style_shift['cut']} games before, so averaging the two would "
-            "describe neither.")
+            f"Based on your last {len(style_era)} games: around game "
+            f"{style_shift['cut'] + 1} your style clearly changed "
+            f"({esc(style_shift['label'])} {style_shift['before']:.2f} &rarr; "
+            f"{style_shift['after']:.2f}), so the {style_shift['cut']} games "
+            "before that are left out.")
     else:
-        era_note = (f"All {len(style_era)} games &mdash; your style hasn't "
-                    "changed sharply enough this set to split it in two.")
+        era_note = f"All {len(style_era)} games this set."
     body.append(f"""
 <section>
   <p class="eyebrow">Playstyle</p>
-  <h2>How you play, not what you played</h2>
-  <p class="lede">Comps and augments reset to zero every set. These do not
-  &mdash; an expensive board is an expensive board in Set 18 too. {era_note}</p>
+  <h2>Your playstyle</h2>
+  <p class="lede">How you play &mdash; expensive or cheap boards, reroll or
+  fast 8, committed or splashy. These habits carry over into the next set
+  even though every comp resets. {era_note}</p>
   <figure>
     {playstyle_chart(style_rows)}
-    <figcaption>Seven habits, you against the other seven players in your
-    lobbies &mdash; the real numbers sit under each habit&rsquo;s name. The
-    bar shows how far apart those two numbers are relative to the wobble in
-    the data: a bar past the dashed line is a real habit, a short one means
-    you play like the room. A notch means the bar was cut off &mdash; that
-    gap runs far beyond the scale. {summary}</figcaption>
+    <figcaption>Each row compares you with the other seven players in your
+    games &mdash; the real numbers sit under each name. A bar past the dashed
+    line is a real habit; a short grey bar means no real difference. A notch
+    means the bar runs off the scale. {summary}</figcaption>
   </figure>
 </section>""")
 
 body.append(f"""
 <section>
-  <p class="eyebrow">Where you land</p>
-  <h2>The only number the game actually gives you</h2>
-  <p class="lede">Placement, 1st through 8th, across every ranked game of the set.</p>
+  <p class="eyebrow">Results</p>
+  <h2>Winrate and placements</h2>
+  <p class="lede">Where you finish, across every ranked game of the set.</p>
   <div class="stats">
-    {stat(f"{overall['avg']:.2f}", "avg placement", f"± {overall['moe']:.2f}")}
-    {stat(f"{overall['top4']:.0f}%", "top 4 rate")}
-    {stat(overall['wins'], "firsts")}
     {stat(n_games, "ranked games")}
+    {stat(f"{overall['avg']:.2f}", "avg place", f"± {overall['moe']:.2f}")}
+    {stat(f"{overall['top4']:.0f}%", "top 4 rate")}
+    {stat(f"{100 * overall['wins'] / n_games:.0f}%", "win rate",
+          f"{plural(overall['wins'], 'first')}")}
     {stat(f"{trend:+.2f}", "recent form", form_note) if has_form
      else stat("—", "recent form", "needs more games")}
   </div>
   <figure style="margin-top:26px">
     {placement_chart(placements)}
-    <figcaption>Fourth and up pays LP, fifth and down loses it, so the chart
-    diverges at that break rather than treating 1&ndash;8 as one run. {shape}
-    Margin of error on the average is &plusmn;{overall['moe']:.2f} places.</figcaption>
+    <figcaption>Top 4 gains LP, bottom 4 loses it &mdash; that break is the
+    dashed line. {shape} The average carries a margin of error of
+    &plusmn;{overall['moe']:.2f} places.</figcaption>
   </figure>
 </section>""")
 
@@ -824,24 +821,23 @@ if coverage_rows:
                     if reached else "Nothing reaches it yet.")
     body.append(f"""
 <section>
-  <p class="eyebrow">Coverage</p>
-  <h2>Which lines you have actually tested</h2>
-  <p class="lede">A line counts here only when you truly built it &mdash; the second
-  trait breakpoint, or four units. A two-unit splash is not a direction.</p>
+  <p class="eyebrow">Comps</p>
+  <h2>Comps you&rsquo;ve played</h2>
+  <p class="lede">A comp only counts when you actually built it &mdash; second
+  trait breakpoint or four units, not a two-unit splash.</p>
   <figure>
     {coverage_chart(coverage_rows)}
-    <figcaption>Bars run to the {TARGET} games an average needs before it beats
-    guessing. {verdict_line} The percentage on the right is how often the
-    other seven players in your lobbies commit to that line, so you can spend
-    repetitions on something the room actually rewards.</figcaption>
+    <figcaption>Bars fill toward the {TARGET} games a comp needs before its
+    average means anything. {verdict_line} The percentage on the right is how
+    often other players in your lobbies build it.</figcaption>
   </figure>
   <ul class="notes">
-    {f'<li><strong>Closest to a verdict:</strong> {esc(closest[0])} at '
+    {f'<li><strong>Closest to enough games:</strong> {esc(closest[0])} at '
      f'{plural(closest[1], "game")}, {TARGET - closest[1]} short.</li>'
      if closest else ''}
-    <li><strong>Most under-tested for how common it is:</strong>
-      {esc(under[0])} &mdash; the lobby builds it in {under[2]:.1f}% of boards,
-      you have {plural(under[1], "game")} on it.</li>
+    <li><strong>Popular comp you&rsquo;ve barely played:</strong>
+      {esc(under[0])} &mdash; your lobbies build it in {under[2]:.1f}% of
+      boards, you have {plural(under[1], "game")} on it.</li>
   </ul>
 </section>""")
 
@@ -857,19 +853,19 @@ if blind_real or blind_rare:
                  if blind_rare else "")
     table = f"""<div class="tablewrap">
     <table>
-      <thead><tr><th>Line</th><th class="num">Lobby builds it</th>
-      <th class="num">You splashed</th><th>Your record</th></tr></thead>
+      <thead><tr><th>Comp</th><th class="num">Lobby builds it</th>
+      <th class="num">You splashed it</th><th>Your record</th></tr></thead>
       <tbody>{blind_items}</tbody>
     </table>
   </div>""" if blind_real else (
-        '<p class="lede">None &mdash; you have built every line the room '
-        'builds at least once.</p>')
+        '<p class="lede">None &mdash; you have built every comp your lobbies '
+        'build, at least once.</p>')
     body.append(f"""
 <section>
   <p class="eyebrow">Blind spots</p>
-  <h2>Lines the room builds and you never have</h2>
-  <p class="lede">Not advice to force them &mdash; this is where your own report has
-  nothing to say.</p>
+  <h2>Comps you&rsquo;ve never built</h2>
+  <p class="lede">Comps your lobbies play that you have zero games on. Not
+  advice to force them &mdash; just where your data is blank.</p>
   {table}
   {rare_note}
 </section>""")
@@ -877,20 +873,19 @@ if blind_real or blind_rare:
 if divergence:
     body.append(f"""
 <section>
-  <p class="eyebrow">Habits</p>
-  <h2>You against the room</h2>
-  <p class="lede">Your build rate next to the rate of the other seven players in
-  the same lobbies &mdash; the fairest yardstick available, because it already
-  accounts for your rank and your patch.</p>
+  <p class="eyebrow">Comp choices</p>
+  <h2>What you play vs what your lobbies play</h2>
+  <p class="lede">How often you build each comp, next to how often the other
+  seven players in your games do.</p>
   <div class="legend">
     <span><i class="dot" style="background:var(--accent)"></i> you</span>
     <span><i class="dot" style="background:var(--room)"></i> the lobby</span>
   </div>
   <figure>
     {dumbbell_chart(divergence)}
-    <figcaption>Playing off-meta is not automatically wrong &mdash; a line you know
-    well can beat one the room forces. It is here because it explains the shape
-    of your data: what you over-play is what you will get a verdict on first.</figcaption>
+    <figcaption>Playing off-meta is not automatically wrong &mdash; a comp you
+    know well can beat one everyone forces. The biggest gaps are simply where
+    you and your lobbies disagree.</figcaption>
   </figure>
 </section>""")
 
@@ -906,37 +901,36 @@ contested_note = (
     f"({carry_contested} of {carry_total}) &mdash; every copy they hold is one "
     f"you cannot roll into.</li>" if carry_total else "")
 spread_note = (f"<li>{len(data['by_carry'])} different carries across {n_games} "
-               f"games. Carries spread thinner than lines do.</li>"
+               f"games. Carries spread thinner than comps do.</li>"
                if data["by_carry"] else "")
 
 if gap_rows:
     # Say what the chart actually shows rather than assuming the null result.
-    # How many games back a row depends on whether it is a line or a carry,
+    # How many games back a row depends on whether it is a comp or a carry,
     # so read the count off the row itself instead of guessing the source.
     inconclusive = [name for name, gap, moe, _ in gap_rows if abs(gap) <= moe]
     if len(inconclusive) == len(gap_rows):
-        reading = ("Every interval here crosses &ldquo;no difference&rdquo;, "
-                   "which means the data cannot separate these from every "
-                   "other game you play. That is a real answer, not a missing "
-                   "one.")
+        reading = ("Every bar here touches &ldquo;no difference&rdquo;, so "
+                   "none of these actually changes how you place &mdash; a "
+                   "real answer, not a missing one.")
     elif inconclusive:
-        reading = (f"{len(gap_rows) - len(inconclusive)} of {len(gap_rows)} clear "
-                   f"their error bar; the rest cannot be separated from no "
-                   f"effect at all.")
+        reading = (f"{len(gap_rows) - len(inconclusive)} of {len(gap_rows)} "
+                   f"show a real difference; the rest could just be luck.")
     else:
-        reading = ("Every interval here clears &ldquo;no difference&rdquo; &mdash; "
-                   "these gaps are bigger than luck at these sample sizes.")
-    lede = (f"Only things past {TARGET} games appear here &mdash; "
-            f"{'just one' if len(gap_rows) == 1 else str(len(gap_rows))} so far.")
+        reading = ("Every gap here is bigger than luck could explain.")
+    lede = (f"Anything you&rsquo;ve played {TARGET}+ times gets judged: do you "
+            f"actually place better with it than without it? "
+            f"{'Just one qualifies' if len(gap_rows) == 1 else f'{len(gap_rows)} qualify'} "
+            f"so far.")
     body.append(f"""
 <section>
-  <p class="eyebrow">The one testable thing</p>
-  <h2>Does leaning on your carry actually work?</h2>
+  <p class="eyebrow">Proven</p>
+  <h2>What your games have actually proven</h2>
   <p class="lede">{lede}</p>
   <figure>
     {gap_chart(gap_rows)}
-    <figcaption>The dot is the measured gap between games with and without;
-    the bar is the 95% interval around it. {reading}</figcaption>
+    <figcaption>The dot is how much better or worse you place with it; the
+    bar around the dot is the range luck alone could produce. {reading}</figcaption>
   </figure>
   <ul class="notes">{contested_note}{spread_note}</ul>
 </section>""")
@@ -951,7 +945,7 @@ def pill(n):
     f-string: nesting quotes inside a nested f-string is how you end up
     emitting class=&#39;...&#39; and silently losing the styling."""
     if n >= TARGET:
-        return '<span class="pill ready">testable</span>'
+        return '<span class="pill ready">enough games</span>'
     return f'<span class="pill part">{TARGET - n} short</span>'
 
 
@@ -965,7 +959,7 @@ if carry_rows:
     body.append(f"""
 <section>
   <p class="eyebrow">Carries</p>
-  <h2>What you put the items on</h2>
+  <h2>Your carries</h2>
   <div class="tablewrap">
     <table>
       <thead><tr><th>Unit</th><th class="num">Games</th>
@@ -978,22 +972,24 @@ if carry_rows:
 body.append(f"""
 <section>
   <p class="eyebrow">Method</p>
-  <h2>Rules this page follows</h2>
+  <h2>How these numbers work</h2>
   <ul class="notes">
-    <li><strong>{TARGET} games minimum</strong> before a number is called
-      actionable. Margin of error on an average placement is about
-      4.5/&radic;n &mdash; &plusmn;1.5 places at 10 games, &plusmn;0.8 at 30.</li>
-    <li><strong>Compared with-vs-without</strong>, never against your overall
-      average &mdash; that average already contains the games in question.</li>
-    <li><strong>Normalised against the lobby.</strong> All eight players are in
-      every match file, which self-corrects for rank and patch.</li>
-    <li><strong>Committed, not splashed.</strong> Counting an active trait as a
-      played line measures whether you could afford a frontline, not what you
-      were building.</li>
-    <li><strong>Negative results are shown.</strong> A gap that fails its error
-      bar is reported as no difference rather than quietly dropped.</li>
-    <li>Games span patches {esc(", ".join(patches))}, and patches move
-      placement by more than most of the gaps on this page.</li>
+    <li><strong>{TARGET} games minimum</strong> before a number is trusted.
+      Under that, an average placement can be off by 1.5 places on luck
+      alone.</li>
+    <li><strong>With vs without.</strong> A comp is judged by comparing your
+      games with it against your games without it, not against your overall
+      average.</li>
+    <li><strong>Measured against your own lobbies.</strong> All eight players
+      are in every saved game, so the comparison is automatically at your
+      rank and on your patches.</li>
+    <li><strong>Built, not splashed.</strong> A comp only counts when you
+      actually built it &mdash; two splashed units don&rsquo;t count as
+      playing it.</li>
+    <li><strong>&ldquo;No difference&rdquo; gets said out loud.</strong> A gap
+      small enough to be luck is reported as no difference, not hidden.</li>
+    <li>These games span patches {esc(", ".join(patches))}, and patches can
+      move results by more than most gaps on this page.</li>
   </ul>
   <footer>
     Built from {n_games} saved match files by <code>build_site.py</code>.
