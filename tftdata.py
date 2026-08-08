@@ -90,6 +90,24 @@ def unique_traits(set_number):
     return set(NAMES.get("unique_traits_by_set", {}).get(str(set_number), []))
 
 
+def trait_ids_for_set(set_number):
+    """Every trait id belonging to one set, from names.json.
+
+    Prefer the list fetch_names.py records, and fall back to matching a
+    "TFT<n>_" prefix for a names.json written before that existed.
+
+    The recorded list matters: Set 18 turned up on PBE with ids like
+    "DA_18_Blossom" instead of "TFT18_Blossom", so a prefix guess would
+    have found nothing and reported a set containing no comps at all.
+    """
+    recorded = NAMES.get("trait_ids_by_set", {}).get(str(set_number))
+    if recorded:
+        return set(recorded)
+    prefix = f"TFT{set_number}_"
+    return {api_id for api_id in NAMES.get("traits", {})
+            if api_id.startswith(prefix)}
+
+
 def names_missing(set_number):
     """True when names.json has never heard of this set.
 
@@ -109,9 +127,7 @@ def names_missing(set_number):
     The cure is one command, `python fetch_names.py`, so the reports say so
     rather than letting someone puzzle over it.
     """
-    prefix = f"TFT{set_number}_"
-    return not any(api_id.startswith(prefix)
-                   for api_id in NAMES.get("traits", {}))
+    return not trait_ids_for_set(set_number)
 
 
 STALE_NAMES_WARNING = (
@@ -132,9 +148,9 @@ def set_traits(set_number):
     Unique traits are excluded: they belong to one champion, so fielding one
     is a unit choice, not a direction.
     """
-    prefix = f"TFT{set_number}_"
-    names = {name for api_id, name in NAMES.get("traits", {}).items()
-             if api_id.startswith(prefix)}
+    known = NAMES.get("traits", {})
+    names = {known[api_id] for api_id in trait_ids_for_set(set_number)
+             if api_id in known}
     return names - unique_traits(set_number)
 
 

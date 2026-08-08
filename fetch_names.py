@@ -72,6 +72,12 @@ for entry in cdragon.get("setData", []):
 # a one-champion trait in one set and a generic one in another - so merging
 # every set into a single list mislabels traits.
 unique_by_set = {}
+# Which trait IDs belong to which set, recorded rather than guessed from the
+# ID text. Every set so far has used a "TFT<n>_" prefix, but Set 18 arrived
+# on PBE as "DA_18_Blossom" - so a report that filters on "TFT18_" would find
+# no traits at all and quietly report a set with no comps in it. Community
+# Dragon knows the real membership; write it down and stop guessing.
+trait_ids_by_set = {}
 for entry in cdragon.get("setData", []):
     number = entry.get("number")
     if entry.get("mutator") != f"TFTSet{number}":
@@ -81,6 +87,8 @@ for entry in cdragon.get("setData", []):
         for trait in champ.get("traits") or []:
             owners[trait] = owners.get(trait, 0) + 1
     unique_by_set[str(number)] = sorted(n for n, count in owners.items() if count == 1)
+    trait_ids_by_set[str(number)] = sorted(
+        t["apiName"] for t in entry.get("traits", []) if t.get("apiName"))
 
 Path("names.json").write_text(json.dumps({
     "version": version,
@@ -88,6 +96,7 @@ Path("names.json").write_text(json.dumps({
     "units": units,
     "variants": variants,
     "unique_traits_by_set": unique_by_set,
+    "trait_ids_by_set": trait_ids_by_set,
 }, indent=2))
 
 print(f"Saved {len(traits)} trait names, {len(units)} unit names, "

@@ -45,9 +45,10 @@ def build_vocab(set_number):
         if len(key) >= 3:
             vocab.setdefault(key, (kind, name, api_id))
 
+    set_trait_ids = tft.trait_ids_for_set(set_number)
     prefix = f"TFT{set_number}_"
     for api_id, name in tft.NAMES.get("traits", {}).items():
-        if not api_id.startswith(prefix) or tft.variant_of(api_id)[0]:
+        if api_id not in set_trait_ids or tft.variant_of(api_id)[0]:
             continue
         add(name, "trait", name, api_id)
 
