@@ -28,9 +28,10 @@ def cap(text):
     return text[0].upper() + text[1:] if text else text
 
 
-def board_row(facts, me):
+def board_row(facts, me, lpbreak=False):
     """One lobby seat as a table row. Your row is marked, not just styled -
-    colour alone shouldn't be the only thing saying which seat is yours."""
+    colour alone shouldn't be the only thing saying which seat is yours.
+    `lpbreak` draws the line between 4th and 5th, where LP changes sign."""
     prof = facts["prof"]
     name = f"{esc(facts['name'])}{' (you)' if me else ''}"
     comps = esc(" + ".join(facts["comps"])) if facts["comps"] else "&mdash;"
@@ -42,8 +43,13 @@ def board_row(facts, me):
                  f'<td class="num">{prof["avg_cost"]:.1f}</td>'
                  f'<td class="num">{prof["big_units"]:.0f}</td>'
                  f'<td class="num">{prof["rerolled"]:.0f}</td>')
-    return (f'<tr{" class=" + chr(34) + "me" + chr(34) if me else ""}>'
-            f'<td class="num">{facts["place"]}</td><td>{name}</td>'
+    row_classes = " ".join(c for c in ("me" if me else "",
+                                       "lpbreak" if lpbreak else "") if c)
+    attr = f' class="{row_classes}"' if row_classes else ""
+    tone = "win" if facts["place"] <= 4 else "loss"
+    return (f'<tr{attr}>'
+            f'<td class="num"><span class="{tone}">{facts["place"]}</span></td>'
+            f'<td>{name}</td>'
             f'<td>{comps}</td><td>{carry}</td>{cells}</tr>')
 
 
@@ -64,13 +70,20 @@ def render(games, level_par, set_number, idx, who, puuid):
     for i, past in enumerate(games[:PICKER]):
         date = datetime.fromtimestamp(past["_datetime"] / 1000).strftime("%b %d")
         label = f"{pg.ordinal(past['placement'])}"
-        cls = ' class="active"' if i == idx else ""
-        picks.append(f'<a{cls} href="/game?{q}&amp;g={i + 1}" '
+        # Top 4 gains LP, bottom 4 loses it - the split TFT itself cares
+        # about, so the row of recent games reads as a win/loss streak.
+        classes = ["win" if past["placement"] <= 4 else "loss"]
+        if i == idx:
+            classes.append("active")
+        picks.append(f'<a class="{" ".join(classes)}" '
+                     f'href="/game?{q}&amp;g={i + 1}" '
                      f'title="{date}">{label}</a>')
-    picker = f'<nav class="tabs picker">{"".join(picks)}</nav>'
+    picker = (f'<nav class="tabs picker" aria-label="Recent games">'
+              f'{"".join(picks)}</nav>')
 
     # -- the lobby, as a table ---------------------------------------------
-    rows = "".join(board_row(f, b["puuid"] == g["puuid"])
+    rows = "".join(board_row(f, b["puuid"] == g["puuid"],
+                             lpbreak=f["place"] == 5)
                    for b, f in zip(lobby, facts))
     table = f"""<div class="tablewrap"><table>
       <thead><tr><th class="num">#</th><th>player</th><th>comp</th>
@@ -155,7 +168,10 @@ def render(games, level_par, set_number, idx, who, puuid):
   not one repeated one.</p>
 </div>"""
 
-    headline = "You won" if won else f"You placed {placed}"
+    top4 = g["placement"] <= 4
+    tone = "win" if top4 else "loss"
+    headline = (f'You <span class="{tone}">won</span>' if won else
+                f'You placed <span class="{tone}">{placed}</span>')
     body = f"""
 <div class="bar">
   {brand_link()}

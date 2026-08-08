@@ -63,6 +63,7 @@ CSS = """
   --ink:#171B22; --muted:#5A6478;
   --accent:#B4761A; --room:#3F6BC4; --pos:#0F8C79; --neg:#C24A52;
   --track:#E7EAF0; --accent-solid:#8F5D12; --accent-ink:#FFFFFF;
+  --pos-solid:#0B6E5F; --neg-solid:#A8353D;
   --display:"Avenir Next","Avenir",ui-sans-serif,system-ui,"Segoe UI",sans-serif;
   --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
 }
@@ -72,6 +73,7 @@ CSS = """
     --ink:#E4E8F0; --muted:#8792A8;
     --accent:#BE831A; --room:#5F86D4; --pos:#17A28C; --neg:#D25A61;
     --track:#1D2534; --accent-solid:#C58A1E; --accent-ink:#0B0E14;
+    --pos-solid:#17A28C; --neg-solid:#D25A61;
   }
 }
 :root[data-theme="dark"] {
@@ -79,12 +81,14 @@ CSS = """
   --ink:#E4E8F0; --muted:#8792A8;
   --accent:#BE831A; --room:#5F86D4; --pos:#17A28C; --neg:#D25A61;
   --track:#1D2534; --accent-solid:#C58A1E; --accent-ink:#0B0E14;
+  --pos-solid:#17A28C; --neg-solid:#D25A61;
 }
 :root[data-theme="light"] {
   --bg:#F5F6F8; --panel:#FFFFFF; --line:#DFE3EA; --grid:#EDF0F4;
   --ink:#171B22; --muted:#5A6478;
   --accent:#B4761A; --room:#3F6BC4; --pos:#0F8C79; --neg:#C24A52;
   --track:#E7EAF0; --accent-solid:#8F5D12; --accent-ink:#FFFFFF;
+  --pos-solid:#0B6E5F; --neg-solid:#A8353D;
 }
 
 body {
@@ -212,7 +216,24 @@ code { font-family:var(--mono); font-size:.92em; background:var(--track);
 .tabs a:hover, .tabs button:hover { background:var(--line); color:var(--ink); }
 .tabs a.active { background:var(--accent-solid); color:var(--accent-ink);
                  font-weight:700; }
+/* The game picker, coloured by result: top 4 gains LP, bottom 4 loses it,
+   so a glance down the row shows the shape of a session. The current game
+   is the filled one - colour says won/lost, fill says "you are here". */
 .picker { margin:18px 0 0; }
+.picker a.win  { color:var(--pos); }
+.picker a.loss { color:var(--neg); }
+.picker a.win.active  { background:var(--pos-solid); color:var(--accent-ink);
+                        font-weight:700; }
+.picker a.loss.active { background:var(--neg-solid); color:var(--accent-ink);
+                        font-weight:700; }
+/* Generic, so a placement reads the same colour wherever it appears - the
+   headline, the picker, the lobby table. The picker's active chip keeps its
+   own colour because .picker a.win.active is the more specific rule. */
+.win  { color:var(--pos); }
+.loss { color:var(--neg); }
+/* The LP break drawn where it falls in the lobby: 4th and up gained, 5th
+   and down lost. */
+tr.lpbreak td { border-top:2px solid var(--muted); }
 tr.me td { font-weight:700; }
 tr.me td:first-child { box-shadow:inset 3px 0 0 var(--accent); }
 .scoutbox textarea {
