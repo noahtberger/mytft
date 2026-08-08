@@ -94,9 +94,9 @@ def riot_get(url, allow_404=False, allow_403=False, **params):
 
 
 def resolve(riot_id):
-    """'orobas#tomo' -> (puuid, 'orobas#tomo'). Raises RiotError if unknown."""
+    """'Name#NA1' -> (puuid, 'Name#NA1'). Raises RiotError if unknown."""
     if "#" not in riot_id:
-        raise RiotError(f"'{riot_id}' needs the tag too, like orobas#tomo")
+        raise RiotError(f"'{riot_id}' needs the tag too, like Name#NA1")
     name, tag = riot_id.split("#", 1)
     account = riot_get(
         f"{REGIONAL}/riot/account/v1/accounts/by-riot-id/{name.strip()}/{tag.strip()}",

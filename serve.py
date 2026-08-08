@@ -357,7 +357,7 @@ one tells you how <em>you</em> play, measured against the seven other
 people in your own lobbies. A player nobody has looked up yet takes about
 a minute to download; after that it&rsquo;s instant.</p>
 <form method="post" action="/go">
-  <input name="riot_id" placeholder="orobas#tomo" autofocus
+  <input name="riot_id" placeholder="Name#TAG" autofocus
          aria-label="Riot ID" required>
   <button type="submit">Look them up</button>
 </form>
@@ -518,7 +518,7 @@ class Handler(BaseHTTPRequestHandler):
 
         riot_id = (fields.get("riot_id") or [""])[0].strip()
         if "#" not in riot_id:
-            self.reply(home("A Riot ID needs the tag too, like orobas#tomo"))
+            self.reply(home("A Riot ID needs the tag too, like Name#NA1"))
             return
 
         job_id = uuid.uuid4().hex[:12]

@@ -1,6 +1,6 @@
 """Scout the people you're about to play against.
 
-Run:  python scout.py orobas#tomo ...    (named players)
+Run:  python scout.py Name#NA1 ...       (named players)
       python scout.py <puuid> --offline  (saved matches only, no network)
       python scout.py lobby              (needs a production key - see below)
 
