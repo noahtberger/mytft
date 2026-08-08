@@ -1,8 +1,8 @@
 """The pre-game screen as a page in the local app.
 
-Built to be glanced at in a queue, not read: a couple of playstyle
-reminders, a box to scout the lobby, and the comps that are strong in
-your own games as tiles. Every full table lives behind a click.
+A dashboard, not an article: a row of cards with one idea each, sized to
+be glanced at between the queue popping and the loading screen. Anything
+that needs a paragraph is small print or hidden behind a click.
 
 Two rules from the product direction, both set by the user:
 
@@ -33,6 +33,17 @@ def query(puuid, who):
     return f"p={quote(puuid)}&n={quote(who)}"
 
 
+def bar(who, set_number, q, here):
+    """The one-line app header every view shares."""
+    tabs = [("Pre-game", f"/pregame?{q}"), ("Post-game", f"/game?{q}"),
+            ("Stats", f"/player?{q}")]
+    links = "".join(
+        f'<a{" class=" + chr(34) + "active" + chr(34) if name == here else ""} '
+        f'href="{url}">{name}</a>' for name, url in tabs)
+    return (f'<div class="bar"><span class="who">{esc(who)} &middot; '
+            f'Set {set_number}</span><nav class="tabs">{links}</nav></div>')
+
+
 def player_read(label, boards, set_number, note=None):
     """One scouted player, boiled down to a glance."""
     if not boards:
@@ -54,33 +65,27 @@ def player_read(label, boards, set_number, note=None):
             "forces": forces}
 
 
-def scouted_table(scouted):
-    """One line per player: who they are, how they do, what they play."""
-    rows = []
+def scouted_rows(scouted):
+    """One line per player: who, how they do, what they play."""
+    out = []
     for r in scouted:
         if r.get("error"):
-            rows.append(f'<tr><td>{esc(r["label"])}</td>'
-                        f'<td colspan="2" style="color:var(--muted)">'
-                        f'{esc(r["error"])}</td></tr>')
+            out.append(f'<li><span class="k">{esc(r["label"])}</span>'
+                       f'<span class="k">{esc(r["error"])}</span></li>')
             continue
-        plays = esc(r["plays"])
+        bits = esc(r["plays"])
         if r["carry"]:
-            plays += (f' <span style="color:var(--muted)">&middot; carries '
-                      f'{esc(r["carry"])}</span>')
+            bits += f' &middot; {esc(r["carry"])}'
         if r["forces"]:
-            plays += (f' <span class="pill blank">forces '
-                      f'{esc(r["forces"])}</span>')
-        note = (f' <span style="color:var(--muted)">({esc(r["note"])})</span>'
-                if r.get("note") else "")
-        rows.append(
-            f'<tr><td>{esc(r["label"])}{note}</td>'
-            f'<td class="num">{r["avg"]:.2f} <span style="color:var(--muted)">'
-            f'over {r["games"]}</span></td>'
-            f'<td>{plays}</td></tr>')
-    return f"""<div class="tablewrap" style="margin-top:16px"><table>
-      <thead><tr><th>player</th><th class="num">avg place</th>
-      <th>plays</th></tr></thead>
-      <tbody>{"".join(rows)}</tbody></table></div>"""
+            bits = (f'<span class="pill blank">forces {esc(r["forces"])}</span> '
+                    + bits)
+        out.append(
+            f'<li><span><strong>{esc(r["label"])}</strong><br>'
+            f'<span class="k" style="font-size:13px">{bits}</span></span>'
+            f'<span class="v">{r["avg"]:.2f}<br>'
+            f'<span class="k" style="font-size:11.5px">{r["games"]} games</span>'
+            f'</span></li>')
+    return f'<ul class="rowlist">{"".join(out)}</ul>'
 
 
 def render(games, set_number, who, puuid, scouted=None):
@@ -96,44 +101,40 @@ def render(games, set_number, who, puuid, scouted=None):
     tips = pg.advice(pg.pattern(era_games, set_number),
                      pg.flat_context(games, set_number, era_games))
     if tips:
-        tip_html = "".join(
-            f'<p style="margin:0 0 12px"><strong>{esc(t["do"])}</strong><br>'
-            f'<span style="color:var(--muted);font-size:14px">why: '
-            f'{esc(t["why"])}</span></p>' for t in tips)
-        reminders = f'<div class="verdict">{tip_html}</div>'
+        reminders = "".join(
+            f'<p class="tip"><strong>{esc(t["do"])}</strong>'
+            f'<span>{esc(t["why"])}</span></p>' for t in tips)
     else:
-        reminders = ('<p class="lede">No repeated pattern in your losses '
-                     'right now. Play your game.</p>')
+        reminders = ('<p class="fine" style="margin:0">No repeated pattern '
+                     'in your losses right now. Play your game.</p>')
 
     # -- scouting ----------------------------------------------------------
-    results_html = scouted_table(scouted) if scouted else ""
+    results = scouted_rows(scouted) if scouted else ""
     box = f"""<form class="scoutbox" method="post" action="/scout">
   <input type="hidden" name="p" value="{esc(puuid)}">
   <input type="hidden" name="n" value="{esc(who)}">
-  <textarea name="names" placeholder="one per line, like&#10;orobas#tomo&#10;KittyCat#EMT"></textarea>
+  <textarea name="names" placeholder="one name per line"></textarea>
   <button type="submit">Scout them</button>
 </form>"""
 
-    # -- strong comps here, as tiles; the table behind a click -------------
+    # -- comps that are strong here, as a compact list ---------------------
     winners = [(line, n, j) for line, n, j in room_rows
                if j["solid"] and j["gap"] > 0]
-    losers = [(line, n, j) for line, n, j in room_rows
-              if j["solid"] and j["gap"] < 0]
+    losers = [line for line, _n, j in room_rows if j["solid"] and j["gap"] < 0]
     if winners:
-        tiles = "".join(
-            f'<div class="stat"><span class="k">{esc(line)}</span>'
-            f'<span class="n">{j["with"]["avg"]:.2f}</span>'
-            f'<span class="pm">avg place &middot; '
-            f'{100 * n / len(board_rows):.0f}% play it</span></div>'
-            for line, n, j in winners)
-        strong = f'<div class="stats">{tiles}</div>'
+        strong = '<ul class="rowlist">' + "".join(
+            f'<li><span>{esc(line)}</span>'
+            f'<span class="v">{j["with"]["avg"]:.2f}'
+            f'<span class="k"> &middot; {100 * n / len(board_rows):.0f}%</span>'
+            f'</span></li>' for line, n, j in winners) + '</ul>'
+        strong += ('<p class="fine">Average placement of boards that built '
+                   'it, and how many boards do. Only comps with a real edge '
+                   'are listed.</p>')
     else:
-        strong = ('<p class="lede">Nothing clears the bar yet - no comp '
-                  'here is proven stronger than the field.</p>')
-    weak_note = ""
+        strong = ('<p class="fine" style="margin:0">Nothing clears the bar '
+                  'yet - no comp here is proven stronger than the field.</p>')
     if losers:
-        weak_note = (f'<p class="lede" style="margin-top:14px">Weak here: '
-                     f'{esc(", ".join(l for l, _, _ in losers))}.</p>')
+        strong += f'<p class="fine">Weak here: {esc(", ".join(losers))}.</p>'
 
     detail_rows = "".join(
         f'<tr><td>{esc(line)}</td>'
@@ -144,54 +145,54 @@ def render(games, set_number, who, puuid, scouted=None):
         f'<td class="num">{j["gap"]:+.2f}</td></tr>'
         for line, n, j in room_rows)
     details = f"""<details>
-  <summary>show the numbers behind this</summary>
+  <summary>every comp, with the numbers</summary>
   <div class="tablewrap"><table>
     <thead><tr><th>comp</th><th class="num">boards</th>
-    <th class="num">rate</th><th class="num">avg with</th>
-    <th class="num">avg without</th><th class="num">gap</th></tr></thead>
+    <th class="num">rate</th><th class="num">with</th>
+    <th class="num">without</th><th class="num">gap</th></tr></thead>
     <tbody>{detail_rows}</tbody></table></div>
-  <p class="lede" style="margin-top:12px">All {len(board_rows)} boards from
-  your own games. A comp only counts when the board actually built it.
-  Gaps smaller than the error bars are listed but prove nothing.</p>
+  <p class="fine">All {len(board_rows)} boards from your own games. A comp
+  only counts when the board actually built it.</p>
 </details>""" if room_rows else ""
 
     era_n, verdicts, sentence = pre.playstyle_now(games, set_number)
     style = esc(sentence) if sentence else \
         "Nothing about how you play stands out from the lobby."
+    overall = tft.summarise([g["placement"] for g in games])
 
     body = f"""
-<nav class="tabs">
-  <a class="active" href="/pregame?{q}">Pre-game</a>
-  <a href="/game?{q}">Post-game</a>
-  <a href="/player?{q}">Stats</a>
-</nav>
-<header class="masthead">
-  <div class="who">{esc(who)} &middot; Set {set_number} ranked</div>
+{bar(who, set_number, q, "Pre-game")}
+<div class="hero">
   <h1>Before you queue</h1>
-  <p class="standfirst">{style}</p>
-</header>
-<section>
-  <p class="eyebrow">Reminders</p>
-  <h2>Keep in mind</h2>
-  {reminders}
-</section>
-<section>
-  <p class="eyebrow">Scouting</p>
-  <h2>Scout your lobby</h2>
-  <p class="lede">Type the names from the loading screen, one per line.
-  Anyone already in your saved games is instant. (Filling this in
-  automatically needs a small helper on the PC running League &mdash;
-  it&rsquo;s on the list.)</p>
-  {box}
-  {results_html}
-</section>
-<section>
-  <p class="eyebrow">Your lobbies</p>
-  <h2>Strong in your lobbies</h2>
-  {strong}
-  {weak_note}
-  {details}
-</section>
+  <span class="sub">{overall['games']} ranked games &middot; avg
+  {overall['avg']:.2f} &middot; {overall['top4']:.0f}% top 4</span>
+</div>
+<div class="grid">
+  <div class="card full">
+    <h3>Keep in mind</h3>
+    {reminders}
+  </div>
+  <div class="card full">
+    <h3>Scout your lobby</h3>
+    {box}
+    {results}
+    <p class="fine">Names from the loading screen, one per line. Anyone
+    you&rsquo;ve played with before is instant. Filling this in
+    automatically needs a helper on the PC running League &mdash; on the
+    list.</p>
+  </div>
+  <div class="card">
+    <h3>Strong in your lobbies</h3>
+    {strong}
+    {details}
+  </div>
+  <div class="card">
+    <h3>How you play</h3>
+    <p style="margin:0">{style}</p>
+    <p class="fine">Measured over your last {era_n} games against everyone
+    else in them. The full chart is on the stats page.</p>
+  </div>
+</div>
 """
 
     return f"""<!doctype html>
@@ -203,7 +204,7 @@ def render(games, set_number, who, puuid, scouted=None):
 <style>{CSS}</style>
 </head>
 <body>
-<div class="wrap">{body}</div>
+<div class="app">{body}</div>
 </body>
 </html>
 """

@@ -186,7 +186,7 @@ code { font-family:var(--mono); font-size:.92em; background:var(--track);
 tr.me td { font-weight:700; }
 tr.me td:first-child { box-shadow:inset 3px 0 0 var(--accent); }
 .scoutbox textarea {
-  width:100%; min-height:120px; box-sizing:border-box;
+  width:100%; min-height:82px; box-sizing:border-box;
   font-family:var(--mono); font-size:14px; padding:12px 14px;
   border:1px solid var(--line); border-radius:3px;
   background:var(--panel); color:var(--ink); resize:vertical; }
@@ -198,6 +198,53 @@ tr.me td:first-child { box-shadow:inset 3px 0 0 var(--accent); }
 details summary { cursor:pointer; font-family:var(--mono); font-size:12.5px;
                   color:var(--muted); margin:16px 0 12px; }
 details summary:hover { color:var(--ink); }
+
+/* ---- dashboard layout: the app pages, as panels rather than an essay ----
+   The stats page stays a document you read top to bottom. These are the
+   screens you check between games, so they are a grid of cards with one
+   idea each, no standfirsts, and every long explanation folded into small
+   print or a <details>. */
+.app { max-width:1080px; margin:0 auto; padding:0 20px 64px; }
+.bar { display:flex; flex-wrap:wrap; align-items:center; gap:12px;
+       padding:16px 0 14px; border-bottom:1px solid var(--line);
+       margin-bottom:20px; }
+.bar .who { font-family:var(--mono); font-size:12.5px; color:var(--muted);
+            margin-right:auto; }
+.bar .tabs { margin:0; }
+.hero { display:flex; flex-wrap:wrap; align-items:baseline; gap:14px;
+        margin:0 0 18px; }
+.hero h1 { font-size:clamp(26px,4vw,34px); letter-spacing:-.03em;
+           font-weight:800; margin:0; }
+.hero .sub { font-family:var(--mono); font-size:12.5px; color:var(--muted); }
+/* Two columns at desktop width, one on a laptop or phone. minmax is set
+   past a third of the container on purpose: three columns of these cards
+   leaves an empty slot far more often than it fills one. */
+.grid { display:grid; gap:14px; align-items:start;
+        grid-template-columns:repeat(auto-fit,minmax(420px,1fr)); }
+.grid .full { grid-column:1/-1; }
+.card { background:var(--panel); border:1px solid var(--line);
+        border-radius:4px; padding:16px 18px; }
+.card > h3 { font-family:var(--mono); font-size:10.5px; letter-spacing:.14em;
+             text-transform:uppercase; color:var(--muted); font-weight:400;
+             margin:0 0 12px; }
+.card p { max-width:none; }
+.card .tablewrap { background:none; border:0; padding:0; }
+.card .stats { margin:0; border:0; background:var(--line); }
+.card details summary { margin:12px 0 0; }
+.fine { color:var(--muted); font-size:12.5px; line-height:1.5; margin:12px 0 0; }
+.big { font-family:var(--mono); font-size:30px; letter-spacing:-.02em;
+       font-variant-numeric:tabular-nums; display:block; }
+.tip { margin:0 0 14px; }
+.tip:last-child { margin-bottom:0; }
+.tip strong { display:block; font-size:15.5px; line-height:1.45; }
+.tip span { color:var(--muted); font-size:13px; }
+.rowlist { list-style:none; margin:0; padding:0; }
+.rowlist li { display:flex; justify-content:space-between; gap:12px;
+              padding:9px 0; border-top:1px solid var(--line); font-size:14px; }
+.rowlist li:first-child { border-top:0; padding-top:0; }
+.rowlist .k { color:var(--muted); }
+.rowlist .v { font-family:var(--mono); font-variant-numeric:tabular-nums;
+              white-space:nowrap; }
 """
 
 SCRIPT = """

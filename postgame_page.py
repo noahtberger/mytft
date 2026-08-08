@@ -80,28 +80,27 @@ def render(games, level_par, set_number, idx, who, puuid):
 
     # -- what this one game says -------------------------------------------
     if won:
-        margin = """<div class="verdict"><p class="eyebrow">This game</p>
-        <p style="margin:0"><strong>You won this one.</strong> Nothing to
-        debrief &mdash; the table above is the lobby you beat.</p></div>"""
+        margin = """<div class="card"><h3>This game</h3>
+        <p style="margin:0"><strong>You won it.</strong> Nothing to debrief
+        &mdash; the lobby below is the one you beat.</p></div>"""
     else:
         bullets = pg.margin_bullets(g, above, set_number, level_par)
         if bullets:
-            items = "".join(f"<li>{esc(b)}</li>" for b in bullets)
-            margin = f"""<section>
-  <p class="eyebrow">This game</p>
-  <h2>What stood out</h2>
-  <p class="lede">Just this one game. One game proves nothing on its own,
-  which is why the advice below is built from all of them.</p>
-  <ul class="notes">{items}</ul>
-</section>"""
+            items = "".join(f'<li><span>{esc(b)}</span></li>'
+                            for b in bullets)
+            margin = f"""<div class="card">
+  <h3>This game</h3>
+  <ul class="rowlist">{items}</ul>
+  <p class="fine">One game only &mdash; the advice beside this is built
+  from all of them.</p>
+</div>"""
         else:
-            margin = """<section>
-  <p class="eyebrow">This game</p>
-  <h2>What stood out</h2>
-  <p class="lede">Nothing obvious on the board side &mdash; no contest, no
-  level or item gap, no wasted gold. This one probably came down to
+            margin = """<div class="card">
+  <h3>This game</h3>
+  <p style="margin:0">Nothing obvious on the board side &mdash; no contest,
+  no level or item gap, no wasted gold. This one probably came down to
   fights.</p>
-</section>"""
+</div>"""
 
     # -- the advice, and the numbers it came from --------------------------
     mine, _ = tft.lobby_profiles(games, set_number)
@@ -114,76 +113,78 @@ def render(games, level_par, set_number, idx, who, puuid):
 
     def stat_list():
         return "".join(
-            f'<li><strong>{esc(cap(pg.PATTERN_WORDS[k][0]))}</strong>: '
-            f'{esc(pg.PATTERN_WORDS[k][1] if mean > 0 else pg.PATTERN_WORDS[k][2])} '
-            f'({mean:+.2f})</li>'
+            f'<li><span class="k">{esc(cap(pg.PATTERN_WORDS[k][0]))}</span>'
+            f'<span class="v">'
+            f'{esc(pg.PATTERN_WORDS[k][1] if mean > 0 else pg.PATTERN_WORDS[k][2])}'
+            f' {mean:+.2f}</span></li>'
             for k, mean, _n in pattern_rows)
 
     if tips:
         tip_html = "".join(
-            f'<p style="margin:0 0 12px"><strong>{esc(t["do"])}</strong><br>'
-            f'<span style="color:var(--muted);font-size:14px">why: '
-            f'{esc(t["why"])}</span></p>' for t in tips)
-        pattern = f"""<section>
-  <p class="eyebrow">Next game</p>
-  <h2>What to work on</h2>
-  <div class="verdict">{tip_html}</div>
-  <p class="lede" style="margin-top:22px">The full pattern behind that,
-  from your last {len(era_games)} games &mdash; how the boards that beat
-  you differ from yours. Gaps too big to be luck only.</p>
-  <ul class="notes">{stat_list()}</ul>
-  <p class="lede" style="margin-top:14px">One caution: boards that beat you
-  also lived longer, which inflates the size and item rows by itself. The
-  advice only comes from the choice-shaped gaps &mdash; committing,
-  rerolling, itemizing &mdash; never from the scoreboard ones.</p>
-</section>"""
+            f'<p class="tip"><strong>{esc(t["do"])}</strong>'
+            f'<span>{esc(t["why"])}</span></p>' for t in tips)
+        pattern = f"""<div class="card">
+  <h3>Next game</h3>
+  {tip_html}
+  <details>
+    <summary>the pattern behind this</summary>
+    <ul class="rowlist">{stat_list()}</ul>
+    <p class="fine">Over your last {len(era_games)} games, this is how the
+    boards that beat you differ from yours &mdash; gaps too big to be luck
+    only. They also lived longer, which inflates the size and item rows by
+    itself, so the advice only comes from the choice-shaped gaps.</p>
+  </details>
+</div>"""
     elif pattern_rows:
-        pattern = f"""<section>
-  <p class="eyebrow">Next game</p>
-  <h2>What to work on</h2>
-  <p class="lede">No tip this time: the boards that beat you do differ from
-  yours, but only in ways that come from surviving longer &mdash; size and
-  items &mdash; not from a choice you could copy.</p>
-  <ul class="notes">{stat_list()}</ul>
-</section>"""
+        pattern = f"""<div class="card">
+  <h3>Next game</h3>
+  <p style="margin:0">No tip this time. The boards that beat you do differ
+  from yours, but only in ways that come from surviving longer &mdash; size
+  and items &mdash; not from a choice you could copy.</p>
+  <details>
+    <summary>the pattern behind this</summary>
+    <ul class="rowlist">{stat_list()}</ul>
+  </details>
+</div>"""
     else:
-        pattern = f"""<section>
-  <p class="eyebrow">Next game</p>
-  <h2>What to work on</h2>
-  <p class="lede">Nothing yet. Across your last {len(era_games)} games, no
-  consistent difference between your boards and the ones that beat you has
-  cleared its error bar &mdash; losses are landing for varied reasons, not
-  one repeated one.</p>
-</section>"""
+        pattern = f"""<div class="card">
+  <h3>Next game</h3>
+  <p style="margin:0">Nothing yet. Across your last {len(era_games)} games,
+  no consistent difference between your boards and the ones that beat you
+  has cleared its error bar &mdash; losses are landing for varied reasons,
+  not one repeated one.</p>
+</div>"""
 
     headline = "You won" if won else f"You placed {placed}"
     body = f"""
-<nav class="tabs">
-  <a href="/pregame?{q}">Pre-game</a>
-  <a class="active" href="/game?{q}">Post-game</a>
-  <a href="/player?{q}">Stats</a>
-  <form method="post" action="/refresh" style="margin:0">
-    <input type="hidden" name="p" value="{esc(puuid)}">
-    <input type="hidden" name="n" value="{esc(who)}">
-    <button type="submit">Check for a new game</button>
-  </form>
-</nav>
-<header class="masthead">
-  <div class="who">{esc(who)} &middot; Set {set_number} ranked</div>
+<div class="bar">
+  <span class="who">{esc(who)} &middot; Set {set_number}</span>
+  <nav class="tabs">
+    <a href="/pregame?{q}">Pre-game</a>
+    <a class="active" href="/game?{q}">Post-game</a>
+    <a href="/player?{q}">Stats</a>
+    <form method="post" action="/refresh" style="margin:0">
+      <input type="hidden" name="p" value="{esc(puuid)}">
+      <input type="hidden" name="n" value="{esc(who)}">
+      <button type="submit">Check for a new game</button>
+    </form>
+  </nav>
+</div>
+<div class="hero">
   <h1>{headline}</h1>
-  <p class="standfirst">{when}, patch {esc(g["_patch"])} &mdash; game
-  {idx + 1} of {len(games)}, newest first. Your recent games:</p>
-  {picker}
-</header>
-<section>
-  <p class="eyebrow">The lobby</p>
-  <h2>All eight boards</h2>
-  <p class="lede">Sorted by final placement. Everyone here played the same
-  game you did, so the boards above yours are worth a look.</p>
-  {table}
-</section>
-{margin}
-{pattern}
+  <span class="sub">{when} &middot; patch {esc(g["_patch"])}</span>
+</div>
+{picker}
+<div class="grid" style="margin-top:20px">
+  {margin}
+  {pattern}
+  <div class="card full">
+    <h3>The lobby</h3>
+    {table}
+    <p class="fine">Everyone here played the same game you did, on the same
+    patch, with the same items dropping.</p>
+  </div>
+</div>
 """
 
     return f"""<!doctype html>
@@ -195,7 +196,7 @@ def render(games, level_par, set_number, idx, who, puuid):
 <style>{CSS}</style>
 </head>
 <body>
-<div class="wrap">{body}</div>
+<div class="app">{body}</div>
 <div id="tip" role="status" aria-live="polite"></div>
 <script>{SCRIPT}</script>
 </body>
