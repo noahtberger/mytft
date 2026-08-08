@@ -14,7 +14,7 @@ from urllib.parse import quote
 
 import postgame as pg
 import tftdata as tft
-from theme import CSS, SCRIPT, esc
+from theme import BRAND, CSS, SCRIPT, brand_link, esc
 
 PICKER = 10   # recent games shown in the switcher row
 
@@ -158,6 +158,7 @@ def render(games, level_par, set_number, idx, who, puuid):
     headline = "You won" if won else f"You placed {placed}"
     body = f"""
 <div class="bar">
+  {brand_link()}
   <span class="who">{esc(who)} &middot; Set {set_number}</span>
   <nav class="tabs">
     <a href="/pregame?{q}">Pre-game</a>
@@ -192,7 +193,7 @@ def render(games, level_par, set_number, idx, who, puuid):
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Post-game &middot; {esc(who)}</title>
+<title>{BRAND} &middot; Post-game &middot; {esc(who)}</title>
 <style>{CSS}</style>
 </head>
 <body>

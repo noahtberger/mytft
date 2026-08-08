@@ -234,7 +234,7 @@ def build_stats(puuid, label):
 PAGE = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TFT tracker</title>
+<title>MyTFT</title>
 {refresh}
 <style>
 :root {{
@@ -271,8 +271,11 @@ button:hover {{ filter:brightness(1.08); }}
           background:var(--panel); border-radius:3px; }}
 .error {{ border-left-color:var(--neg); color:var(--ink); }}
 a {{ color:var(--accent); }}
+.brand {{ font-weight:800; font-size:19px; letter-spacing:-.02em;
+         margin:0 0 20px; color:var(--ink); }}
+.brand span {{ color:var(--accent); }}
 </style></head><body><div class="card">
-<p class="eyebrow">TFT tracker</p>
+<p class="brand">My<span>TFT</span></p>
 {content}
 </div></body></html>
 """
@@ -287,12 +290,14 @@ def home(message=""):
     note = f'<p class="status error">{html.escape(message)}</p>' if message else ""
     return page(f"""
 <h1>Whose games?</h1>
-<p>Type any Riot ID. A player nobody has looked up yet takes about a minute
-to download; after that it is instant.</p>
+<p>Type any Riot ID. Other sites tell you what the world is playing; this
+one tells you how <em>you</em> play, measured against the seven other
+people in your own lobbies. A player nobody has looked up yet takes about
+a minute to download; after that it&rsquo;s instant.</p>
 <form method="post" action="/go">
   <input name="riot_id" placeholder="orobas#tomo" autofocus
          aria-label="Riot ID" required>
-  <button type="submit">Analyse</button>
+  <button type="submit">Look them up</button>
 </form>
 {note}""")
 
@@ -465,6 +470,6 @@ if __name__ == "__main__":
     except riot.RiotError as problem:
         sys.exit(f"{problem}\n"
                  "It stays in this process and is never sent to the browser.")
-    print(f"TFT tracker running at http://{HOST}:{PORT}")
+    print(f"MyTFT running at http://{HOST}:{PORT}")
     print("Local only - nothing outside this machine can reach it. Ctrl-C to stop.")
     ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()

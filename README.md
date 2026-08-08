@@ -1,7 +1,13 @@
-# tft-tracker
+# MyTFT
 
-Personal TFT performance tracker for `orobas#tomo` (NA). All analysis runs
-here on the Mac, in Python, over end-of-game data from Riot's public API.
+A TFT tracker that measures **you**, not the meta. Other sites tell you
+what the world is playing; this one tells you how you play, judged against
+the seven other people in your own lobbies — and it refuses to claim
+anything its sample size can't back up.
+
+Built for `orobas#tomo` (NA) and friends, but any Riot ID works. All
+analysis runs locally in Python over end-of-game data from Riot's public
+API. (The repo folder is still `tft-tracker`.)
 
 (`overwolf-logger/` was an attempt at live round-by-round capture; retired
 Aug 2026 — Overwolf only whitelists public, ad-monetized store apps, so a

@@ -28,7 +28,7 @@ from collections import defaultdict
 from pathlib import Path
 
 import tftdata as tft
-from theme import CSS, SCRIPT, esc, fit, plural
+from theme import BRAND, CSS, SCRIPT, brand_link, esc, fit, plural
 
 OUT_DIR = Path("site")
 TARGET = tft.MIN_ACTIONABLE
@@ -498,9 +498,11 @@ else:
 if os.environ.get("TFT_LINKS"):
     from urllib.parse import quote
     q = f"p={quote(games[0]['puuid'])}&n={quote(WHO)}"
-    body.append(f'<nav class="tabs"><a href="/pregame?{q}">Pre-game</a>'
+    body.append(f'<div class="bar">{brand_link()}'
+                f'<span class="who"></span>'
+                f'<nav class="tabs"><a href="/pregame?{q}">Pre-game</a>'
                 f'<a href="/game?{q}">Post-game</a>'
-                f'<a class="active" href="/player?{q}">Stats</a></nav>')
+                f'<a class="active" href="/player?{q}">Stats</a></nav></div>')
 
 body.append(f"""
 <header class="masthead">
@@ -829,7 +831,7 @@ OUT_DIR.mkdir(exist_ok=True)
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TFT Set {set_number} &middot; {esc(WHO)}</title>
+<title>{BRAND} &middot; Set {set_number} &middot; {esc(WHO)}</title>
 <style>{CSS}</style>
 </head>
 <body>
@@ -843,7 +845,7 @@ OUT_DIR.mkdir(exist_ok=True)
 """)
 
 # The same page as a fragment, for a host that supplies its own <head>.
-(OUT_DIR / "artifact.html").write_text(f"""<title>TFT Set {set_number} &middot; {esc(WHO)}</title>
+(OUT_DIR / "artifact.html").write_text(f"""<title>{BRAND} &middot; Set {set_number} &middot; {esc(WHO)}</title>
 <style>{CSS}</style>
 <div class="wrap">
 {BODY}

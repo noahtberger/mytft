@@ -26,7 +26,7 @@ import postgame as pg
 import pregame as pre
 import scout
 import tftdata as tft
-from theme import CSS, esc
+from theme import BRAND, CSS, brand_link, esc
 
 
 def query(puuid, who):
@@ -40,8 +40,9 @@ def bar(who, set_number, q, here):
     links = "".join(
         f'<a{" class=" + chr(34) + "active" + chr(34) if name == here else ""} '
         f'href="{url}">{name}</a>' for name, url in tabs)
-    return (f'<div class="bar"><span class="who">{esc(who)} &middot; '
-            f'Set {set_number}</span><nav class="tabs">{links}</nav></div>')
+    return (f'<div class="bar">{brand_link()}'
+            f'<span class="who">{esc(who)} &middot; Set {set_number}</span>'
+            f'<nav class="tabs">{links}</nav></div>')
 
 
 def player_read(label, boards, set_number, note=None):
@@ -200,7 +201,7 @@ def render(games, set_number, who, puuid, scouted=None):
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pre-game &middot; {esc(who)}</title>
+<title>{BRAND} &middot; Pre-game &middot; {esc(who)}</title>
 <style>{CSS}</style>
 </head>
 <body>

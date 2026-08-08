@@ -9,6 +9,15 @@ these pieces.
 
 import html
 
+# The app's name. MetaTFT tells you what the world is playing; this tells
+# you what you play, measured against the seven people in your own lobbies.
+BRAND = "MyTFT"
+BRAND_HTML = 'My<span>TFT</span>'
+
+
+def brand_link(href="/"):
+    return f'<a class="brand" href="{href}">{BRAND_HTML}</a>'
+
 
 def esc(text):
     return html.escape(str(text), quote=True)
@@ -208,6 +217,9 @@ details summary:hover { color:var(--ink); }
 .bar { display:flex; flex-wrap:wrap; align-items:center; gap:12px;
        padding:16px 0 14px; border-bottom:1px solid var(--line);
        margin-bottom:20px; }
+.bar .brand { font-weight:800; font-size:17px; letter-spacing:-.02em;
+              text-decoration:none; color:var(--ink); }
+.bar .brand span { color:var(--accent); }
 .bar .who { font-family:var(--mono); font-size:12.5px; color:var(--muted);
             margin-right:auto; }
 .bar .tabs { margin:0; }
