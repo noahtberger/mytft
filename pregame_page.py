@@ -145,8 +145,14 @@ def render(games, set_number, who, puuid, scouted=None):
 </details>""" if room_rows else ""
 
     era_n, verdicts, sentence = pre.playstyle_now(games, set_number)
-    style = esc(sentence) if sentence else \
-        "Nothing about how you play stands out from the lobby."
+    if sentence:
+        style = esc(sentence)
+    elif era_n < tft.MIN_PLAYSTYLE_GAMES:
+        style = (f"Not enough games yet &mdash; it takes about "
+                 f"{tft.MIN_PLAYSTYLE_GAMES} before a habit can be told "
+                 "apart from luck.")
+    else:
+        style = "Nothing about how you play stands out from the lobby."
     overall = tft.summarise([g["placement"] for g in games])
 
     body = f"""

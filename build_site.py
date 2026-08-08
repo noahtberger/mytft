@@ -532,12 +532,11 @@ style_shift = tft.biggest_shift(mine_style)
 style_era = mine_style[style_shift["cut"]:] if style_shift else mine_style
 era_games = timeline[style_shift["cut"]:] if style_shift else timeline
 
-style_rows, style_verdicts = [], {}
+style_verdicts, style_enough = tft.playstyle_verdicts(style_era, room_style)
+style_rows = []
 for key, label, more, less in tft.PLAYSTYLE_LABELS:
-    judged = tft.mean_gap([p[key] for p in style_era],
-                          [p[key] for p in room_style])
+    judged = style_verdicts.get(key)
     if judged and judged["moe"] > 0:
-        style_verdicts[key] = judged
         style_rows.append((label, judged["a"], judged["b"],
                            judged["gap"], judged["moe"], more, less))
 
@@ -565,10 +564,17 @@ else:
 if style_rows:
     # Same sentence the terminal prints, from the same function - so the page
     # and coverage of it can't describe the same player differently.
-    said = tft.playstyle_sentence(style_verdicts)
-    summary = (f"<strong>{esc(said)}</strong>" if said else
-               "Nothing here stands out from the lobby yet &mdash; you play "
-               "the way your lobbies do.")
+    said = tft.playstyle_sentence(style_verdicts) if style_enough else None
+    if said:
+        summary = f"<strong>{esc(said)}</strong>"
+    elif not style_enough:
+        summary = (f"<strong>Too few games to name a habit yet</strong> "
+                   f"&mdash; it takes about {tft.MIN_PLAYSTYLE_GAMES}. The "
+                   "bars below are the real gaps; none of them is big enough "
+                   "yet to be told apart from luck.")
+    else:
+        summary = ("Nothing here stands out from the lobby &mdash; you play "
+                   "the way your lobbies do.")
     if style_shift:
         era_note = (
             f"Based on your last {len(style_era)} games: around game "

@@ -201,16 +201,17 @@ def proven(games, data):
 
 
 def playstyle_now(games, set_number):
-    """Current-era playstyle verdicts and the sentence they add up to."""
+    """Current-era playstyle verdicts and the sentence they add up to.
+
+    The sentence is None below tft.MIN_PLAYSTYLE_GAMES: naming habits off a
+    handful of games gets the player backwards more often than not.
+    """
     mine, room = tft.lobby_profiles(games, set_number)
     shift = tft.biggest_shift(mine)
     era = mine[shift["cut"]:] if shift else mine
-    verdicts = {}
-    for key, label, more, less in tft.PLAYSTYLE_LABELS:
-        judged = tft.mean_gap([p[key] for p in era], [p[key] for p in room])
-        if judged:
-            verdicts[key] = judged
-    return len(era), verdicts, tft.playstyle_sentence(verdicts)
+    verdicts, enough = tft.playstyle_verdicts(era, room)
+    return len(era), verdicts, (tft.playstyle_sentence(verdicts)
+                                if enough else None)
 
 
 def scout_targets(names, set_number, offline):
@@ -342,8 +343,11 @@ def main():
     print(f"\nHOW YOU PLAY RIGHT NOW  (current era, {era_n} games)")
     print()
     wrap(sentence if sentence else
-         "Nothing about how you play is far enough from the lobby to name - "
-         "you play the way your lobbies do.")
+         (f"Not enough games yet - it takes about "
+          f"{tft.MIN_PLAYSTYLE_GAMES} before habits can be told from luck."
+          if era_n < tft.MIN_PLAYSTYLE_GAMES else
+          "Nothing about how you play is far enough from the lobby to name - "
+          "you play the way your lobbies do."))
     real = [(tft.PLAYSTYLE_LABELS[i][1], verdicts[k])
             for i, (k, *_rest) in enumerate(tft.PLAYSTYLE_LABELS)
             if k in verdicts and verdicts[k]["real"]]
