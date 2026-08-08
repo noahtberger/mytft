@@ -118,10 +118,12 @@ def get_job(job_id):
 def run_job(job_id, riot_id):
     """Resolve, backfill, render. Runs on its own thread so the page can poll."""
     try:
-        set_job(job_id, status="Looking up the account...")
+        set_job(job_id, title="Looking up their games",
+                status="Finding the account...")
         puuid, label = riot.resolve(riot_id)
 
-        set_job(job_id, status=f"Found {label}. Checking saved games...", label=label)
+        set_job(job_id, status=f"Found {label}. Checking saved games...",
+                label=label)
 
         def progress(i, total, have):
             set_job(job_id, status=f"Downloading {label}'s games - {i} of {total} "
@@ -150,8 +152,10 @@ def refresh_job(job_id, puuid, label):
     history within a minute or two of the end screen, so this is the
     play -> alt-tab -> refresh loop."""
     try:
+        set_job(job_id, title="Looking for new games")
+
         def progress(i, total, have):
-            set_job(job_id, status=f"Checking recent games - {i} of {total}")
+            set_job(job_id, status=f"Checking your recent games - {i} of {total}")
 
         riot.backfill(puuid, want=REFRESH_WANTED, progress=progress,
                       into=own_dir(puuid))
@@ -168,6 +172,7 @@ def scout_job(job_id, puuid, label, raw_names):
     results filled in. Names already in the saved games cost nothing; a
     stranger costs a resolve plus a few match downloads."""
     try:
+        set_job(job_id, title="Scouting your lobby")
         names = [n.strip() for n in re.split(r"[\n,]+", raw_names)
                  if n.strip()][:8]
         if not names:
@@ -470,10 +475,14 @@ class Handler(BaseHTTPRequestHandler):
                 # Poll by meta-refresh rather than JavaScript: no script to
                 # debug, and it works with JS switched off like the report does.
                 self.reply(page(
-                    f'<h1>Working on it</h1>'
+                    # The heading comes from the job, so a refresh says it is
+                    # looking for new games rather than "working on it". No
+                    # rate-limit arithmetic on screen: that is our problem to
+                    # handle, not something to explain to whoever is waiting.
+                    f'<h1>{html.escape(job.get("title") or "One moment")}</h1>'
                     f'<p class="status">{html.escape(job.get("status") or "Starting...")}</p>'
-                    f'<p>This page refreshes itself. A first lookup is about a '
-                    f'minute &mdash; Riot allows 100 requests every 2 minutes.</p>',
+                    f'<p>This page updates itself &mdash; no need to touch '
+                    f'anything.</p>',
                     refresh=2))
             return
 
@@ -492,7 +501,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply(home("That scout is missing a player."), 404)
                 return
             job_id = uuid.uuid4().hex[:12]
-            set_job(job_id, status="Reading your saved games...")
+            set_job(job_id, title="Scouting your lobby",
+                    status="Reading your saved games...")
             threading.Thread(target=scout_job,
                              args=(job_id, puuid, label, names),
                              daemon=True).start()
@@ -508,7 +518,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply(home("That refresh is missing a player."), 404)
                 return
             job_id = uuid.uuid4().hex[:12]
-            set_job(job_id, status="Asking Riot for new games...")
+            set_job(job_id, title="Looking for new games",
+                    status="Checking for anything new...")
             threading.Thread(target=refresh_job, args=(job_id, puuid, label),
                              daemon=True).start()
             self.send_response(303)
@@ -522,7 +533,8 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         job_id = uuid.uuid4().hex[:12]
-        set_job(job_id, status="Starting...")
+        set_job(job_id, title="Looking up their games",
+                status="Starting...")
         threading.Thread(target=run_job, args=(job_id, riot_id), daemon=True).start()
         self.send_response(303)
         self.send_header("Location", f"/job/{job_id}")
