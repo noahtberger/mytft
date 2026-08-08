@@ -18,6 +18,28 @@ source; everything below works from saved match files.)
 when a new set launches nothing needs editing — fetch and play. To look
 back at an older set: `TFT_SET=17 .venv/bin/python stats.py`
 
+## Running it on another computer
+
+The repo lives at `github.com/noahtberger/mytft` (private). To set it up
+on a second machine — Windows included, nothing here is Mac-specific:
+
+```bash
+git clone https://github.com/noahtberger/mytft.git
+cd mytft
+python -m venv .venv
+.venv/Scripts/python -m pip install requests   # Windows
+# .venv/bin/python -m pip install requests     # Mac/Linux
+```
+
+Then put that day's key in `.riot_key` and run any script with
+`.venv/Scripts/python` (Windows) or `.venv/bin/python` (Mac). Your
+`matches/`, `me.json` and `names.json` come with the clone, so every
+report works immediately with no downloading.
+
+Keeping two machines in sync is `git pull` before you start and
+`git add matches && git commit && git push` after you fetch new games —
+`matches/` is committed precisely so it survives and travels.
+
 ## Daily use
 
 ```bash
