@@ -42,6 +42,21 @@ def esc(text):
 TABS = [("Pre-game", "/pregame"), ("Post-game", "/game"), ("Stats", "/player")]
 
 
+def stale_names_banner(set_number):
+    """A visible nag when names.json predates the set being shown.
+
+    The terminal reports write this to stderr, which nobody sees through a
+    browser - so the pages carry their own copy.
+    """
+    import tftdata as tft          # imported here to keep theme dependency-free
+    if not tft.names_missing(set_number):
+        return ""
+    return ('<div class="banner"><strong>Names for this set are missing.</strong> '
+            'Comps are showing Riot&rsquo;s internal ids, and the list of comps '
+            'that exist is incomplete. Run <code>python fetch_names.py</code> '
+            'to fix it.</div>')
+
+
 def app_bar(who, set_number, q, here, extra=""):
     """The header every app view shares: wordmark, whose games you are
     looking at, the three views, and the way back out.
@@ -356,6 +371,9 @@ details summary:hover { color:var(--ink); }
 .card .stats { margin:0; border:0; background:var(--line); }
 .card details summary { margin:12px 0 0; }
 .fine { color:var(--muted); font-size:12.5px; line-height:1.5; margin:12px 0 0; }
+.banner { background:var(--panel); border:1px solid var(--neg);
+          border-left-width:3px; border-radius:3px; padding:12px 16px;
+          margin:0 0 16px; font-size:14px; }
 .big { font-family:var(--mono); font-size:30px; letter-spacing:-.02em;
        font-variant-numeric:tabular-nums; display:block; }
 .tip { margin:0 0 14px; }

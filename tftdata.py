@@ -90,6 +90,36 @@ def unique_traits(set_number):
     return set(NAMES.get("unique_traits_by_set", {}).get(str(set_number), []))
 
 
+def names_missing(set_number):
+    """True when names.json has never heard of this set.
+
+    The day a new set launches, every id in a match file changes prefix and
+    the local names table predates all of them. Nothing crashes - display()
+    falls back to the raw id suffix - but two things go quietly wrong, and
+    both look like bugs rather than stale data:
+
+      - Names become internal ones. "Space Groove" prints as "SpaceGroove",
+        and traits nobody should ever see, like "RhaastUniqueTrait" and
+        "FlexTrait", appear as if they were comps.
+      - set_traits() returns nothing, so the roster shrinks to whatever has
+        been observed. Blind spots - comps the lobby builds and you never
+        have - silently stop existing, because the report no longer knows
+        what the set contains.
+
+    The cure is one command, `python fetch_names.py`, so the reports say so
+    rather than letting someone puzzle over it.
+    """
+    prefix = f"TFT{set_number}_"
+    return not any(api_id.startswith(prefix)
+                   for api_id in NAMES.get("traits", {}))
+
+
+STALE_NAMES_WARNING = (
+    "This set's names aren't in names.json yet, so comps are showing "
+    "Riot's internal ids and the list of comps that exist is incomplete. "
+    "Run:  python fetch_names.py")
+
+
 def set_traits(set_number):
     """Every comp direction a set offers, as display names.
 
@@ -555,6 +585,11 @@ def load_games(puuid=None, set_number=None):
     if chosen not in games_by_set:
         sys.exit(f"No set-{chosen} games in {MATCH_DIR}/ "
                  f"(sets on disk: {sorted(games_by_set)}).")
+
+    # Warned here rather than in each report: every report loads games, so
+    # one check covers all of them, and stderr keeps it out of piped output.
+    if names_missing(chosen):
+        print(f"\n  !  {STALE_NAMES_WARNING}\n", file=sys.stderr)
 
     my_games = sorted(games_by_set[chosen],
                       key=lambda g: g["_datetime"], reverse=True)

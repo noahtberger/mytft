@@ -26,7 +26,7 @@ import postgame as pg
 import pregame as pre
 import scout
 import tftdata as tft
-from theme import BRAND, CSS, app_bar, esc
+from theme import BRAND, CSS, app_bar, esc, stale_names_banner
 
 
 def query(puuid, who):
@@ -157,6 +157,7 @@ def render(games, set_number, who, puuid, scouted=None):
 
     body = f"""
 {app_bar(who, set_number, q, "Pre-game")}
+{stale_names_banner(set_number)}
 <div class="hero">
   <h1>Before you queue</h1>
   <span class="sub">{overall['games']} ranked games &middot; avg

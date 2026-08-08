@@ -28,7 +28,8 @@ from collections import defaultdict
 from pathlib import Path
 
 import tftdata as tft
-from theme import BRAND, CSS, SCRIPT, app_bar, esc, fit, plural
+from theme import (BRAND, CSS, SCRIPT, app_bar, esc, fit, plural,
+                   stale_names_banner)
 
 OUT_DIR = Path("site")
 TARGET = tft.MIN_ACTIONABLE
@@ -499,6 +500,11 @@ if os.environ.get("TFT_LINKS"):
     from urllib.parse import quote
     q = f"p={quote(games[0]['puuid'])}&n={quote(WHO)}"
     body.append(app_bar(WHO, set_number, q, "Stats"))
+
+# Outside that block on purpose: a page built from a set whose names are
+# missing is just as wrong when you double-click the file as when the app
+# serves it.
+body.append(stale_names_banner(set_number))
 
 body.append(f"""
 <header class="masthead">
