@@ -219,25 +219,26 @@ code { font-family:var(--mono); font-size:.92em; background:var(--track);
 /* The game picker, coloured by result: top 4 gains LP, bottom 4 loses it,
    so a glance down the row shows the shape of a session. The current game
    is the filled one - colour says won/lost, fill says "you are here". */
-/* The chips carry a coloured edge rather than coloured text: the label
-   stays plain white, and green or red rides the border. clip-path clips a
-   real CSS border away at the bevels, so the edge is drawn as the outer
-   element's background with the inner span inset by 2px on top of it. */
+/* Every chip is filled with its result - green for a top 4, red for a
+   bottom 4 - so a row of recent games is a block of colour you read at a
+   glance. The game you are looking at gets a gold ring around that fill.
+   The ring is not a CSS border: clip-path would clip a border away at the
+   bevelled corners, so it is the outer element's background showing past
+   an inner span inset by 2px. */
 .picker { margin:18px 0 0; }
-.picker a { padding:2px; background:var(--line); }
+.picker a { padding:2px; }
 .picker a > span {
-  display:block; padding:7px 14px; background:var(--track); color:var(--ink);
+  display:block; padding:7px 14px; background:transparent;
+  color:var(--accent-ink);
   clip-path:polygon(7px 0, 100% 0, 100% calc(100% - 7px),
                     calc(100% - 7px) 100%, 0 100%, 0 7px); }
-.picker a.win  { background:var(--pos); }
-.picker a.loss { background:var(--neg); }
-.picker a:hover > span { background:var(--line); }
-/* The game you are looking at is the filled one - colour still says won or
-   lost, fill says "you are here". */
-.picker a.active > span { background:transparent; color:var(--accent-ink);
-                          font-weight:700; }
-.picker a.win.active  { background:var(--pos-solid); }
-.picker a.loss.active { background:var(--neg-solid); }
+.picker a.win  { background:var(--pos-solid); }
+.picker a.loss { background:var(--neg-solid); }
+.picker a:hover { filter:brightness(1.12); }
+.picker a.active { background:var(--accent); }
+.picker a.active > span { font-weight:700; }
+.picker a.win.active  > span { background:var(--pos-solid); }
+.picker a.loss.active > span { background:var(--neg-solid); }
 /* Generic, so a placement reads the same colour wherever it appears - the
    headline, the picker, the lobby table. The picker's active chip keeps its
    own colour because .picker a.win.active is the more specific rule. */
