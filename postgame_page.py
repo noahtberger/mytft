@@ -75,9 +75,11 @@ def render(games, level_par, set_number, idx, who, puuid):
         classes = ["win" if past["placement"] <= 4 else "loss"]
         if i == idx:
             classes.append("active")
+        # The label is wrapped so the chip can carry a coloured edge without
+        # a CSS border, which the bevel would clip away at the corners.
         picks.append(f'<a class="{" ".join(classes)}" '
                      f'href="/game?{q}&amp;g={i + 1}" '
-                     f'title="{date}">{label}</a>')
+                     f'title="{date}"><span>{label}</span></a>')
     picker = (f'<nav class="tabs picker" aria-label="Recent games">'
               f'{"".join(picks)}</nav>')
 
