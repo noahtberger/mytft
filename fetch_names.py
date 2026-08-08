@@ -87,8 +87,14 @@ for entry in cdragon.get("setData", []):
         for trait in champ.get("traits") or []:
             owners[trait] = owners.get(trait, 0) + 1
     unique_by_set[str(number)] = sorted(n for n, count in owners.items() if count == 1)
+    # Only traits some champion actually carries. Riot files a few oddities
+    # among a set's traits that no unit has and nobody can build toward -
+    # "Set17_CarouselMarket_EmpoweredHexTrait" ("God-Blessed") is a carousel
+    # effect, not a comp. The old TFT<n>_ prefix filter dropped those by
+    # accident; owning champions is the test that does it on purpose.
     trait_ids_by_set[str(number)] = sorted(
-        t["apiName"] for t in entry.get("traits", []) if t.get("apiName"))
+        t["apiName"] for t in entry.get("traits", [])
+        if t.get("apiName") and t.get("name") in owners)
 
 Path("names.json").write_text(json.dumps({
     "version": version,
