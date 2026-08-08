@@ -14,7 +14,7 @@ from urllib.parse import quote
 
 import postgame as pg
 import tftdata as tft
-from theme import BRAND, CSS, SCRIPT, brand_link, esc
+from theme import BRAND, CSS, SCRIPT, app_bar, esc
 
 PICKER = 10   # recent games shown in the switcher row
 
@@ -170,25 +170,17 @@ def render(games, level_par, set_number, idx, who, puuid):
   not one repeated one.</p>
 </div>"""
 
+    refresh_form = (
+        f'<form method="post" action="/refresh" style="margin:0">'
+        f'<input type="hidden" name="p" value="{esc(puuid)}">'
+        f'<input type="hidden" name="n" value="{esc(who)}">'
+        f'<button type="submit">Check for a new game</button></form>')
     top4 = g["placement"] <= 4
     tone = "win" if top4 else "loss"
     headline = (f'You <span class="{tone}">won</span>' if won else
                 f'You placed <span class="{tone}">{placed}</span>')
     body = f"""
-<div class="bar">
-  {brand_link()}
-  <span class="who">{esc(who)} &middot; Set {set_number}</span>
-  <nav class="tabs">
-    <a href="/pregame?{q}">Pre-game</a>
-    <a class="active" href="/game?{q}">Post-game</a>
-    <a href="/player?{q}">Stats</a>
-    <form method="post" action="/refresh" style="margin:0">
-      <input type="hidden" name="p" value="{esc(puuid)}">
-      <input type="hidden" name="n" value="{esc(who)}">
-      <button type="submit">Check for a new game</button>
-    </form>
-  </nav>
-</div>
+{app_bar(who, set_number, q, 'Post-game', extra=refresh_form)}
 <div class="hero">
   <h1>{headline}</h1>
   <span class="sub">{when} &middot; patch {esc(g["_patch"])}</span>

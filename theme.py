@@ -38,6 +38,32 @@ def esc(text):
     return html.escape(str(text), quote=True)
 
 
+# Which view is which, in the order they get used across a session.
+TABS = [("Pre-game", "/pregame"), ("Post-game", "/game"), ("Stats", "/player")]
+
+
+def app_bar(who, set_number, q, here, extra=""):
+    """The header every app view shares: wordmark, whose games you are
+    looking at, the three views, and the way back out.
+
+    One copy here rather than three in the page modules, because a header
+    that differs between tabs is a header that looks broken when you click
+    between them.
+
+    `extra` is for a view's own control (post-game's refresh button).
+    """
+    links = "".join(
+        f'<a{" class=" + chr(34) + "active" + chr(34) if name == here else ""} '
+        f'href="{path}?{q}">{name}</a>' for name, path in TABS)
+    # "Switch player" rather than "log out": nobody logged in - you typed a
+    # Riot ID, and any name works - so calling it a logout would promise a
+    # session that does not exist.
+    switch = '<a class="switch" href="/">Switch player</a>'
+    return (f'<div class="bar">{brand_link()}'
+            f'<span class="who">{esc(who)} &middot; Set {set_number}</span>'
+            f'<nav class="tabs">{links}{extra}{switch}</nav></div>')
+
+
 def plural(n, word, many=None):
     """'1 line' / '3 lines'. Small thing, but '1 different lines' on the page
     reads as a bug in the maths even when the maths is right."""
@@ -216,6 +242,12 @@ code { font-family:var(--mono); font-size:.92em; background:var(--track);
 .tabs a:hover, .tabs button:hover { background:var(--line); color:var(--ink); }
 .tabs a.active { background:var(--accent-solid); color:var(--accent-ink);
                  font-weight:700; }
+/* The way out, set apart from the three views: it changes who you are
+   looking at, not what you are looking at. */
+.tabs a.switch { background:none; color:var(--muted);
+                 box-shadow:inset 0 0 0 1px var(--line); }
+.tabs a.switch:hover { color:var(--ink); background:none;
+                       box-shadow:inset 0 0 0 1px var(--muted); }
 /* The game picker, coloured by result: top 4 gains LP, bottom 4 loses it,
    so a glance down the row shows the shape of a session. The current game
    is the filled one - colour says won/lost, fill says "you are here". */

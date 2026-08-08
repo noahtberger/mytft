@@ -28,7 +28,7 @@ from collections import defaultdict
 from pathlib import Path
 
 import tftdata as tft
-from theme import BRAND, CSS, SCRIPT, brand_link, esc, fit, plural
+from theme import BRAND, CSS, SCRIPT, app_bar, esc, fit, plural
 
 OUT_DIR = Path("site")
 TARGET = tft.MIN_ACTIONABLE
@@ -498,11 +498,7 @@ else:
 if os.environ.get("TFT_LINKS"):
     from urllib.parse import quote
     q = f"p={quote(games[0]['puuid'])}&n={quote(WHO)}"
-    body.append(f'<div class="bar">{brand_link()}'
-                f'<span class="who"></span>'
-                f'<nav class="tabs"><a href="/pregame?{q}">Pre-game</a>'
-                f'<a href="/game?{q}">Post-game</a>'
-                f'<a class="active" href="/player?{q}">Stats</a></nav></div>')
+    body.append(app_bar(WHO, set_number, q, "Stats"))
 
 body.append(f"""
 <header class="masthead">

@@ -86,6 +86,11 @@ The app serves three views per player, linked by tabs at the top:
   or two), so the loop is: play, alt-tab, click, read.
 - **Stats** — the full report page.
 
+**Switch player** in the header takes you back to the search box, which
+lists everyone looked up recently so you can flip between yourself and
+friends without retyping Riot IDs. (Nobody logs in — any Riot ID works,
+which is why it isn't called a logout.)
+
 Your own new games land in `matches/` (the committed copy); everyone
 else's land in `pool/`.
 

@@ -26,23 +26,11 @@ import postgame as pg
 import pregame as pre
 import scout
 import tftdata as tft
-from theme import BRAND, CSS, brand_link, esc
+from theme import BRAND, CSS, app_bar, esc
 
 
 def query(puuid, who):
     return f"p={quote(puuid)}&n={quote(who)}"
-
-
-def bar(who, set_number, q, here):
-    """The one-line app header every view shares."""
-    tabs = [("Pre-game", f"/pregame?{q}"), ("Post-game", f"/game?{q}"),
-            ("Stats", f"/player?{q}")]
-    links = "".join(
-        f'<a{" class=" + chr(34) + "active" + chr(34) if name == here else ""} '
-        f'href="{url}">{name}</a>' for name, url in tabs)
-    return (f'<div class="bar">{brand_link()}'
-            f'<span class="who">{esc(who)} &middot; Set {set_number}</span>'
-            f'<nav class="tabs">{links}</nav></div>')
 
 
 def player_read(label, boards, set_number, note=None):
@@ -162,7 +150,7 @@ def render(games, set_number, who, puuid, scouted=None):
     overall = tft.summarise([g["placement"] for g in games])
 
     body = f"""
-{bar(who, set_number, q, "Pre-game")}
+{app_bar(who, set_number, q, "Pre-game")}
 <div class="hero">
   <h1>Before you queue</h1>
   <span class="sub">{overall['games']} ranked games &middot; avg

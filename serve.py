@@ -59,6 +59,36 @@ JOBS_LOCK = threading.Lock()
 
 STATS_CACHE = {}   # (puuid, label) -> (newest match id, rendered stats page)
 
+RECENT_FILE = Path("recent.json")   # gitignored; just a convenience list
+RECENT_MAX = 8
+RECENT_LOCK = threading.Lock()
+
+
+def recent_players():
+    """Who has been looked up on this machine, newest first."""
+    try:
+        return json.loads(RECENT_FILE.read_text())
+    except (FileNotFoundError, ValueError):
+        return []
+
+
+def remember_player(puuid, label):
+    """Put a player at the top of the recent list.
+
+    Kept in a file rather than in memory so the list survives a restart -
+    the whole point is not having to retype a friend's Riot ID, and the
+    server gets restarted plenty.
+    """
+    if not puuid or not label:
+        return
+    with RECENT_LOCK:
+        recents = [r for r in recent_players() if r.get("puuid") != puuid]
+        recents.insert(0, {"puuid": puuid, "label": label})
+        try:
+            RECENT_FILE.write_text(json.dumps(recents[:RECENT_MAX], indent=2))
+        except OSError:
+            pass          # a convenience list is never worth a 500
+
 
 def own_dir(puuid):
     """matches/ when the player is the owner of this copy, else the pool.
@@ -276,6 +306,16 @@ button:hover {{ filter:brightness(1.12); }}
           border-left:3px solid var(--accent); padding:10px 14px;
           background:var(--panel); border-radius:3px; }}
 .error {{ border-left-color:var(--neg); color:var(--ink); }}
+.recent-head {{ font-family:var(--mono); font-size:10.5px; letter-spacing:.14em;
+               text-transform:uppercase; color:var(--muted);
+               margin:26px 0 10px; }}
+.recent {{ display:flex; flex-wrap:wrap; gap:7px; }}
+.recent a {{ font-family:var(--mono); font-size:12px; padding:8px 13px;
+            color:var(--ink); text-decoration:none; background:var(--panel);
+            box-shadow:inset 0 0 0 1px var(--line);
+            clip-path:polygon(7px 0, 100% 0, 100% calc(100% - 7px),
+                              calc(100% - 7px) 100%, 0 100%, 0 7px); }}
+.recent a:hover {{ box-shadow:inset 0 0 0 1px var(--accent); }}
 a {{ color:var(--accent); }}
 .brand {{ display:inline-flex; align-items:center; gap:10px;
          margin:0 0 20px; color:var(--ink); text-decoration:none; }}
@@ -303,6 +343,13 @@ def page(content, refresh=None):
 
 def home(message=""):
     note = f'<p class="status error">{html.escape(message)}</p>' if message else ""
+    recents = recent_players()
+    if recents:
+        chips = "".join(
+            f'<a href="/pregame?p={quote(r["puuid"])}&amp;n={quote(r["label"])}">'
+            f'{html.escape(r["label"])}</a>' for r in recents)
+        note += f'<p class="recent-head">Recently looked up</p>' \
+                f'<div class="recent">{chips}</div>'
     return page(f"""
 <h1>Whose games?</h1>
 <p>Type any Riot ID. Other sites tell you what the world is playing; this
@@ -342,7 +389,9 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply(home("That link is missing a player."), 404)
                 return
             try:
-                self.reply(build_stats(puuid, label).encode())
+                page_html = build_stats(puuid, label)
+                remember_player(puuid, label)
+                self.reply(page_html.encode())
             except SystemExit as problem:
                 # load_games exits a CLI; here it just means "nobody by that
                 # id is on disk", which the front page can say politely.
@@ -366,8 +415,10 @@ class Handler(BaseHTTPRequestHandler):
                 tag = games[0].get("riotIdTagline") or "?"
                 label = f"{name}#{tag}"
             try:
-                self.reply(pregame_page.render(
-                    games, set_number, label, games[0]["puuid"]).encode())
+                out = pregame_page.render(games, set_number, label,
+                                          games[0]["puuid"])
+                remember_player(games[0]["puuid"], label)
+                self.reply(out.encode())
             except Exception as problem:              # noqa: BLE001
                 self.reply(home(f"Couldn't build the pre-game screen: "
                                 f"{problem}"), 500)
@@ -393,9 +444,10 @@ class Handler(BaseHTTPRequestHandler):
                 idx = 1
             idx = min(max(idx, 1), len(games)) - 1
             try:
-                self.reply(postgame_page.render(
-                    games, level_par, set_number, idx,
-                    label, games[0]["puuid"]).encode())
+                out = postgame_page.render(games, level_par, set_number, idx,
+                                           label, games[0]["puuid"])
+                remember_player(games[0]["puuid"], label)
+                self.reply(out.encode())
             except Exception as problem:              # noqa: BLE001
                 self.reply(home(f"Couldn't build the debrief: {problem}"), 500)
             return
