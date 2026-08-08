@@ -12,11 +12,26 @@ import html
 # The app's name. MetaTFT tells you what the world is playing; this tells
 # you what you play, measured against the seven people in your own lobbies.
 BRAND = "MyTFT"
-BRAND_HTML = 'My<span>TFT</span>'
+
+# Three hexes, because the TFT board is a hex grid and nothing says the game
+# faster. Two outlined and one filled: the lobby, and you in it - the same
+# idea the whole app is built on, at 22 pixels.
+HEX_MARK = (
+    '<svg class="hexmark" viewBox="0 0 23 24" width="24" height="25" '
+    'aria-hidden="true" focusable="false">'
+    '<polygon class="h-out" points="6.00,1.00 1.50,3.60 1.50,8.80 6.00,11.40 '
+    '10.50,8.80 10.50,3.60"/>'
+    '<polygon class="h-out" points="17.00,1.00 12.50,3.60 12.50,8.80 '
+    '17.00,11.40 21.50,8.80 21.50,3.60"/>'
+    '<polygon class="h-me" points="11.50,12.20 7.00,14.80 7.00,20.00 '
+    '11.50,22.60 16.00,20.00 16.00,14.80"/>'
+    '</svg>')
+BRAND_HTML = f'{HEX_MARK}<b>My<span>TFT</span></b>'
 
 
 def brand_link(href="/"):
-    return f'<a class="brand" href="{href}">{BRAND_HTML}</a>'
+    return (f'<a class="brand" href="{href}" aria-label="{BRAND} home">'
+            f'{BRAND_HTML}</a>')
 
 
 def esc(text):
@@ -47,7 +62,7 @@ CSS = """
   --bg:#F5F6F8; --panel:#FFFFFF; --line:#DFE3EA; --grid:#EDF0F4;
   --ink:#171B22; --muted:#5A6478;
   --accent:#B4761A; --room:#3F6BC4; --pos:#0F8C79; --neg:#C24A52;
-  --track:#E7EAF0;
+  --track:#E7EAF0; --accent-solid:#8F5D12; --accent-ink:#FFFFFF;
   --display:"Avenir Next","Avenir",ui-sans-serif,system-ui,"Segoe UI",sans-serif;
   --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
 }
@@ -56,20 +71,20 @@ CSS = """
     --bg:#0B0E14; --panel:#141A24; --line:#232C3A; --grid:#1B2330;
     --ink:#E4E8F0; --muted:#8792A8;
     --accent:#BE831A; --room:#5F86D4; --pos:#17A28C; --neg:#D25A61;
-    --track:#1D2534;
+    --track:#1D2534; --accent-solid:#C58A1E; --accent-ink:#0B0E14;
   }
 }
 :root[data-theme="dark"] {
   --bg:#0B0E14; --panel:#141A24; --line:#232C3A; --grid:#1B2330;
   --ink:#E4E8F0; --muted:#8792A8;
   --accent:#BE831A; --room:#5F86D4; --pos:#17A28C; --neg:#D25A61;
-  --track:#1D2534;
+  --track:#1D2534; --accent-solid:#C58A1E; --accent-ink:#0B0E14;
 }
 :root[data-theme="light"] {
   --bg:#F5F6F8; --panel:#FFFFFF; --line:#DFE3EA; --grid:#EDF0F4;
   --ink:#171B22; --muted:#5A6478;
   --accent:#B4761A; --room:#3F6BC4; --pos:#0F8C79; --neg:#C24A52;
-  --track:#E7EAF0;
+  --track:#E7EAF0; --accent-solid:#8F5D12; --accent-ink:#FFFFFF;
 }
 
 body {
@@ -183,14 +198,20 @@ code { font-family:var(--mono); font-size:.92em; background:var(--track);
 @media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
 
 /* ---- app navigation: only rendered when serve.py is the host ---- */
-.tabs { display:flex; flex-wrap:wrap; gap:8px; align-items:center;
-        margin:28px 0 0; font-family:var(--mono); font-size:12.5px; }
+/* Beveled corners, the way a tactics UI cuts them - cheap to draw, and it
+   stops the menu reading like a documentation site's nav. */
+.tabs { display:flex; flex-wrap:wrap; gap:7px; align-items:center;
+        margin:28px 0 0; font-family:var(--mono); font-size:11.5px; }
 .tabs a, .tabs button {
-  padding:7px 14px; border:1px solid var(--line); border-radius:3px;
-  color:var(--muted); background:none; text-decoration:none;
-  font:inherit; cursor:pointer; }
-.tabs a.active { color:var(--ink); border-color:var(--accent); }
-.tabs a:hover, .tabs button:hover { color:var(--ink); }
+  padding:9px 16px; border:0; border-radius:0;
+  clip-path:polygon(8px 0, 100% 0, 100% calc(100% - 8px),
+                    calc(100% - 8px) 100%, 0 100%, 0 8px);
+  background:var(--track); color:var(--muted); text-decoration:none;
+  font:inherit; letter-spacing:.11em; text-transform:uppercase;
+  cursor:pointer; transition:background .14s ease, color .14s ease; }
+.tabs a:hover, .tabs button:hover { background:var(--line); color:var(--ink); }
+.tabs a.active { background:var(--accent-solid); color:var(--accent-ink);
+                 font-weight:700; }
 .picker { margin:18px 0 0; }
 tr.me td { font-weight:700; }
 tr.me td:first-child { box-shadow:inset 3px 0 0 var(--accent); }
@@ -200,10 +221,13 @@ tr.me td:first-child { box-shadow:inset 3px 0 0 var(--accent); }
   border:1px solid var(--line); border-radius:3px;
   background:var(--panel); color:var(--ink); resize:vertical; }
 .scoutbox button {
-  margin-top:10px; font-family:var(--display); font-weight:700;
-  font-size:15px; padding:11px 20px; border:0; border-radius:3px;
-  cursor:pointer; background:var(--accent); color:#fff; }
-.scoutbox button:hover { filter:brightness(1.08); }
+  margin-top:10px; font-family:var(--mono); font-weight:700;
+  font-size:12px; letter-spacing:.11em; text-transform:uppercase;
+  padding:11px 22px; border:0; border-radius:0; cursor:pointer;
+  clip-path:polygon(9px 0, 100% 0, 100% calc(100% - 9px),
+                    calc(100% - 9px) 100%, 0 100%, 0 9px);
+  background:var(--accent-solid); color:var(--accent-ink); }
+.scoutbox button:hover { filter:brightness(1.12); }
 details summary { cursor:pointer; font-family:var(--mono); font-size:12.5px;
                   color:var(--muted); margin:16px 0 12px; }
 details summary:hover { color:var(--ink); }
@@ -217,9 +241,22 @@ details summary:hover { color:var(--ink); }
 .bar { display:flex; flex-wrap:wrap; align-items:center; gap:12px;
        padding:16px 0 14px; border-bottom:1px solid var(--line);
        margin-bottom:20px; }
-.bar .brand { font-weight:800; font-size:17px; letter-spacing:-.02em;
-              text-decoration:none; color:var(--ink); }
-.bar .brand span { color:var(--accent); }
+/* ---- the wordmark: a scrap of hex board, then the name ---- */
+.brand { display:inline-flex; align-items:center; gap:9px;
+         text-decoration:none; color:var(--ink); }
+.brand b { font-weight:800; font-size:17px; letter-spacing:-.02em; }
+.brand span { color:var(--accent); }
+.hexmark { display:block; overflow:visible; }
+/* Mitred joins, not round: at 24px a rounded 1.5px join eats the corners
+   and three hexagons turn into three blobs. */
+.hexmark .h-out { fill:none; stroke:var(--muted); stroke-width:1.5;
+                  stroke-linejoin:miter; }
+.hexmark .h-me { fill:var(--accent); }
+.hexmark polygon { transition:transform .18s ease, fill .18s ease; }
+/* The gold hex - you - hops when you hover the logo. One small piece of
+   whimsy; the reduced-motion rule at the top of this sheet turns it off. */
+.brand:hover .h-me { transform:translateY(-2px); }
+.brand:hover .h-out { stroke:var(--accent); opacity:.55; }
 .bar .who { font-family:var(--mono); font-size:12.5px; color:var(--muted);
             margin-right:auto; }
 .bar .tabs { margin:0; }

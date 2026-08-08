@@ -47,6 +47,7 @@ import postgame_page
 import pregame_page
 import riot
 import scout
+import theme
 import tftdata as tft
 
 HOST, PORT = "127.0.0.1", 8000
@@ -240,12 +241,14 @@ PAGE = """<!doctype html>
 :root {{
   --bg:#F5F6F8; --panel:#fff; --line:#DFE3EA; --ink:#171B22; --muted:#5A6478;
   --accent:#B4761A; --neg:#C24A52;
+  --accent-solid:#8F5D12; --accent-ink:#FFFFFF;
   --display:"Avenir Next","Avenir",ui-sans-serif,system-ui,sans-serif;
   --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
 }}
 @media (prefers-color-scheme: dark) {{
   :root {{ --bg:#0B0E14; --panel:#141A24; --line:#232C3A; --ink:#E4E8F0;
-           --muted:#8792A8; --accent:#BE831A; --neg:#D25A61; }}
+           --muted:#8792A8; --accent:#BE831A; --neg:#D25A61;
+           --accent-solid:#C58A1E; --accent-ink:#0B0E14; }}
 }}
 * {{ box-sizing:border-box; }}
 body {{ margin:0; min-height:100vh; display:grid; place-items:center;
@@ -261,21 +264,32 @@ form {{ display:flex; gap:10px; flex-wrap:wrap; }}
 input {{ flex:1 1 220px; font-family:var(--mono); font-size:16px; padding:12px 14px;
         border:1px solid var(--line); border-radius:3px; background:var(--panel);
         color:var(--ink); }}
-button {{ font-family:var(--display); font-weight:700; font-size:15px;
-         padding:12px 20px; border:0; border-radius:3px; cursor:pointer;
-         background:var(--accent); color:#fff; }}
-button:hover {{ filter:brightness(1.08); }}
+button {{ font-family:var(--mono); font-weight:700; font-size:12px;
+         letter-spacing:.11em; text-transform:uppercase;
+         padding:13px 22px; border:0; border-radius:0; cursor:pointer;
+         clip-path:polygon(9px 0, 100% 0, 100% calc(100% - 9px),
+                           calc(100% - 9px) 100%, 0 100%, 0 9px);
+         background:var(--accent-solid); color:var(--accent-ink); }}
+button:hover {{ filter:brightness(1.12); }}
 :focus-visible {{ outline:2px solid var(--accent); outline-offset:2px; }}
 .status {{ font-family:var(--mono); font-size:13.5px; color:var(--muted);
           border-left:3px solid var(--accent); padding:10px 14px;
           background:var(--panel); border-radius:3px; }}
 .error {{ border-left-color:var(--neg); color:var(--ink); }}
 a {{ color:var(--accent); }}
-.brand {{ font-weight:800; font-size:19px; letter-spacing:-.02em;
-         margin:0 0 20px; color:var(--ink); }}
+.brand {{ display:inline-flex; align-items:center; gap:10px;
+         margin:0 0 20px; color:var(--ink); text-decoration:none; }}
+.brand b {{ font-weight:800; font-size:21px; letter-spacing:-.02em; }}
 .brand span {{ color:var(--accent); }}
+.hexmark {{ display:block; overflow:visible; }}
+.hexmark .h-out {{ fill:none; stroke:var(--muted); stroke-width:1.5;
+                  stroke-linejoin:miter; }}
+.hexmark .h-me {{ fill:var(--accent); }}
+.hexmark polygon {{ transition:transform .18s ease; }}
+.brand:hover .h-me {{ transform:translateY(-2px); }}
+@media (prefers-reduced-motion: reduce) {{ * {{ transition:none !important; }} }}
 </style></head><body><div class="card">
-<p class="brand">My<span>TFT</span></p>
+<p class="brand">{brand}</p>
 {content}
 </div></body></html>
 """
@@ -283,7 +297,8 @@ a {{ color:var(--accent); }}
 
 def page(content, refresh=None):
     tag = f'<meta http-equiv="refresh" content="{refresh}">' if refresh else ""
-    return PAGE.format(content=content, refresh=tag).encode()
+    return PAGE.format(content=content, refresh=tag,
+                       brand=theme.BRAND_HTML).encode()
 
 
 def home(message=""):
