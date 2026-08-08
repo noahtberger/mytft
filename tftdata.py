@@ -248,20 +248,24 @@ def gap_moe(n1, n2):
     return 1.96 * PLACEMENT_SD * (1 / n1 + 1 / n2) ** 0.5
 
 
-def mean_gap(sample_a, sample_b):
+def mean_gap(sample_a, sample_b, z=1.96):
     """Difference between two means, with the error bar that judges it.
 
     The general form of gap_moe: it takes the spread from the samples instead
     of assuming placement's fixed 1-8 range, so it works on unit costs, board
     sizes, traits built - anything. Returns None when either side is too small
     to have a variance worth using.
+
+    `z` is how many standard errors count as real. The 1.96 default is the
+    usual 95% for a single comparison; a caller testing several metrics at
+    once should pass more (see PLAYSTYLE_Z).
     """
     if len(sample_a) < 2 or len(sample_b) < 2:
         return None
     mean_a, mean_b = statistics.mean(sample_a), statistics.mean(sample_b)
     se = (statistics.pvariance(sample_a) / len(sample_a)
           + statistics.pvariance(sample_b) / len(sample_b)) ** 0.5
-    moe = 1.96 * se
+    moe = z * se
     gap = mean_a - mean_b
     return {"a": mean_a, "b": mean_b, "gap": gap, "moe": moe,
             "real": abs(gap) > moe}
@@ -335,6 +339,40 @@ def lobby_profiles(games, set_number):
 # as "more" of that trait, so a report can phrase the comparison in English.
 MIN_ERA = 20        # games either side before a style change is worth naming
 SHIFT_THRESHOLD = 3.0   # standard errors; below this it's ordinary wobble
+
+# Naming a playstyle habit is seven simultaneous tests, one per metric, and at
+# the usual 1.96 any one of them can get lucky. Measured against this player's
+# own history (resampling his games and checking the claim against the verdict
+# from all 114), the ordinary threshold called something wrong in 13-22% of
+# samples at EVERY size up to 60 games - more games never fixed it, because
+# the problem is the number of metrics, not the sample. At 3.2 that falls to
+# 2-5%, and it costs nothing: his real habits score between 4 and 11.6.
+PLAYSTYLE_Z = 3.2
+# And below this many games nothing is named at all: at 4 games even the
+# strict threshold was wrong 19% of the time, and day one of a new set is
+# exactly when someone would read it.
+MIN_PLAYSTYLE_GAMES = 15
+
+
+def playstyle_verdicts(era, room):
+    """Judge every playstyle metric for one player against their lobbies.
+
+    Returns (verdicts, enough_games). `verdicts` maps a metric key to a
+    mean_gap result; when there aren't enough games it is still populated
+    with the numbers - the report can show them - but nothing is marked
+    real, so no habit gets named.
+    """
+    enough = len(era) >= MIN_PLAYSTYLE_GAMES
+    verdicts = {}
+    for key, *_rest in PLAYSTYLE_LABELS:
+        judged = mean_gap([p[key] for p in era], [p[key] for p in room],
+                          z=PLAYSTYLE_Z)
+        if not judged:
+            continue
+        if not enough:
+            judged = {**judged, "real": False}
+        verdicts[key] = judged
+    return verdicts, enough
 
 
 def biggest_shift(profiles, min_era=MIN_ERA):
@@ -411,9 +449,9 @@ def playstyle_sentence(verdicts):
     elif leans("item_focus") < 0:
         clauses.append("you spread items across the board")
     if leans("last_round") > 0:
-        clauses.append("you survive longer than the room")
+        clauses.append("you survive longer than the lobby")
     elif leans("last_round") < 0:
-        clauses.append("you die earlier than the room")
+        clauses.append("you die earlier than the lobby")
 
     if not clauses:
         return None
