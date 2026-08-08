@@ -73,7 +73,7 @@ CSS = """
     --ink:#E4E8F0; --muted:#8792A8;
     --accent:#BE831A; --room:#5F86D4; --pos:#17A28C; --neg:#D25A61;
     --track:#1D2534; --accent-solid:#C58A1E; --accent-ink:#0B0E14;
-    --pos-solid:#17A28C; --neg-solid:#D25A61;
+    --pos-solid:#0E7A68; --neg-solid:#B03F47;
   }
 }
 :root[data-theme="dark"] {
@@ -81,7 +81,7 @@ CSS = """
   --ink:#E4E8F0; --muted:#8792A8;
   --accent:#BE831A; --room:#5F86D4; --pos:#17A28C; --neg:#D25A61;
   --track:#1D2534; --accent-solid:#C58A1E; --accent-ink:#0B0E14;
-  --pos-solid:#17A28C; --neg-solid:#D25A61;
+  --pos-solid:#0E7A68; --neg-solid:#B03F47;
 }
 :root[data-theme="light"] {
   --bg:#F5F6F8; --panel:#FFFFFF; --line:#DFE3EA; --grid:#EDF0F4;
@@ -229,14 +229,17 @@ code { font-family:var(--mono); font-size:.92em; background:var(--track);
 .picker a { padding:2px; }
 .picker a > span {
   display:block; padding:7px 14px; background:transparent;
-  color:var(--accent-ink);
+  color:#fff; font-weight:700;
   clip-path:polygon(7px 0, 100% 0, 100% calc(100% - 7px),
                     calc(100% - 7px) 100%, 0 100%, 0 7px); }
 .picker a.win  { background:var(--pos-solid); }
 .picker a.loss { background:var(--neg-solid); }
 .picker a:hover { filter:brightness(1.12); }
-.picker a.active { background:var(--accent); }
-.picker a.active > span { font-weight:700; }
+/* The ring on the current game is ink, not gold: a gold ring around a red
+   chip is two warm hues fighting. Ink reads as "selected" against either
+   fill and flips with the theme. */
+.picker a.active { background:var(--ink); }
+.picker a.active > span { font-weight:800; }
 .picker a.win.active  > span { background:var(--pos-solid); }
 .picker a.loss.active > span { background:var(--neg-solid); }
 /* Generic, so a placement reads the same colour wherever it appears - the
