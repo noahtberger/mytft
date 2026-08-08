@@ -242,6 +242,10 @@ code { font-family:var(--mono); font-size:.92em; background:var(--track);
 .tabs a:hover, .tabs button:hover { background:var(--line); color:var(--ink); }
 .tabs a.active { background:var(--accent-solid); color:var(--accent-ink);
                  font-weight:700; }
+/* An icon-only control: square, and the icon sits centred rather than on
+   the text baseline. */
+.tabs button.icon { display:flex; align-items:center; justify-content:center;
+                    padding:9px 12px; }
 /* The way out, set apart from the three views: it changes who you are
    looking at, not what you are looking at. */
 .tabs a.switch { background:none; color:var(--muted);

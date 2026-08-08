@@ -81,7 +81,7 @@ The app serves three views per player, linked by tabs at the top:
   what your record has proven.
 - **Post-game** — the debrief of any recent game: all eight boards with
   player names, where the margin lived, and blunt advice backed by the
-  era-wide pattern. The **Check for a new game** button fetches whatever
+  era-wide pattern. The refresh button (↻) fetches whatever
   you just played (a finished game reaches Riot's history within a minute
   or two), so the loop is: play, alt-tab, click, read.
 - **Stats** — the full report page.

@@ -18,6 +18,15 @@ from theme import BRAND, CSS, SCRIPT, app_bar, esc
 
 PICKER = 10   # recent games shown in the switcher row
 
+# A circular arrow, drawn rather than pulled from an icon font: the page has
+# to work offline and with no external requests.
+REFRESH_ICON = (
+    '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" '
+    'stroke="currentColor" stroke-width="2.4" stroke-linecap="round" '
+    'stroke-linejoin="round" aria-hidden="true" focusable="false">'
+    '<polyline points="23 4 23 10 17 10"/>'
+    '<path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>')
+
 
 def query(puuid, who):
     return f"p={quote(puuid)}&n={quote(who)}"
@@ -170,11 +179,15 @@ def render(games, level_par, set_number, idx, who, puuid):
   not one repeated one.</p>
 </div>"""
 
+    # Icon-only, but never unlabelled: the title is the hover tooltip and
+    # the aria-label is what a screen reader announces.
     refresh_form = (
         f'<form method="post" action="/refresh" style="margin:0">'
         f'<input type="hidden" name="p" value="{esc(puuid)}">'
         f'<input type="hidden" name="n" value="{esc(who)}">'
-        f'<button type="submit">Check for a new game</button></form>')
+        f'<button class="icon" type="submit" aria-label="Refresh"'
+        f' title="Refresh - fetch any game you just played">{REFRESH_ICON}'
+        f'</button></form>')
     top4 = g["placement"] <= 4
     tone = "win" if top4 else "loss"
     headline = (f'You <span class="{tone}">won</span>' if won else
