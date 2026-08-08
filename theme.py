@@ -235,10 +235,12 @@ code { font-family:var(--mono); font-size:.92em; background:var(--track);
 .picker a.win  { background:var(--pos-solid); }
 .picker a.loss { background:var(--neg-solid); }
 .picker a:hover { filter:brightness(1.12); }
-/* The ring on the current game is ink, not gold: a gold ring around a red
-   chip is two warm hues fighting. Ink reads as "selected" against either
-   fill and flips with the theme. */
-.picker a.active { background:var(--ink); }
+/* The ring on the current game is black, not gold: a gold ring around a
+   red chip is two warm hues fighting, and black frames either fill without
+   introducing a third colour. It runs thicker than the 2px other chips
+   carry, because on the near-black page a 2px black ring reads as nothing
+   at all - at 4px the inset is plainly deliberate in either theme. */
+.picker a.active { background:#000; padding:4px; }
 .picker a.active > span { font-weight:800; }
 .picker a.win.active  > span { background:var(--pos-solid); }
 .picker a.loss.active > span { background:var(--neg-solid); }
