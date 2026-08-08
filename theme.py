@@ -195,6 +195,9 @@ tr.me td:first-child { box-shadow:inset 3px 0 0 var(--accent); }
   font-size:15px; padding:11px 20px; border:0; border-radius:3px;
   cursor:pointer; background:var(--accent); color:#fff; }
 .scoutbox button:hover { filter:brightness(1.08); }
+details summary { cursor:pointer; font-family:var(--mono); font-size:12.5px;
+                  color:var(--muted); margin:16px 0 12px; }
+details summary:hover { color:var(--ink); }
 """
 
 SCRIPT = """

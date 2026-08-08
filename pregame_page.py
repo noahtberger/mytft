@@ -1,20 +1,28 @@
 """The pre-game screen as a page in the local app.
 
-Everything you'd want in the queue: your leaks (blunt, with the numbers as
-the receipt), a box to scout the lobby you're about to fight, the meta
-measured in your own games, what your record has proven, and the one-line
-reminder of how you play. All the analysis comes from pregame.py and
-scout.py, the same code the terminal reports run.
+Built to be glanced at in a queue, not read: a couple of playstyle
+reminders, a box to scout the lobby, and the comps that are strong in
+your own games as tiles. Every full table lives behind a click.
 
-The lobby box is manual on purpose: reading your live lobby needs Riot's
-spectator API, which personal keys don't get - and typing two or three
-names you recognise from the loading screen is most of the value anyway.
-Everything here is public match history from before the game starts, which
-is the side of the line Riot's rules allow.
+Two rules from the product direction, both set by the user:
+
+  - No comp prescriptions. "Learn Marauder" is exactly the advice this
+    tracker promised not to give - the comp sites own comps; this thing
+    coaches playstyle. The reminders here are the same playstyle advice
+    the post-game page shows, and comp strength is shown as information
+    ("strong in your lobbies"), never as an instruction.
+  - Auto-scouting the live lobby is the goal, but it needs a helper on
+    the machine running League (that is how the big apps do it - the
+    spectator web API is production-key-only). Until that helper exists,
+    the box is manual and honest about it.
+
+Everything here is public match history from before the game starts,
+which is the side of the line Riot's rules allow.
 """
 
 from urllib.parse import quote
 
+import postgame as pg
 import pregame as pre
 import scout
 import tftdata as tft
@@ -26,11 +34,13 @@ def query(puuid, who):
 
 
 def player_read(label, boards, set_number, note=None):
-    """One scouted player, as data for the results table."""
+    """One scouted player, boiled down to a glance."""
     if not boards:
         return {"label": label,
                 "error": note or "no ranked games on record for this set"}
     prof = scout.profile(boards, set_number)
+    plays = [name for name, _ in prof["lines"].most_common(2)]
+    carry = [name for name, _ in prof["carries"].most_common(1)]
     forces = None
     top_build = prof["lines"].most_common(1)
     if top_build:
@@ -39,112 +49,64 @@ def player_read(label, boards, set_number, note=None):
             forces = name
     return {"label": label, "error": None, "note": note,
             "games": prof["games"], "avg": prof["avg"],
-            "builds": ", ".join(scout.top(prof["lines"], prof["games"])),
-            "carries": ", ".join(scout.top(prof["carries"], prof["games"])),
+            "plays": ", ".join(plays) if plays else "nothing twice",
+            "carry": carry[0] if carry else None,
             "forces": forces}
 
 
-def leak_tips(gaps):
-    """The rate gaps as blunt do/why pairs, loudest first."""
-    grouped = {}
-    for row in gaps:
-        grouped.setdefault(pre.bucket(row), []).append(row)
-
-    tips = []
-    for line, my_pct, room_pct, v in sorted(
-            grouped.get("leak", ()), key=lambda r: (-r[3]["gap"], r[0])):
-        tips.append({
-            "do": f"Learn {line}.",
-            "why": f"the lobby wins with it ({v['gap']:+.2f} places) and "
-                   f"you build it {my_pct:.0f}% of games to their "
-                   f"{room_pct:.0f}%."})
-    for line, my_pct, room_pct, v in sorted(
-            grouped.get("bad_force", ()), key=lambda r: (r[3]["gap"], r[0])):
-        tips.append({
-            "do": f"Ease off {line}.",
-            "why": f"the lobby loses with it ({v['gap']:+.2f}) and you "
-                   f"build it {my_pct:.0f}% to their {room_pct:.0f}%."})
-    for line, my_pct, room_pct, v in sorted(
-            grouped.get("force", ()), key=lambda r: (r[2] - r[1], r[0])):
-        if v and v["solid"] and v["gap"] > 0:
-            continue   # heavy on a comp the lobby also wins with - fine
-        tips.append({
-            "do": f"Watch your {line} rate.",
-            "why": f"you build it {my_pct:.0f}% to the lobby's "
-                   f"{room_pct:.0f}%, and nothing in the lobby's results "
-                   "says it pays a premium."})
-
-    quiet = sorted(r[0] for r in grouped.get("skip_neutral", ()))
-    losers = sorted(r[0] for r in grouped.get("skip_loser", ()))
-    return tips, quiet, losers
-
-
 def scouted_table(scouted):
+    """One line per player: who they are, how they do, what they play."""
     rows = []
     for r in scouted:
         if r.get("error"):
             rows.append(f'<tr><td>{esc(r["label"])}</td>'
-                        f'<td colspan="4" style="color:var(--muted)">'
+                        f'<td colspan="2" style="color:var(--muted)">'
                         f'{esc(r["error"])}</td></tr>')
             continue
-        note = f' <span style="color:var(--muted)">({esc(r["note"])})</span>' \
-            if r.get("note") else ""
+        plays = esc(r["plays"])
+        if r["carry"]:
+            plays += (f' <span style="color:var(--muted)">&middot; carries '
+                      f'{esc(r["carry"])}</span>')
+        if r["forces"]:
+            plays += (f' <span class="pill blank">forces '
+                      f'{esc(r["forces"])}</span>')
+        note = (f' <span style="color:var(--muted)">({esc(r["note"])})</span>'
+                if r.get("note") else "")
         rows.append(
             f'<tr><td>{esc(r["label"])}{note}</td>'
-            f'<td class="num">{r["games"]}</td>'
-            f'<td class="num">{r["avg"]:.2f}</td>'
-            f'<td>{esc(r["builds"])}</td><td>{esc(r["carries"])}</td></tr>')
-    table = f"""<div class="tablewrap"><table>
-      <thead><tr><th>player</th><th class="num">games seen</th>
-      <th class="num">avg place</th><th>builds</th><th>carries</th></tr></thead>
+            f'<td class="num">{r["avg"]:.2f} <span style="color:var(--muted)">'
+            f'over {r["games"]}</span></td>'
+            f'<td>{plays}</td></tr>')
+    return f"""<div class="tablewrap" style="margin-top:16px"><table>
+      <thead><tr><th>player</th><th class="num">avg place</th>
+      <th>plays</th></tr></thead>
       <tbody>{"".join(rows)}</tbody></table></div>"""
-
-    forcers = [r for r in scouted if r.get("forces")]
-    warns = ""
-    if forcers:
-        lines = "".join(
-            f'<p style="margin:0 0 10px"><strong>{esc(r["label"])} forces '
-            f'{esc(r["forces"])}.</strong><br>'
-            f'<span style="color:var(--muted);font-size:14px">why: '
-            f'{esc(r["builds"].split(",")[0])} of their games. Don&rsquo;t '
-            'fight them for it unless you can take it early.</span></p>'
-            for r in forcers)
-        warns = f'<div class="verdict" style="margin-top:16px">{lines}</div>'
-    return table + warns
 
 
 def render(games, set_number, who, puuid, scouted=None):
     q = query(puuid, who)
     board_rows = pre.lobby_boards(games, set_number)
     room_rows = pre.room_table(board_rows, set_number)
-    gaps = pre.rate_gaps(games, board_rows, set_number, room_rows)
-    tips, quiet, losers = leak_tips(gaps)
 
-    # -- your leaks --------------------------------------------------------
+    # -- reminders: the same playstyle advice the post-game page gives -----
+    mine, _ = tft.lobby_profiles(games, set_number)
+    shift = tft.biggest_shift(mine)
+    timeline = list(reversed(games))
+    era_games = timeline[shift["cut"]:] if shift else timeline
+    tips = pg.advice(pg.pattern(era_games, set_number),
+                     pg.flat_context(games, set_number, era_games))
     if tips:
         tip_html = "".join(
             f'<p style="margin:0 0 12px"><strong>{esc(t["do"])}</strong><br>'
             f'<span style="color:var(--muted);font-size:14px">why: '
             f'{esc(t["why"])}</span></p>' for t in tips)
-        leaks = f'<div class="verdict">{tip_html}</div>'
+        reminders = f'<div class="verdict">{tip_html}</div>'
     else:
-        leaks = ('<p class="lede">Your comp choices match the lobby '
-                 'everywhere it matters. No leaks to point at.</p>')
-    quiet_note = ""
-    if quiet:
-        quiet_note += (f'<p class="lede" style="margin-top:14px">You also '
-                       f'build {esc(", ".join(quiet))} less than the lobby '
-                       'does, but its results with them are ordinary - '
-                       'nothing proven is being missed.</p>')
-    if losers:
-        quiet_note += (f'<p class="lede" style="margin-top:6px">And you '
-                       f'skip {esc(", ".join(losers))}, which the lobby '
-                       'loses with. Good.</p>')
+        reminders = ('<p class="lede">No repeated pattern in your losses '
+                     'right now. Play your game.</p>')
 
-    # -- the lobby box (and results, when they exist) ----------------------
-    results_html = ""
-    if scouted:
-        results_html = scouted_table(scouted)
+    # -- scouting ----------------------------------------------------------
+    results_html = scouted_table(scouted) if scouted else ""
     box = f"""<form class="scoutbox" method="post" action="/scout">
   <input type="hidden" name="p" value="{esc(puuid)}">
   <input type="hidden" name="n" value="{esc(who)}">
@@ -152,50 +114,46 @@ def render(games, set_number, who, puuid, scouted=None):
   <button type="submit">Scout them</button>
 </form>"""
 
-    # -- the meta, in your own lobbies -------------------------------------
-    meta_rows = []
-    for line, n, judged in room_rows:
-        verdict = ("lobby WINS with it" if judged["solid"] and judged["gap"] > 0
-                   else "lobby LOSES with it" if judged["solid"]
-                   else "no real difference")
-        meta_rows.append(
-            f'<tr><td>{esc(line)}</td>'
-            f'<td class="num">{n}</td>'
-            f'<td class="num">{100 * n / len(board_rows):.1f}%</td>'
-            f'<td class="num">{judged["with"]["avg"]:.2f}</td>'
-            f'<td class="num">{judged["without"]["avg"]:.2f}</td>'
-            f'<td class="num">{judged["gap"]:+.2f}</td>'
-            f'<td>{verdict}</td></tr>')
-    patches = sorted({g["_patch"] for g in games},
-                     key=lambda s: tuple(int(x) for x in s.split(".")))
-    meta = f"""<div class="tablewrap"><table>
-      <thead><tr><th>comp</th><th class="num">boards</th>
-      <th class="num">rate</th><th class="num">with</th>
-      <th class="num">without</th><th class="num">gap</th><th></th></tr></thead>
-      <tbody>{"".join(meta_rows)}</tbody></table></div>""" if meta_rows else \
-        ('<p class="lede">No comp has enough boards yet - early in a set '
-         'this table is empty on purpose.</p>')
-
-    # -- proven + playstyle ------------------------------------------------
-    data = tft.coverage_data(games, set_number)
-    proven_rows = pre.proven(games, data)
-    if proven_rows:
-        prow = "".join(
-            f'<tr><td>{esc(label)}</td>'
-            f'<td class="num">{j["with"]["games"]}</td>'
-            f'<td class="num">{j["with"]["avg"]:.2f}</td>'
-            f'<td class="num">{j["without"]["avg"]:.2f}</td>'
-            f'<td class="num">{j["gap"]:+.2f}</td>'
-            f'<td>{"genuinely " + ("better" if j["gap"] > 0 else "worse")
-                  if j["solid"] else "no real difference"}</td></tr>'
-            for label, j in proven_rows)
-        proven = f"""<div class="tablewrap"><table>
-      <thead><tr><th></th><th class="num">games</th><th class="num">with</th>
-      <th class="num">without</th><th class="num">gap</th><th></th></tr></thead>
-      <tbody>{prow}</tbody></table></div>"""
+    # -- strong comps here, as tiles; the table behind a click -------------
+    winners = [(line, n, j) for line, n, j in room_rows
+               if j["solid"] and j["gap"] > 0]
+    losers = [(line, n, j) for line, n, j in room_rows
+              if j["solid"] and j["gap"] < 0]
+    if winners:
+        tiles = "".join(
+            f'<div class="stat"><span class="k">{esc(line)}</span>'
+            f'<span class="n">{j["with"]["avg"]:.2f}</span>'
+            f'<span class="pm">avg place &middot; '
+            f'{100 * n / len(board_rows):.0f}% play it</span></div>'
+            for line, n, j in winners)
+        strong = f'<div class="stats">{tiles}</div>'
     else:
-        proven = ('<p class="lede">Nothing has 30 games yet, so nothing '
-                  'here can be trusted. It fills in as you repeat comps.</p>')
+        strong = ('<p class="lede">Nothing clears the bar yet - no comp '
+                  'here is proven stronger than the field.</p>')
+    weak_note = ""
+    if losers:
+        weak_note = (f'<p class="lede" style="margin-top:14px">Weak here: '
+                     f'{esc(", ".join(l for l, _, _ in losers))}.</p>')
+
+    detail_rows = "".join(
+        f'<tr><td>{esc(line)}</td>'
+        f'<td class="num">{n}</td>'
+        f'<td class="num">{100 * n / len(board_rows):.1f}%</td>'
+        f'<td class="num">{j["with"]["avg"]:.2f}</td>'
+        f'<td class="num">{j["without"]["avg"]:.2f}</td>'
+        f'<td class="num">{j["gap"]:+.2f}</td></tr>'
+        for line, n, j in room_rows)
+    details = f"""<details>
+  <summary>show the numbers behind this</summary>
+  <div class="tablewrap"><table>
+    <thead><tr><th>comp</th><th class="num">boards</th>
+    <th class="num">rate</th><th class="num">avg with</th>
+    <th class="num">avg without</th><th class="num">gap</th></tr></thead>
+    <tbody>{detail_rows}</tbody></table></div>
+  <p class="lede" style="margin-top:12px">All {len(board_rows)} boards from
+  your own games. A comp only counts when the board actually built it.
+  Gaps smaller than the error bars are listed but prove nothing.</p>
+</details>""" if room_rows else ""
 
     era_n, verdicts, sentence = pre.playstyle_now(games, set_number)
     style = esc(sentence) if sentence else \
@@ -210,40 +168,29 @@ def render(games, set_number, who, puuid, scouted=None):
 <header class="masthead">
   <div class="who">{esc(who)} &middot; Set {set_number} ranked</div>
   <h1>Before you queue</h1>
-  <p class="standfirst">{style} <span style="color:var(--muted)">
-  ({era_n} recent games &mdash; full chart on the stats page.)</span></p>
+  <p class="standfirst">{style}</p>
 </header>
 <section>
-  <p class="eyebrow">Your leaks</p>
-  <h2>What to fix</h2>
-  {leaks}
-  {quiet_note}
+  <p class="eyebrow">Reminders</p>
+  <h2>Keep in mind</h2>
+  {reminders}
 </section>
 <section>
   <p class="eyebrow">Scouting</p>
   <h2>Scout your lobby</h2>
-  <p class="lede">Type the names you see on the loading screen, one per
-  line. Anyone already in your saved games is instant; a new player takes
-  a few seconds. This is public pre-game history &mdash; reading the live
-  board would be against Riot&rsquo;s rules, and this isn&rsquo;t that.</p>
+  <p class="lede">Type the names from the loading screen, one per line.
+  Anyone already in your saved games is instant. (Filling this in
+  automatically needs a small helper on the PC running League &mdash;
+  it&rsquo;s on the list.)</p>
   {box}
   {results_html}
 </section>
 <section>
-  <p class="eyebrow">The meta, measured here</p>
-  <h2>What wins in your lobbies</h2>
-  <p class="lede">All {len(board_rows)} boards from your own games: how
-  boards that built each comp placed, against boards that didn&rsquo;t.
-  These games span patches {esc(patches[0])}&ndash;{esc(patches[-1])}, so a
-  recently nerfed comp still carries its old wins here.</p>
-  {meta}
-</section>
-<section>
-  <p class="eyebrow">Proven</p>
-  <h2>What your own record can back up</h2>
-  <p class="lede">Only things you&rsquo;ve played 30+ times. Everything
-  else you half-remember about your comps is still a hint.</p>
-  {proven}
+  <p class="eyebrow">Your lobbies</p>
+  <h2>Strong in your lobbies</h2>
+  {strong}
+  {weak_note}
+  {details}
 </section>
 """
 
