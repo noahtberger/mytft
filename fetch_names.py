@@ -87,14 +87,29 @@ for entry in cdragon.get("setData", []):
         for trait in champ.get("traits") or []:
             owners[trait] = owners.get(trait, 0) + 1
     unique_by_set[str(number)] = sorted(n for n, count in owners.items() if count == 1)
+
     # Only traits some champion actually carries. Riot files a few oddities
     # among a set's traits that no unit has and nobody can build toward -
     # "Set17_CarouselMarket_EmpoweredHexTrait" ("God-Blessed") is a carousel
     # effect, not a comp. The old TFT<n>_ prefix filter dropped those by
     # accident; owning champions is the test that does it on purpose.
-    trait_ids_by_set[str(number)] = sorted(
-        t["apiName"] for t in entry.get("traits", [])
-        if t.get("apiName") and t.get("name") in owners)
+    all_ids = [t["apiName"] for t in entry.get("traits", []) if t.get("apiName")]
+    carried = [t["apiName"] for t in entry.get("traits", [])
+               if t.get("apiName") and t.get("name") in owners]
+    # ...but only when the champion list is actually complete. In a finished
+    # set nearly every trait is carried by somebody - Set 17 is 42 of 43 -
+    # so a low ratio means the data is half-built, not that the traits are
+    # fake. Community Dragon's Set 18 entry is exactly that: 36 traits but
+    # champions for only 5 of them, and it mislabels the set "Set10". Taking
+    # the filter at face value there would report a 5-comp set. A roster with
+    # a stray hex effect in it beats a roster that is mostly missing.
+    ENOUGH_COVERAGE = 0.8
+    if all_ids and len(carried) >= ENOUGH_COVERAGE * len(all_ids):
+        trait_ids_by_set[str(number)] = sorted(carried)
+    elif all_ids:
+        print(f"  ! set {number}: champion data covers only "
+              f"{len(carried)}/{len(all_ids)} traits - keeping all of them")
+        trait_ids_by_set[str(number)] = sorted(all_ids)
 
 Path("names.json").write_text(json.dumps({
     "version": version,
