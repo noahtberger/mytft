@@ -31,10 +31,10 @@ person's download also fills in seven other people's history for free.
 """
 
 import html
+import importlib
 import json
 import os
 import re
-import subprocess
 import sys
 import tempfile
 import threading
@@ -237,14 +237,22 @@ def scout_job(job_id, puuid, label, raw_names):
         set_job(job_id, status=None, error=str(problem))
 
 
+BUILD_LOCK = threading.Lock()
+
+
 def build_stats(puuid, label):
     """The stats page for one player, rebuilt only when their games change.
 
-    build_site.py runs as a separate process rather than an import: it is a
-    top-to-bottom script, so importing it twice would re-execute it, and a
-    subprocess also means one player's crash can't take the server down.
-    TFT_LINKS tells the page it is being served by the app, which is what
-    puts the Stats / Post-game tabs on it.
+    build_site.py is a top-to-bottom script: importing it runs it, and
+    reloading it runs it again. That is exactly the behaviour wanted here,
+    so the page is built in this process rather than by launching another
+    Python. It used to be a subprocess, which was tidier in one way - a
+    crash couldn't reach the server - but a packaged app has no separate
+    Python to launch, and spawning one per lookup was slow besides.
+
+    The script is configured by environment variables, which are global, so
+    the lock is not optional: two lookups at once would otherwise build each
+    other's pages into each other's folders.
     """
     games, _ = tft.load_games(puuid)
     newest = games[0]["_match_id"]
@@ -253,14 +261,20 @@ def build_stats(puuid, label):
         return cached[1]
 
     out = Path(tempfile.mkdtemp(prefix="tft-report-"))
-    env = {**os.environ, "TFT_PUUID": puuid, "TFT_OUT": str(out),
-           "TFT_NAME": label, "TFT_LINKS": "1"}
-    done = subprocess.run([sys.executable, "build_site.py"], env=env,
-                          capture_output=True, text=True,
-                          cwd=Path(__file__).parent)
-    if done.returncode != 0:
-        detail = (done.stderr or done.stdout).strip().splitlines()
-        raise RuntimeError(detail[-1] if detail else "unknown error")
+    with BUILD_LOCK:
+        previous = {k: os.environ.get(k) for k in
+                    ("TFT_PUUID", "TFT_OUT", "TFT_NAME", "TFT_LINKS")}
+        os.environ.update({"TFT_PUUID": puuid, "TFT_OUT": str(out),
+                           "TFT_NAME": label, "TFT_LINKS": "1"})
+        try:
+            import build_site
+            importlib.reload(build_site)
+        finally:
+            for key, was in previous.items():
+                if was is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = was
 
     page = (out / "index.html").read_text()
     STATS_CACHE[(puuid, label)] = (newest, page)
