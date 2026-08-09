@@ -555,14 +555,28 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
 
-if __name__ == "__main__":
-    # Fail at startup, not on the first lookup: riot.api_key() checks the
-    # env var and the .riot_key file, and its message says how to fix both.
-    try:
-        riot.api_key()
-    except riot.RiotError as problem:
-        sys.exit(f"{problem}\n"
-                 "It stays in this process and is never sent to the browser.")
+def serve_forever():
+    """Run the app. Split out of __main__ so the packaged launcher can
+    call it too, rather than the two starting the server different ways."""
     print(f"MyTFT running at http://{HOST}:{PORT}")
     print("Local only - nothing outside this machine can reach it. Ctrl-C to stop.")
     ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
+
+
+def check_key():
+    """Fail at startup, not on the first lookup. Returns an error string
+    rather than exiting, because the packaged app has no terminal to exit
+    into and needs to show this in the browser instead."""
+    try:
+        riot.api_key()
+        return None
+    except riot.RiotError as problem:
+        return str(problem)
+
+
+if __name__ == "__main__":
+    problem = check_key()
+    if problem:
+        sys.exit(f"{problem}\n"
+                 "It stays in this process and is never sent to the browser.")
+    serve_forever()

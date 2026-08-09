@@ -22,3 +22,7 @@ site/
 # The recently-looked-up list serve.py keeps for the front page. Local
 # convenience, not data - and it holds other people's names.
 recent.json
+
+# PyInstaller output - rebuildable from mytft.spec
+build/
+dist/

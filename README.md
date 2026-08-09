@@ -95,6 +95,26 @@ export RIOT_API_KEY='RGAPI-...'
 .venv/bin/python serve.py         # then open http://127.0.0.1:8000
 ```
 
+### The double-clickable version
+
+```bash
+.venv/bin/python -m pip install pyinstaller
+.venv/bin/python -m PyInstaller mytft.spec     # -> dist/MyTFT.app
+```
+
+`MyTFT.app` starts the server and opens your browser — no terminal, no
+commands. Build it on the machine you want it for: a Mac bundle won't run
+on Windows, so the laptop needs its own `dist/MyTFT.exe` from the same
+command. Roughly 24 MB, and it contains Python itself, so the machine
+running it needs nothing installed.
+
+The bundle carries the **code, not the games**. Matches, `names.json` and
+`.riot_key` stay in this project folder — the things you keep, sync with
+git and back up — and the app finds that folder and works inside it. Set
+`MYTFT_HOME` if you keep it somewhere unusual. If it can't find the folder
+or the key, it opens a browser page saying so rather than failing
+silently, since there's no terminal to print to.
+
 The app serves three views per player, linked by tabs at the top:
 
 - **Pre-game** — your leaks as blunt tips with the numbers under them, a
