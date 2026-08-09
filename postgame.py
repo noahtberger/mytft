@@ -24,6 +24,7 @@ import sys
 import textwrap
 from datetime import datetime
 
+import comps
 import tftdata as tft
 
 GOLD_FLOOR = 10   # eliminated holding this much reads as unspent tempo
@@ -56,7 +57,7 @@ def board_facts(board, set_number):
     return {
         "place": board["placement"],
         "name": f"{name}#{tag}" if name else "(unknown player)",
-        "comps": sorted(tft.committed_lines(board, set_number)),
+        "comp": comps.name(board, set_number),
         "carry": tft.carry_of(board),
         "items": items_held(board),
         "prof": tft.playstyle(board, set_number),
@@ -67,7 +68,7 @@ def board_line(board, set_number):
     """One board compressed to the facts that matter, as a printed row."""
     f = board_facts(board, set_number)
     place = ordinal(f["place"])
-    built = " + ".join(f["comps"]) if f["comps"] else "no committed comp"
+    built = f["comp"] or comps.NO_COMP
     carried = f"carry {f['carry']}" if f["carry"] else "no 2-item carry"
     if f["prof"] is None:
         return f"  {place:<5}{built:<34}(disconnected board)"
@@ -92,17 +93,24 @@ def margin_bullets(mine, above, set_number, level_par):
     if not my_prof or not above_profs:
         return bullets
 
-    my_lines = tft.committed_lines(mine, set_number)
     my_carry = tft.carry_of(mine)
 
-    contested = [b for b in above
-                 if tft.committed_lines(b, set_number) & my_lines]
+    # Contested = same IDENTITY, not same plan: two "fast 9 five cost"
+    # boards fight over the same legendaries even though neither has a
+    # vertical, and that is exactly the contest the old trait-overlap
+    # check could not see.
+    mine_parts = comps.parts(mine, set_number)
+    my_identity = mine_parts[1] if mine_parts else None
+    contested = []
+    if my_identity:
+        for b in above:
+            bp = comps.parts(b, set_number)
+            if bp and bp[1] == my_identity:
+                contested.append(b)
     if contested:
         who = ", ".join(short_name(b) for b in contested)
-        shared = sorted(set().union(*(tft.committed_lines(b, set_number) & my_lines
-                                      for b in contested)))
         bullets.append(f"You were contested: {who} played your comp "
-                       f"({', '.join(shared)}) and finished ahead of you.")
+                       f"({my_identity}) and finished ahead of you.")
     if my_carry:
         holders = [b for b in above if my_carry in tft.board_units(b)]
         if holders:
@@ -124,8 +132,8 @@ def margin_bullets(mine, above, set_number, level_par):
     par = level_par.get(mine["last_round"])
     if par is not None and par - mine["level"] >= LEVEL_SLACK:
         bullets.append(f"You died at level {mine['level']}. Players who "
-                       f"last to round {mine['last_round']} average level "
-                       f"{par:.1f}, so you were behind on XP.")
+                       f"last to stage {tft.stage(mine['last_round'])} "
+                       f"average level {par:.1f}, so you were behind on XP.")
 
     if mine.get("gold_left", 0) >= GOLD_FLOOR:
         bullets.append(f"You died holding {mine['gold_left']} gold. Unless "
@@ -426,7 +434,7 @@ def advice(rows, flat=None, habits=None):
             tips.append({
                 "do": "Buy XP earlier - level on 2-5 and 3-2 even when it "
                       "costs you a reroll.",
-                "why": f"at the round you die, everyone else is on average "
+                "why": f"at the stage you die, everyone else is on average "
                        f"{abs(habits['level_gap']):.1f} levels higher, and "
                        f"you're behind in "
                        f"{100 * habits['behind_share']:.0f}% of your games."})

@@ -294,6 +294,45 @@ def gap_moe(n1, n2):
     return 1.96 * PLACEMENT_SD * (1 / n1 + 1 / n2) ** 0.5
 
 
+def stage(last_round):
+    """Round number -> the stage notation players actually use.
+
+    Stage 1 is four rounds, every stage after is seven. Checked against the
+    data: no eliminations land on x-4 or x-7 (carousel and monster rounds),
+    which is exactly where this mapping says they can't.
+    """
+    if last_round <= 4:
+        return f"1-{last_round}"
+    r = last_round - 4
+    return f"{2 + (r - 1) // 7}-{(r - 1) % 7 + 1}"
+
+
+def stage_avg(value):
+    """An AVERAGE round shown as a stage - approximate by nature, marked so."""
+    return f"~{stage(int(round(value)))}"
+
+
+# How much to trust a number, by sample size. The old approach was a hard
+# gate at 30 games - correct about the maths, useless as a product, because
+# the answer to most questions became silence. Saying the number WITH its
+# confidence tells the same truth and is actually usable on day one of a
+# set: everything starts as a hunch and firms up as games arrive.
+CONFIDENCE_TIERS = ((100, "confirmed"), (30, "solid"),
+                    (10, "early read"), (0, "hunch"))
+
+
+def confidence(n):
+    for floor, label in CONFIDENCE_TIERS:
+        if n >= floor:
+            return label
+    return "hunch"
+
+
+def placement_moe(n):
+    """The error bar on an average placement over n boards."""
+    return 1.96 * PLACEMENT_SD / max(n, 1) ** 0.5
+
+
 def survival_residuals(entries):
     """Placement, minus the average placement of everyone who died as late.
 

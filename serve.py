@@ -46,6 +46,7 @@ from urllib.parse import parse_qs, quote, urlparse
 
 import postgame_page
 import pregame_page
+import seed as seed_mod
 import riot
 import scout
 import theme
@@ -308,6 +309,25 @@ def scout_job(job_id, puuid, label, raw_names):
 
 
 BUILD_LOCK = threading.Lock()
+
+
+def seed_job(job_id, puuid, label):
+    """Pull ladder games into the pool, then land back on the pre-game
+    screen with the sharper meta."""
+    try:
+        set_job(job_id, title="Seeding from the ladder")
+
+        def progress(i, total, tier, lp):
+            set_job(job_id, status=f"Player {i} of {total} - "
+                                   f"a {tier} player at {lp} LP")
+
+        seed_mod.seed(players=5, games_each=10, progress=progress)
+        set_job(job_id, status=None,
+                redirect=f"/pregame?p={quote(puuid)}&n={quote(label)}")
+    except riot.RiotError as problem:
+        set_job(job_id, status=None, error=str(problem))
+    except Exception as problem:                      # noqa: BLE001
+        set_job(job_id, status=None, error=f"{type(problem).__name__}: {problem}")
 
 
 def build_stats(puuid, label):
@@ -595,6 +615,19 @@ class Handler(BaseHTTPRequestHandler):
                     status="Reading your saved games...")
             threading.Thread(target=scout_job,
                              args=(job_id, puuid, label, names),
+                             daemon=True).start()
+            self.send_response(303)
+            self.send_header("Location", f"/job/{job_id}")
+            self.end_headers()
+            return
+
+        if route.path == "/seed":
+            puuid = (fields.get("p") or [""])[0]
+            label = (fields.get("n") or [""])[0]
+            job_id = uuid.uuid4().hex[:12]
+            set_job(job_id, title="Seeding from the ladder",
+                    status="Reading the ladder...")
+            threading.Thread(target=seed_job, args=(job_id, puuid, label),
                              daemon=True).start()
             self.send_response(303)
             self.send_header("Location", f"/job/{job_id}")

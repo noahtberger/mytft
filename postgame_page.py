@@ -44,7 +44,7 @@ def board_row(facts, me, lpbreak=False):
     `lpbreak` draws the line between 4th and 5th, where LP changes sign."""
     prof = facts["prof"]
     name = f"{esc(facts['name'])}{' (you)' if me else ''}"
-    comps = esc(" + ".join(facts["comps"])) if facts["comps"] else "&mdash;"
+    comp_cell = esc(facts["comp"]) if facts["comp"] else "&mdash;"
     carry = esc(facts["carry"]) if facts["carry"] else "&mdash;"
     if prof is None:
         cells = '<td colspan="4">disconnected</td>'
@@ -60,7 +60,7 @@ def board_row(facts, me, lpbreak=False):
     return (f'<tr{attr}>'
             f'<td class="num"><span class="{tone}">{facts["place"]}</span></td>'
             f'<td>{name}</td>'
-            f'<td>{comps}</td><td>{carry}</td>{cells}</tr>')
+            f'<td>{comp_cell}</td><td>{carry}</td>{cells}</tr>')
 
 
 def render(games, level_par, set_number, idx, who, puuid):

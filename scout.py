@@ -37,6 +37,7 @@ import time
 from collections import Counter, defaultdict
 from pathlib import Path
 
+import comps
 import riot
 import tftdata as tft
 
@@ -93,7 +94,11 @@ def profile(boards, set_number):
     """Turn a pile of one player's boards into what they tend to do."""
     lines = Counter()
     carries = Counter()
+    played = Counter()
     for b in boards:
+        comp = comps.name(b, set_number)
+        if comp and comp != comps.NO_COMP:
+            played[comp] += 1
         for line in tft.committed_lines(b, set_number):
             lines[line] += 1
         carry = tft.carry_of(b)
@@ -105,6 +110,7 @@ def profile(boards, set_number):
         "avg": sum(placements) / len(placements),
         "lines": lines,
         "carries": carries,
+        "comps": played,
     }
 
 
@@ -169,7 +175,7 @@ def report(label, prof, set_number):
         print("     no games on record for this set - nothing to scout")
         return
     print(f"     {prof['games']} games seen, avg placement {prof['avg']:.2f}")
-    print(f"     builds : {', '.join(top(prof['lines'], prof['games']))}")
+    print(f"     builds : {', '.join(top(prof['comps'], prof['games']))}")
     print(f"     carries: {', '.join(top(prof['carries'], prof['games']))}")
 
 

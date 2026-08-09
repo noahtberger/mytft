@@ -22,6 +22,7 @@ which is the side of the line Riot's rules allow.
 
 from urllib.parse import quote
 
+import comps
 import postgame as pg
 import pregame as pre
 import scout
@@ -40,10 +41,10 @@ def player_read(label, boards, set_number, note=None):
         return {"label": label,
                 "error": note or "no ranked games on record for this set"}
     prof = scout.profile(boards, set_number)
-    plays = [name for name, _ in prof["lines"].most_common(2)]
+    plays = [name for name, _ in prof["comps"].most_common(2)]
     carry = [name for name, _ in prof["carries"].most_common(1)]
     forces = None
-    top_build = prof["lines"].most_common(1)
+    top_build = prof["comps"].most_common(1)
     if top_build:
         name, n = top_build[0]
         if n >= 5 and n >= 0.4 * prof["games"]:
@@ -109,43 +110,69 @@ def render(games, set_number, who, puuid, scouted=None):
   <button type="submit">Scout them</button>
 </form>"""
 
-    # -- comps that are strong here, as a compact list ---------------------
-    winners = [(line, n, j) for line, n, j in room_rows
-               if j["solid"] and j["gap"] > 0]
-    losers = [line for line, _n, j in room_rows if j["solid"] and j["gap"] < 0]
-    if winners:
-        strong = '<ul class="rowlist">' + "".join(
-            f'<li><span>{esc(line)}</span>'
-            f'<span class="v">{j["with"]["avg"]:.2f}'
-            f'<span class="k"> &middot; {100 * n / len(board_rows):.0f}%</span>'
-            f'</span></li>' for line, n, j in winners) + '</ul>'
-        strong += ('<p class="fine">Average placement of boards that built '
-                   'it, and how many boards do. Only comps with a real edge '
-                   'are listed.</p>')
-    else:
-        strong = ('<p class="fine" style="margin:0">Nothing clears the bar '
-                  'yet - no comp here is proven stronger than the field.</p>')
-    if losers:
-        strong += f'<p class="fine">Weak here: {esc(", ".join(losers))}.</p>'
+    # -- the meta and the recommendation, from the whole pool --------------
+    m = comps.meta(set_number)
 
-    detail_rows = "".join(
-        f'<tr><td>{esc(line)}</td>'
-        f'<td class="num">{n}</td>'
-        f'<td class="num">{100 * n / len(board_rows):.1f}%</td>'
-        f'<td class="num">{j["with"]["avg"]:.2f}</td>'
-        f'<td class="num">{j["without"]["avg"]:.2f}</td>'
-        f'<td class="num">{j["gap"]:+.2f}</td></tr>'
-        for line, n, j in room_rows)
-    details = f"""<details>
-  <summary>every comp, with the numbers</summary>
-  <div class="tablewrap"><table>
-    <thead><tr><th>comp</th><th class="num">boards</th>
-    <th class="num">rate</th><th class="num">with</th>
-    <th class="num">without</th><th class="num">gap</th></tr></thead>
-    <tbody>{detail_rows}</tbody></table></div>
-  <p class="fine">All {len(board_rows)} boards from your own games. A comp
-  only counts when the board actually built it.</p>
-</details>""" if room_rows else ""
+    def pill(conf):
+        cls = {"confirmed": "ready", "solid": "ready",
+               "early read": "part", "hunch": "blank"}[conf]
+        return f'<span class="pill {cls}">{conf}</span>'
+
+    rec = comps.recommend(era_games, set_number, m["comps"])
+    if rec:
+        lines = []
+        b = rec["best"]
+        lines.append(
+            f'<p class="tip"><strong>Strongest right now: {esc(b["comp"])} '
+            f'&mdash; avg {b["avg"]:.2f} over {b["n"]} boards.</strong>'
+            f'<span>{pill(b["confidence"])} &middot; usual carries: '
+            f'{esc(", ".join(b["carries"][:3]))}</span></p>')
+        f = rec["fit"]
+        if f and f["comp"] != b["comp"]:
+            lines.append(
+                f'<p class="tip"><strong>Closest to how you play: '
+                f'{esc(f["comp"])} &mdash; avg {f["avg"]:.2f} over '
+                f'{f["n"]} boards.</strong>'
+                f'<span>{pill(f["confidence"])} &middot; you play '
+                f'{esc(rec["top_plan"] or "")} in {rec["share"]:.0f}% of '
+                f'your recent games &middot; carries '
+                f'{esc(", ".join(f["carries"][:3]))}</span></p>')
+        elif rec["top_plan"]:
+            lines.append(
+                f'<p class="fine">That also fits you: you play '
+                f'{esc(rec["top_plan"])} in {rec["share"]:.0f}% of your '
+                f'recent games.</p>')
+        foryou = "".join(lines)
+    else:
+        foryou = ('<p class="fine" style="margin:0">Not enough boards in '
+                  'the pool yet. Seed some ladder games below.</p>')
+
+    plan_rows = "".join(
+        f'<li><span>{esc(p["plan"])}</span>'
+        f'<span class="v">{p["avg"]:.2f}'
+        f'<span class="k"> &middot; {p["n"]}</span></span></li>'
+        for p in m["plans"])
+    comp_rows = "".join(
+        f'<li><span>{esc(r["comp"])}'
+        f'{" " + pill(r["confidence"]) if r["confidence"] in ("hunch",) else ""}'
+        f'</span><span class="v">{r["avg"]:.2f}'
+        f'<span class="k"> &middot; {r["n"]}</span></span></li>'
+        for r in m["comps"] if r["n"] >= 10 and r["comp"] != comps.NO_COMP
+        and r["comp"] not in set(comps.REROLL_PLAN.values()) | {"fast 9"})
+    strong = (f'<ul class="rowlist">{comp_rows}</ul>' if comp_rows else
+              '<p class="fine" style="margin:0">No comp has 10 boards yet '
+              '- seed the pool below.</p>')
+    seed_form = f"""<form class="scoutbox" method="post" action="/seed"
+  style="margin-top:14px">
+  <input type="hidden" name="p" value="{esc(puuid)}">
+  <input type="hidden" name="n" value="{esc(who)}">
+  <button type="submit">Seed from the top of the ladder</button>
+</form>
+<p class="fine">Pulls recent games from the ladder&rsquo;s best players
+into the pool - a few minutes, and the read above gets sharper. Numbers
+are average placement over how many boards; hunch &lt;10, early read 10+,
+solid 30+, confirmed 100+.</p>"""
+    details = seed_form
 
     era_n, verdicts, sentence = pre.playstyle_now(games, set_number)
     if sentence:
@@ -181,8 +208,15 @@ def render(games, set_number, who, puuid, scouted=None):
     automatically needs a helper on the PC running League &mdash; on the
     list.</p>
   </div>
+  <div class="card full">
+    <h3>For you</h3>
+    {foryou}
+  </div>
   <div class="card">
-    <h3>Strong in your lobbies</h3>
+    <h3>The meta &middot; {m["boards"]} boards</h3>
+    <ul class="rowlist">{plan_rows}</ul>
+    <p class="fine">The four ways to spend gold, ranked. Below: named
+    comps with 10+ boards.</p>
     {strong}
     {details}
   </div>
