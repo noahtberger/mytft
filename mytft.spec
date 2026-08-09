@@ -20,7 +20,12 @@ a = Analysis(
     hiddenimports=[
         "serve", "build_site", "theme", "tftdata", "riot", "scout",
         "pregame", "postgame", "pregame_page", "postgame_page",
+        "comps", "seed",
         "requests", "webview",
+        # pywebview picks its backend at runtime, which PyInstaller's
+        # source scan cannot see - without this the frozen app has no
+        # Cocoa backend and the window renders nothing.
+        "webview.platforms.cocoa",
     ],
     hookspath=[],
     runtime_hooks=[],
@@ -52,5 +57,11 @@ app = BUNDLE(
         "CFBundleDisplayName": "MyTFT",
         "LSBackgroundOnly": False,
         "NSHighResolutionCapable": True,
+        # A bundled app gets App Transport Security by default, which can
+        # refuse plain-http loads - including to 127.0.0.1, which is the
+        # only thing this window ever loads. A bare python process never
+        # enforces this, which is why the unfrozen app worked and the
+        # bundle showed a white screen.
+        "NSAppTransportSecurity": {"NSAllowsLocalNetworking": True},
     },
 )

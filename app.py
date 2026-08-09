@@ -93,7 +93,39 @@ def open_when_ready(url):
     webbrowser.open(url)
 
 
+def probe():
+    """MYTFT_PROBE=1: load the page in a hidden window, print what
+    happened, exit. The only way to see inside the frozen app's webview
+    without eyes on the screen."""
+    import webview
+    result = {"loaded": False, "title": None}
+
+    def on_loaded(window):
+        result["loaded"] = True
+        try:
+            result["title"] = window.evaluate_js("document.title")
+        except Exception as e:                        # noqa: BLE001
+            result["title"] = f"js failed: {e}"
+        window.destroy()
+
+    w = webview.create_window("probe", "http://127.0.0.1:8000/", hidden=True)
+    w.events.loaded += lambda: on_loaded(w)
+
+    def bail():
+        time.sleep(8)
+        try:
+            w.destroy()
+        except Exception:                             # noqa: BLE001
+            pass
+    threading.Thread(target=bail, daemon=True).start()
+    webview.start()
+    print(f"PROBE loaded={result['loaded']} title={result['title']!r}")
+
+
 def main():
+    if os.environ.get("MYTFT_PROBE"):
+        probe()
+        return 0
     home = find_home()
     if home is None:
         complain("I couldn't find the MyTFT project folder - the one holding "
