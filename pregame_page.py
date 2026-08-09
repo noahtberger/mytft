@@ -152,16 +152,33 @@ def render(games, set_number, who, puuid, scouted=None):
         f'<span class="v">{p["avg"]:.2f}'
         f'<span class="k"> &middot; {p["n"]}</span></span></li>'
         for p in m["plans"])
-    comp_rows = "".join(
-        f'<li><span>{esc(r["comp"])}'
-        f'{" " + pill(r["confidence"]) if r["confidence"] in ("hunch",) else ""}'
-        f'</span><span class="v">{r["avg"]:.2f}'
-        f'<span class="k"> &middot; {r["n"]}</span></span></li>'
-        for r in m["comps"] if r["n"] >= 10 and r["comp"] != comps.NO_COMP
-        and r["comp"] not in set(comps.REROLL_PLAN.values()) | {"fast 9"})
-    strong = (f'<ul class="rowlist">{comp_rows}</ul>' if comp_rows else
+
+    def comp_row(r):
+        # A row earns a flag when its sample is still thin - solid rows
+        # speak for themselves.
+        flag = (" " + pill(r["confidence"])
+                if r["confidence"] in ("hunch", "early read") else "")
+        return (f'<li><span>{esc(r["comp"])}{flag}</span>'
+                f'<span class="v">{r["avg"]:.2f}'
+                f'<span class="k"> &middot; {r["n"]}</span></span></li>')
+
+    # The headline list is COMPS - plan + identity, "fast 9 Brawler" - not
+    # the bare plan axis. Solid samples outrank hot streaks: an 11-board
+    # 3.00 must not sit above a 51-board 3.20, so solid rows lead and thin
+    # ones only pad the tail, wearing their confidence pill.
+    named = [r for r in m["comps"] if r["n"] >= 10 and r["comp"] != comps.NO_COMP
+             and r["comp"] not in set(comps.REROLL_PLAN.values()) | {"fast 9"}]
+    solid = [r for r in named if r["n"] >= 30]
+    top = (solid + [r for r in named if r["n"] < 30])[:5]
+    strong = (f'<ul class="rowlist">{"".join(comp_row(r) for r in top)}</ul>'
+              if top else
               '<p class="fine" style="margin:0">No comp has 10 boards yet '
               '- seed the pool below.</p>')
+    more = ""
+    if len(named) > len(top):
+        more = (f'<details><summary>All {len(named)} comps with 10+ '
+                f'boards</summary><ul class="rowlist" style="margin-top:10px">'
+                f'{"".join(comp_row(r) for r in named)}</ul></details>')
     seed_form = f"""<form class="scoutbox" method="post" action="/seed"
   style="margin-top:14px">
   <input type="hidden" name="p" value="{esc(puuid)}">
@@ -214,10 +231,11 @@ solid 30+, confirmed 100+.</p>"""
   </div>
   <div class="card">
     <h3>The meta &middot; {m["boards"]} boards</h3>
-    <ul class="rowlist">{plan_rows}</ul>
-    <p class="fine">The four ways to spend gold, ranked. Below: named
-    comps with 10+ boards.</p>
     {strong}
+    {more}
+    <p class="fine">The four ways to spend gold, ranked over the same
+    boards:</p>
+    <ul class="rowlist" style="margin-top:8px">{plan_rows}</ul>
     {details}
   </div>
   <div class="card">
