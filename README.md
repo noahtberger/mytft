@@ -135,6 +135,12 @@ The app serves three views per player, linked by tabs at the top:
   or two), so the loop is: play, alt-tab, click, read.
 - **Stats** — the full report page.
 
+While the app is open it checks every few minutes whether you have
+finished a game, and a banner offers the debrief when you have — one
+request per check, so it costs nothing against the rate limit. It watches
+only the owner of this copy, not everyone ever looked up, and it links
+rather than redirecting so nothing yanks the page while you are reading.
+
 **Switch player** in the header takes you back to the search box, which
 lists everyone looked up recently so you can flip between yourself and
 friends without retyping Riot IDs. (Nobody logs in — any Riot ID works,

@@ -38,6 +38,7 @@ import re
 import sys
 import tempfile
 import threading
+import time
 import uuid
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
@@ -62,6 +63,44 @@ STATS_CACHE = {}   # (puuid, label) -> (newest match id, rendered stats page)
 RECENT_FILE = Path("recent.json")   # gitignored; just a convenience list
 RECENT_MAX = 8
 RECENT_LOCK = threading.Lock()
+
+WATCH_EVERY = 180        # seconds between "have you finished a game yet?"
+WATCH = {"match_id": None, "checked": 0}   # what the poller last saw
+WATCH_LOCK = threading.Lock()
+
+
+def watch_for_games():
+    """Notice when the owner of this copy finishes a game.
+
+    One request per cycle - the list of recent match ids - against a budget
+    of a hundred every two minutes, so it is close to free. It only fetches
+    the game itself when the newest id is one we have never seen, and only
+    for the owner: polling on behalf of every player ever looked up would
+    spend the whole rate limit on people who aren't playing.
+
+    The page asks /latest whether anything changed. Nothing here pushes.
+    """
+    try:
+        owner = json.loads(Path("me.json").read_text())["puuid"]
+    except (FileNotFoundError, KeyError):
+        return                     # nobody owns this copy yet; nothing to watch
+
+    while True:
+        try:
+            ids = riot.riot_get(
+                f"{riot.REGIONAL}/tft/match/v1/matches/by-puuid/{owner}/ids",
+                start=0, count=1)
+            newest = ids[0] if ids else None
+            if newest and newest not in riot.saved_match_ids():
+                riot.backfill(owner, want=3, into=own_dir(owner))
+                STATS_CACHE.clear()          # their numbers just changed
+                with WATCH_LOCK:
+                    WATCH["match_id"] = newest
+            with WATCH_LOCK:
+                WATCH["checked"] = int(time.time())
+        except Exception:                    # noqa: BLE001
+            pass        # a key that expired overnight must not kill the app
+        time.sleep(WATCH_EVERY)
 
 
 def recent_players():
@@ -419,6 +458,12 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply(home(f"Couldn't build the report: {problem}"), 500)
             return
 
+        if route.path == "/latest":
+            with WATCH_LOCK:
+                body = json.dumps(dict(WATCH)).encode()
+            self.reply(body, content_type="application/json")
+            return
+
         if route.path == "/pregame":
             q = parse_qs(route.query)
             puuid = (q.get("p") or [""])[0]
@@ -558,6 +603,7 @@ class Handler(BaseHTTPRequestHandler):
 def serve_forever():
     """Run the app. Split out of __main__ so the packaged launcher can
     call it too, rather than the two starting the server different ways."""
+    threading.Thread(target=watch_for_games, daemon=True).start()
     print(f"MyTFT running at http://{HOST}:{PORT}")
     print("Local only - nothing outside this machine can reach it. Ctrl-C to stop.")
     ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()

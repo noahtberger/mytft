@@ -57,6 +57,36 @@ def stale_names_banner(set_number):
             'to fix it.</div>')
 
 
+def new_game_watcher(q):
+    """A banner that appears when the server notices you finished a game.
+
+    The page asks; the server never pushes. It records the match id it saw
+    on arrival and only speaks when that changes, so opening a page right
+    after a game doesn't immediately claim there's a newer one.
+
+    Deliberately a link rather than an automatic redirect: nothing should
+    yank the page out from under someone mid-read.
+    """
+    return f"""<div id="newgame" role="status">
+  <span>Your latest game just finished.</span>
+  <a href="/game?{q}">See the debrief &rarr;</a>
+</div>
+<script>
+(function () {{
+  var banner = document.getElementById('newgame');
+  var seen = null, first = true;
+  function poll() {{
+    fetch('/latest').then(function (r) {{ return r.json(); }}).then(function (d) {{
+      if (first) {{ seen = d.match_id; first = false; return; }}
+      if (d.match_id && d.match_id !== seen) {{ banner.style.display = 'flex'; }}
+    }}).catch(function () {{}});
+  }}
+  poll();
+  setInterval(poll, 20000);
+}})();
+</script>"""
+
+
 def app_bar(who, set_number, q, here, extra=""):
     """The header every app view shares: wordmark, whose games you are
     looking at, the three views, and the way back out.
@@ -374,6 +404,12 @@ details summary:hover { color:var(--ink); }
 .banner { background:var(--panel); border:1px solid var(--neg);
           border-left-width:3px; border-radius:3px; padding:12px 16px;
           margin:0 0 16px; font-size:14px; }
+/* "You just finished a game" - hidden until the watcher says so. */
+#newgame { display:none; align-items:center; gap:14px;
+           background:var(--panel); border:1px solid var(--accent);
+           border-left-width:3px; border-radius:3px; padding:12px 16px;
+           margin:0 0 16px; font-size:14px; }
+#newgame a { color:var(--accent); font-weight:700; }
 .big { font-family:var(--mono); font-size:30px; letter-spacing:-.02em;
        font-variant-numeric:tabular-nums; display:block; }
 .tip { margin:0 0 14px; }

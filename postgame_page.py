@@ -14,7 +14,8 @@ from urllib.parse import quote
 
 import postgame as pg
 import tftdata as tft
-from theme import BRAND, CSS, SCRIPT, app_bar, esc, stale_names_banner
+from theme import (BRAND, CSS, SCRIPT, app_bar, esc, new_game_watcher,
+                   stale_names_banner)
 
 PICKER = 10   # recent games shown in the switcher row
 
@@ -195,6 +196,7 @@ def render(games, level_par, set_number, idx, who, puuid):
     body = f"""
 {app_bar(who, set_number, q, 'Post-game', extra=refresh_form)}
 {stale_names_banner(set_number)}
+{new_game_watcher(q)}
 <div class="hero">
   <h1>{headline}</h1>
   <span class="sub">{when} &middot; patch {esc(g["_patch"])}</span>
