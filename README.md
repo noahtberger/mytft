@@ -48,7 +48,8 @@ echo 'RGAPI-...' > .riot_key           # today's dev key, expires every 24h:
                                        # (gitignored; export RIOT_API_KEY
                                        #  still works and wins if both exist)
 
-.venv/bin/python fetch_matches.py      # pull new ranked matches -> matches/
+.venv/bin/python fetch_matches.py      # pull your new ranked matches -> matches/
+.venv/bin/python fetch_matches.py Name#NA1   # somebody else's -> pool/
 .venv/bin/python stats.py              # full performance report
 .venv/bin/python ask.py                # pre-game companion (interactive)
 .venv/bin/python ask.py best           # proven strengths
