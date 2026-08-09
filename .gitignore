@@ -31,3 +31,6 @@ dist/
 icon/MyTFT.iconset/
 icon/icon-1024.png
 icon/icon.html
+
+# The LAN toggle is a local choice, not a project setting
+lan-access

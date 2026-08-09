@@ -149,6 +149,22 @@ which is why it isn't called a logout.)
 Your own new games land in `matches/` (the committed copy); everyone
 else's land in `pool/`.
 
+### Using it from another device on your wifi
+
+```bash
+touch lan-access        # then restart the app
+```
+
+The server normally binds `127.0.0.1`, which means this machine only. With
+that file present it binds every interface instead, and another device on
+the same network opens `http://<your-mac-ip>:8000` — the address is
+printed on startup. Delete the file to turn it off.
+
+Worth knowing before you leave it on: **there is no login**, so anything
+on that network can use the app and spend your API key. Fine on your own
+wifi; not something to run on café or campus networks. Your Mac also has
+to be awake with the app running.
+
 **Why this needs a server.** A static page can't fetch anyone's history:
 Riot's API sends no CORS headers so browser JavaScript can't call it at all,
 your key would have to travel to the browser to try, and the published

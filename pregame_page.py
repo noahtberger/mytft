@@ -88,8 +88,10 @@ def render(games, set_number, who, puuid, scouted=None):
     shift = tft.biggest_shift(mine)
     timeline = list(reversed(games))
     era_games = timeline[shift["cut"]:] if shift else timeline
+    _, level_par = tft.load_games(puuid)
     tips = pg.advice(pg.pattern(era_games, set_number),
-                     pg.flat_context(games, set_number, era_games))
+                     pg.flat_context(games, set_number, era_games),
+                     pg.board_habits(era_games, level_par))
     if tips:
         reminders = "".join(
             f'<p class="tip"><strong>{esc(t["do"])}</strong>'

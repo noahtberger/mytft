@@ -134,15 +134,17 @@ def render(games, level_par, set_number, idx, who, puuid):
     era_games = timeline[shift["cut"]:] if shift else timeline
     pattern_rows = pg.pattern(era_games, set_number)
     tips = pg.advice(pattern_rows,
-                     pg.flat_context(games, set_number, era_games))
+                     pg.flat_context(games, set_number, era_games),
+                     pg.board_habits(era_games, level_par))
 
     def stat_list():
         return "".join(
-            f'<li><span class="k">{esc(cap(pg.PATTERN_WORDS[k][0]))}</span>'
+            f'<li><span class="k">{esc(cap(pg.PATTERN_WORDS[r["key"]][0]))}'
+            f'{"" if r["big"] else " (small)"}</span>'
             f'<span class="v">'
-            f'{esc(pg.PATTERN_WORDS[k][1] if mean > 0 else pg.PATTERN_WORDS[k][2])}'
-            f' {mean:+.2f}</span></li>'
-            for k, mean, _n in pattern_rows)
+            f'{esc(pg.PATTERN_WORDS[r["key"]][1] if r["gap"] > 0 else pg.PATTERN_WORDS[r["key"]][2])}'
+            f' {r["gap"]:+.2f}</span></li>'
+            for r in pattern_rows)
 
     if tips:
         tip_html = "".join(

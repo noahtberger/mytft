@@ -294,6 +294,31 @@ def gap_moe(n1, n2):
     return 1.96 * PLACEMENT_SD * (1 / n1 + 1 / n2) ** 0.5
 
 
+def survival_residuals(entries):
+    """Placement, minus the average placement of everyone who died as late.
+
+    `entries` is (last_round, placement) pairs. Returns them in the same
+    order, each expressed as "how did this board do, for a board that
+    lasted this long".
+
+    Comparing final boards without this mostly measures who survived, and
+    the difference is not small. Boards with no completed trait looked 1.26
+    places worse than boards that had one - until you hold the death round
+    fixed, at which point the gap is 0.11. They were not losing because the
+    board was unfinished; the board was unfinished because they lost, and
+    a board that dies on round 24 cannot have a finished anything.
+
+    So: any comparison of board SHAPE has to go through here first.
+    Anything that compares outcomes - a comp's win rate, contested versus
+    not - must NOT, because there the survival is the thing being measured.
+    """
+    by_round = defaultdict(list)
+    for rnd, place in entries:
+        by_round[rnd].append(place)
+    means = {r: statistics.mean(v) for r, v in by_round.items()}
+    return [place - means[rnd] for rnd, place in entries]
+
+
 def mean_gap(sample_a, sample_b, z=1.96):
     """Difference between two means, with the error bar that judges it.
 

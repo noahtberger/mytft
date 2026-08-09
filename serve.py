@@ -51,7 +51,38 @@ import scout
 import theme
 import tftdata as tft
 
-HOST, PORT = "127.0.0.1", 8000
+PORT = 8000
+
+
+def lan_address():
+    """This machine's address on the local network, for the URL to share."""
+    import socket
+    probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        probe.connect(("8.8.8.8", 80))    # no packet is sent; this just
+        return probe.getsockname()[0]     # picks the outbound interface
+    except Exception:                     # noqa: BLE001
+        return socket.gethostbyname(socket.gethostname())
+    finally:
+        probe.close()
+
+
+def bind_host():
+    """Loopback unless LAN access was deliberately switched on.
+
+    127.0.0.1 means "this machine only" and is the safe default: the app
+    has no login, so anything that can reach it can spend your API key.
+    Creating a file called `lan-access` (or setting TFT_LAN=1) binds every
+    interface instead, which is what lets another device on the same wifi
+    open it. Turn it off by deleting the file - no code change, and no way
+    to leave it on by accident after a rebuild.
+    """
+    if os.environ.get("TFT_LAN") or Path("lan-access").exists():
+        return "0.0.0.0"
+    return "127.0.0.1"
+
+
+HOST = bind_host()
 GAMES_WANTED = 50    # enough to clear the 30-game bar without a 4-minute wait
 REFRESH_WANTED = 10  # "check for a new game" only needs the newest few
 
@@ -604,9 +635,16 @@ def serve_forever():
     """Run the app. Split out of __main__ so the packaged launcher can
     call it too, rather than the two starting the server different ways."""
     threading.Thread(target=watch_for_games, daemon=True).start()
-    print(f"MyTFT running at http://{HOST}:{PORT}")
-    print("Local only - nothing outside this machine can reach it. Ctrl-C to stop.")
-    ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
+    host = bind_host()
+    if host == "127.0.0.1":
+        print(f"MyTFT running at http://127.0.0.1:{PORT}")
+        print("Local only - nothing outside this machine can reach it.")
+    else:
+        print(f"MyTFT running at http://{lan_address()}:{PORT}")
+        print("LAN access is ON: anything on this network can use it, and "
+              "there is no login. Delete the `lan-access` file to turn it off.")
+    print("Ctrl-C to stop.")
+    ThreadingHTTPServer((host, PORT), Handler).serve_forever()
 
 
 def check_key():
