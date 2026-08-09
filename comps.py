@@ -31,12 +31,13 @@ from collections import Counter, defaultdict
 
 import tftdata as tft
 
-REROLL_PLAN = {1: "lvl 4/5 reroll", 2: "lvl 6 reroll", 3: "lvl 7 reroll"}
+REROLL_PLAN = {1: "Lvl 4/5 reroll", 2: "Lvl 6 reroll", 3: "Lvl 7 reroll"}
+FAST9 = "Fast 9"
 FAST9_COST = 3.5      # average unit cost at/above this reads as fast 9
 FAST9_BIG = 6         # ...or this many 4/5-costs
 FIVECOST_UNIQUES = 3  # uniques online for a flat board to be "five cost"
 
-NO_COMP = "never came together"
+NO_COMP = "Never came together"
 
 _META_CACHE = {}
 
@@ -55,7 +56,7 @@ def parts(board, set_number):
     if threes:
         plan = REROLL_PLAN[max(threes)]
     elif avg >= FAST9_COST or big >= FAST9_BIG:
-        plan = "fast 9"
+        plan = FAST9
 
     # Deepest vertical: most units in a committed, non-unique trait.
     uniques = tft.unique_traits(set_number)
@@ -73,7 +74,7 @@ def parts(board, set_number):
 
     if vertical:
         identity = vertical
-    elif plan == "fast 9" and (uniq_online >= FIVECOST_UNIQUES or big >= 5):
+    elif plan == FAST9 and (uniq_online >= FIVECOST_UNIQUES or big >= 5):
         identity = "five cost"
     elif plan and threes:
         identity = tft.carry_of(board)
@@ -89,9 +90,9 @@ def name(board, set_number):
         return None
     plan, identity = p
     if plan and identity:
-        if plan == "fast 9":
-            return f"fast 9 {identity}"
-        return f"{identity} reroll ({plan.split(' reroll')[0].removeprefix('lvl ')})"
+        if plan == FAST9:
+            return f"{FAST9} {identity}"
+        return f"{identity} reroll ({plan.split(' reroll')[0].removeprefix('Lvl ')})"
     if identity:
         return identity
     if plan:
@@ -176,7 +177,7 @@ def plan_mix(games, set_number):
     counts = Counter()
     for g in games:
         p = plan_of(g, set_number)
-        counts[p or "no clear plan"] += 1
+        counts[p or "No clear plan"] += 1
     total = sum(counts.values()) or 1
     return [(plan, n, 100 * n / total) for plan, n in counts.most_common()]
 
@@ -191,7 +192,7 @@ def recommend(games, set_number, meta_rows, min_boards=10):
     """
     # A comp needs an identity to be recommended - a bare "fast 9" row is
     # the leftover boards that fit no named comp, not a thing to go play.
-    plan_names = set(REROLL_PLAN.values()) | {"fast 9"}
+    plan_names = set(REROLL_PLAN.values()) | {FAST9}
     usable = [r for r in meta_rows if r["n"] >= min_boards
               and r["comp"] != NO_COMP and r["comp"] not in plan_names]
     if not usable:
@@ -204,14 +205,14 @@ def recommend(games, set_number, meta_rows, min_boards=10):
     best = pool[0]
 
     mix = plan_mix(games, set_number)
-    top_plan = next((p for p, _, _ in mix if p != "no clear plan"), None)
+    top_plan = next((p for p, _, _ in mix if p != "No clear plan"), None)
 
     fit = None
     if top_plan:
         family = "reroll" if "reroll" in top_plan else top_plan
         for r in pool:
-            if family in r["comp"] or (family == "fast 9"
-                                       and r["comp"].startswith("fast 9")):
+            if family in r["comp"] or (family == FAST9
+                                       and r["comp"].startswith(FAST9)):
                 fit = r
                 break
     share = next((pct for p, _, pct in mix if p == top_plan), 0)

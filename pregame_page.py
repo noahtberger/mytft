@@ -39,7 +39,7 @@ def player_read(label, boards, set_number, note=None):
     """One scouted player, boiled down to a glance."""
     if not boards:
         return {"label": label,
-                "error": note or "no ranked games on record for this set"}
+                "error": note or "No ranked games on record for this set"}
     prof = scout.profile(boards, set_number)
     plays = [name for name, _ in prof["comps"].most_common(2)]
     carry = [name for name, _ in prof["carries"].most_common(1)]
@@ -51,7 +51,7 @@ def player_read(label, boards, set_number, note=None):
             forces = name
     return {"label": label, "error": None, "note": note,
             "games": prof["games"], "avg": prof["avg"],
-            "plays": ", ".join(plays) if plays else "nothing twice",
+            "plays": ", ".join(plays) if plays else "Nothing twice",
             "carry": carry[0] if carry else None,
             "forces": forces}
 
@@ -125,7 +125,7 @@ def render(games, set_number, who, puuid, scouted=None):
         lines.append(
             f'<p class="tip"><strong>Strongest right now: {esc(b["comp"])} '
             f'&mdash; avg {b["avg"]:.2f} over {b["n"]} boards.</strong>'
-            f'<span>{pill(b["confidence"])} &middot; usual carries: '
+            f'<span>{pill(b["confidence"])} &middot; Usual carries: '
             f'{esc(", ".join(b["carries"][:3]))}</span></p>')
         f = rec["fit"]
         if f and f["comp"] != b["comp"]:
@@ -133,9 +133,9 @@ def render(games, set_number, who, puuid, scouted=None):
                 f'<p class="tip"><strong>Closest to how you play: '
                 f'{esc(f["comp"])} &mdash; avg {f["avg"]:.2f} over '
                 f'{f["n"]} boards.</strong>'
-                f'<span>{pill(f["confidence"])} &middot; you play '
+                f'<span>{pill(f["confidence"])} &middot; You play '
                 f'{esc(rec["top_plan"] or "")} in {rec["share"]:.0f}% of '
-                f'your recent games &middot; carries '
+                f'your recent games &middot; Carries '
                 f'{esc(", ".join(f["carries"][:3]))}</span></p>')
         elif rec["top_plan"]:
             lines.append(
@@ -167,7 +167,7 @@ def render(games, set_number, who, puuid, scouted=None):
     # 3.00 must not sit above a 51-board 3.20, so solid rows lead and thin
     # ones only pad the tail, wearing their confidence pill.
     named = [r for r in m["comps"] if r["n"] >= 10 and r["comp"] != comps.NO_COMP
-             and r["comp"] not in set(comps.REROLL_PLAN.values()) | {"fast 9"}]
+             and r["comp"] not in set(comps.REROLL_PLAN.values()) | {comps.FAST9}]
     solid = [r for r in named if r["n"] >= 30]
     top = (solid + [r for r in named if r["n"] < 30])[:5]
     strong = (f'<ul class="rowlist">{"".join(comp_row(r) for r in top)}</ul>'
@@ -233,8 +233,10 @@ solid 30+, confirmed 100+.</p>"""
     <h3>The meta &middot; {m["boards"]} boards</h3>
     {strong}
     {more}
-    <p class="fine">The four ways to spend gold, ranked over the same
-    boards:</p>
+    <p class="fine">These numbers read {m["boards"]} final boards: your own
+    games, the seven other boards in each of your lobbies, and top-ladder
+    games pulled in by the seed button below. Ranked, this set only. The
+    four ways to spend gold, ranked over the same boards:</p>
     <ul class="rowlist" style="margin-top:8px">{plan_rows}</ul>
     {details}
   </div>

@@ -142,7 +142,7 @@ def render(games, level_par, set_number, idx, who, puuid):
             f'<li><span class="k">{esc(cap(pg.PATTERN_WORDS[r["key"]][0]))}'
             f'{"" if r["big"] else " (small)"}</span>'
             f'<span class="v">'
-            f'{esc(pg.PATTERN_WORDS[r["key"]][1] if r["gap"] > 0 else pg.PATTERN_WORDS[r["key"]][2])}'
+            f'{esc(cap(pg.PATTERN_WORDS[r["key"]][1] if r["gap"] > 0 else pg.PATTERN_WORDS[r["key"]][2]))}'
             f' {r["gap"]:+.2f}</span></li>'
             for r in pattern_rows)
 
@@ -154,7 +154,7 @@ def render(games, level_par, set_number, idx, who, puuid):
   <h3>Next game</h3>
   {tip_html}
   <details>
-    <summary>the pattern behind this</summary>
+    <summary>The pattern behind this</summary>
     <ul class="rowlist">{stat_list()}</ul>
     <p class="fine">Over your last {len(era_games)} games, this is how the
     boards that beat you differ from yours &mdash; gaps too big to be luck
@@ -169,7 +169,7 @@ def render(games, level_par, set_number, idx, who, puuid):
   from yours, but only in ways that come from surviving longer &mdash; size
   and items &mdash; not from a choice you could copy.</p>
   <details>
-    <summary>the pattern behind this</summary>
+    <summary>The pattern behind this</summary>
     <ul class="rowlist">{stat_list()}</ul>
   </details>
 </div>"""

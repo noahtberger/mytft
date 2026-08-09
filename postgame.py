@@ -364,7 +364,7 @@ def advice(rows, flat=None, habits=None):
                 "do": "If you're still on cheap units when the big ones "
                       "should have landed, take a trait to its second "
                       "breakpoint rather than holding the flat board.",
-                "why": f"among boards that lasted as long as yours, staying "
+                "why": f"Among boards that lasted as long as yours, staying "
                        f"flat and cheap costs about "
                        f"{flat['stuck_cost']:.2f} places "
                        f"(±{flat['stuck_moe']:.2f}) against flat boards that "
@@ -374,14 +374,14 @@ def advice(rows, flat=None, habits=None):
             tips.append({
                 "do": "Take one trait to its second breakpoint before you add "
                       "a third trait to the board.",
-                "why": f"boards that beat you finish with "
+                "why": f"Boards that beat you finish with "
                        f"{built['theirs']:.1f} completed traits; yours finish "
                        f"with {built['yours']:.1f}."})
     elif built and built["gap"] < 0:
         tips.append({
             "do": "Stop forcing a vertical when the units aren't there - a "
                   "wider board of stronger units beats a half-built trait.",
-            "why": f"boards that beat you finish with {built['theirs']:.1f} "
+            "why": f"Boards that beat you finish with {built['theirs']:.1f} "
                    f"completed traits against your {built['yours']:.1f}."})
 
     reroll = big.get("rerolled")
@@ -392,7 +392,7 @@ def advice(rows, flat=None, habits=None):
                 "do": "Take the reroll spot when you're offered one - stay at "
                       "level 6 or 7 and 3-star a cheap carry instead of "
                       "pushing levels every game.",
-                "why": f"boards that beat you 3-star {reroll['theirs']:.1f} "
+                "why": f"Boards that beat you 3-star {reroll['theirs']:.1f} "
                        f"cheap units a game to your {reroll['yours']:.1f}, on "
                        f"a board averaging {cost['theirs']:.1f} gold against "
                        f"your {cost['yours']:.1f}."})
@@ -401,13 +401,13 @@ def advice(rows, flat=None, habits=None):
                 "do": "Look for a 3-star: when you hold three of a cheap unit "
                       "by stage 3, roll for the last copies rather than "
                       "levelling past them.",
-                "why": f"boards that beat you 3-star {reroll['theirs']:.1f} "
+                "why": f"Boards that beat you 3-star {reroll['theirs']:.1f} "
                        f"cheap units a game; you manage {reroll['yours']:.1f}."})
         elif reroll["gap"] < 0:
             tips.append({
                 "do": "Stop rerolling for 3-stars - level instead and buy the "
                       "bigger units.",
-                "why": f"boards that beat you 3-star {reroll['theirs']:.1f} "
+                "why": f"Boards that beat you 3-star {reroll['theirs']:.1f} "
                        f"cheap units against your {reroll['yours']:.1f}, and "
                        f"still place above you."})
 
@@ -417,14 +417,14 @@ def advice(rows, flat=None, habits=None):
             "do": "Put your finished items on one carry instead of spreading "
                   "them - build the third item on the unit that already has "
                   "two.",
-            "why": f"boards that beat you keep "
+            "why": f"Boards that beat you keep "
                    f"{100 * focus['theirs']:.0f}% of their items on one unit; "
                    f"you keep {100 * focus['yours']:.0f}%."})
     elif focus and focus["gap"] < 0:
         tips.append({
             "do": "Spread your items - give the second carry real items "
                   "rather than stacking a fourth onto one unit.",
-            "why": f"boards that beat you keep "
+            "why": f"Boards that beat you keep "
                    f"{100 * focus['theirs']:.0f}% of items on one unit; you "
                    f"keep {100 * focus['yours']:.0f}%."})
 
@@ -434,7 +434,7 @@ def advice(rows, flat=None, habits=None):
             tips.append({
                 "do": "Buy XP earlier - level on 2-5 and 3-2 even when it "
                       "costs you a reroll.",
-                "why": f"at the stage you die, everyone else is on average "
+                "why": f"At the stage you die, everyone else is on average "
                        f"{abs(habits['level_gap']):.1f} levels higher, and "
                        f"you're behind in "
                        f"{100 * habits['behind_share']:.0f}% of your games."})
@@ -442,7 +442,7 @@ def advice(rows, flat=None, habits=None):
             tips.append({
                 "do": "Spend down to your interest breakpoint before the last "
                       "fight - gold you die holding bought nothing.",
-                "why": f"you die with 20+ gold in "
+                "why": f"You die with 20+ gold in "
                        f"{100 * habits['rich_share']:.0f}% of games, "
                        f"averaging {habits['gold_avg']:.0f} left over."})
 
