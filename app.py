@@ -3,9 +3,12 @@
 Build it with:  python -m PyInstaller mytft.spec
 Then:           open dist/MyTFT.app        (Windows: dist/MyTFT.exe)
 
-What this adds over `python serve.py` is only convenience: it starts the
-same server, waits for it to answer, and opens your browser on it. No
-terminal, no commands, no remembering the address.
+It starts the same server and shows it in a real application window - its
+own Dock icon, no browser, no address bar - using pywebview, which wraps
+the system's web view. If pywebview isn't installed it falls back to
+opening your browser, so the app still works either way.
+
+Closing the window quits everything, including the server.
 
 Where the data lives
 --------------------
@@ -68,20 +71,25 @@ code{{background:#1D2534;padding:2px 6px;border-radius:3px;font-size:14px}}
     webbrowser.open(path.as_uri())
 
 
-def open_when_ready(url, timeout=20):
-    """Open the browser once the server actually answers, so the first
-    click never lands on a connection-refused page."""
+def wait_for_server(url, timeout=20):
+    """Block until the server answers, so nothing opens on a dead port."""
     import urllib.error
     import urllib.request
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:
             urllib.request.urlopen(url, timeout=1)
-            break
+            return True
         except urllib.error.HTTPError:
-            break                      # answering, even if with an error
+            return True                # answering, even if with an error
         except Exception:
             time.sleep(0.25)
+    return False
+
+
+def open_when_ready(url):
+    """Fallback display: the user's browser."""
+    wait_for_server(url)
     webbrowser.open(url)
 
 
@@ -103,11 +111,32 @@ def main():
         return 1
 
     url = f"http://{serve.HOST}:{serve.PORT}/"
-    threading.Thread(target=open_when_ready, args=(url,), daemon=True).start()
+
+    # The server has to run in the background either way: a webview window
+    # owns the main thread, and on a Mac the UI must BE the main thread.
+    threading.Thread(target=serve.serve_forever, daemon=True).start()
+
     try:
-        serve.serve_forever()
-    except KeyboardInterrupt:
-        pass
+        import webview
+    except ImportError:
+        # No webview available - fall back to the browser rather than
+        # refusing to start. The app still works, it just isn't its own
+        # window.
+        open_when_ready(url)
+        try:
+            while True:
+                time.sleep(3600)
+        except KeyboardInterrupt:
+            return 0
+
+    if not wait_for_server(url):
+        complain("The server didn't start in time. Try again, and if it "
+                 "keeps happening run serve.py from a terminal to see why.")
+        return 1
+
+    webview.create_window("MyTFT", url, width=1180, height=880,
+                          min_size=(720, 600))
+    webview.start()        # returns when the window is closed, which quits
     return 0
 
 

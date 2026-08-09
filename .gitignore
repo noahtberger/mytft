@@ -26,3 +26,8 @@ recent.json
 # PyInstaller output - rebuildable from mytft.spec
 build/
 dist/
+
+# Generated icon intermediates; MyTFT.icns is committed, the rest rebuilds
+icon/MyTFT.iconset/
+icon/icon-1024.png
+icon/icon.html

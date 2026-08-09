@@ -102,7 +102,13 @@ export RIOT_API_KEY='RGAPI-...'
 .venv/bin/python -m PyInstaller mytft.spec     # -> dist/MyTFT.app
 ```
 
-`MyTFT.app` starts the server and opens your browser — no terminal, no
+`MyTFT.app` runs in its own window with its own Dock icon — no browser,
+no address bar — and closing the window quits the server too. (It falls
+back to opening your browser if pywebview isn't installed.) The icon is
+built from `icon/icon.svg` by rendering it to PNG and running
+`iconutil`; `icon/MyTFT.icns` is committed so a rebuild needs nothing.
+
+It starts the server — no terminal, no
 commands. Build it on the machine you want it for: a Mac bundle won't run
 on Windows, so the laptop needs its own `dist/MyTFT.exe` from the same
 command. Roughly 24 MB, and it contains Python itself, so the machine

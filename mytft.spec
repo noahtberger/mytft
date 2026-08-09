@@ -20,7 +20,7 @@ a = Analysis(
     hiddenimports=[
         "serve", "build_site", "theme", "tftdata", "riot", "scout",
         "pregame", "postgame", "pregame_page", "postgame_page",
-        "requests",
+        "requests", "webview",
     ],
     hookspath=[],
     runtime_hooks=[],
@@ -45,7 +45,7 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name="MyTFT.app",
-    icon=None,
+    icon="icon/MyTFT.icns",
     bundle_identifier="com.noahberger.mytft",
     info_plist={
         "CFBundleName": "MyTFT",
