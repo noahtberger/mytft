@@ -389,6 +389,9 @@ PAGE = """<!doctype html>
            --muted:#8792A8; --accent:#BE831A; --neg:#D25A61;
            --accent-solid:#C58A1E; --accent-ink:#0B0E14; }}
 }}
+:root[data-theme="dark"] {{ --bg:#0B0E14; --panel:#141A24; --line:#232C3A;
+           --ink:#E4E8F0; --muted:#8792A8; --accent:#BE831A; --neg:#D25A61;
+           --accent-solid:#C58A1E; --accent-ink:#0B0E14; }}
 * {{ box-sizing:border-box; }}
 body {{ margin:0; min-height:100vh; display:grid; place-items:center;
        background:var(--bg); color:var(--ink); font-family:var(--display);
@@ -669,6 +672,22 @@ def serve_forever():
     call it too, rather than the two starting the server different ways."""
     threading.Thread(target=watch_for_games, daemon=True).start()
     host = bind_host()
+    try:
+        server = ThreadingHTTPServer((host, PORT), Handler)
+    except OSError as problem:
+        if host == "127.0.0.1":
+            raise
+        # Binding every interface needs macOS's local-network permission,
+        # which a freshly rebuilt unsigned app never has - and dying here
+        # took the whole app down and left windows pointing at a dead
+        # port. Local-only always works; degrade to it and say so.
+        print(f"LAN bind failed ({problem}); falling back to local-only.")
+        host = "127.0.0.1"
+        server = ThreadingHTTPServer((host, PORT), Handler)
+
+    # The banner prints AFTER the bind now. It used to print before, which
+    # wrote "MyTFT running at ..." into the log of a server that then
+    # failed to exist - an actively misleading breadcrumb.
     if host == "127.0.0.1":
         print(f"MyTFT running at http://127.0.0.1:{PORT}")
         print("Local only - nothing outside this machine can reach it.")
@@ -677,7 +696,7 @@ def serve_forever():
         print("LAN access is ON: anything on this network can use it, and "
               "there is no login. Delete the `lan-access` file to turn it off.")
     print("Ctrl-C to stop.")
-    ThreadingHTTPServer((host, PORT), Handler).serve_forever()
+    server.serve_forever()
 
 
 def check_key():

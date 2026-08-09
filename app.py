@@ -103,12 +103,34 @@ def probe():
     def on_loaded(window):
         result["loaded"] = True
         try:
-            result["title"] = window.evaluate_js("document.title")
+            result["title"] = window.evaluate_js("""
+                JSON.stringify({
+                  title: document.title,
+                  url: location.href,
+                  bodyBg: getComputedStyle(document.body).backgroundColor,
+                  sheets: document.styleSheets.length,
+                  sheetRules: (function(){try{return document.styleSheets[0]
+                      .cssRules.length}catch(e){return 'blocked: '+e}})(),
+                  htmlLen: document.body.innerHTML.length,
+                  centre: (function(){var el=document.elementFromPoint(
+                      innerWidth/2, innerHeight/2);
+                      return el ? el.tagName+'.'+el.className : 'nothing'})(),
+                  text: (document.body.innerText || '').slice(0, 80)
+                })""")
         except Exception as e:                        # noqa: BLE001
             result["title"] = f"js failed: {e}"
+        dump()
+        time.sleep(2)
         window.destroy()
 
-    w = webview.create_window("probe", "http://127.0.0.1:8000/", hidden=True)
+    w = webview.create_window("probe", "http://127.0.0.1:8000/",
+                              width=900, height=600)
+    # stdout goes nowhere when Finder launches the app - write the result
+    # somewhere readable too.
+    import json as json_mod
+    def dump():
+        Path("/tmp/mytft_probe.json").write_text(
+            json_mod.dumps(result, indent=2))
     w.events.loaded += lambda: on_loaded(w)
 
     def bail():
@@ -142,11 +164,21 @@ def main():
         complain(problem)
         return 1
 
-    url = f"http://{serve.HOST}:{serve.PORT}/"
+    # The window always browses loopback. serve.HOST is the BIND address -
+    # with LAN access on it is 0.0.0.0, a valid place to listen but not a
+    # valid place to browse: WebKit refuses it as a URL host and leaves the
+    # window on about:blank (Python's urllib connects to it fine, which is
+    # why every "is it up?" check passed while the window sat white).
+    url = f"http://127.0.0.1:{serve.PORT}/"
 
-    # The server has to run in the background either way: a webview window
-    # owns the main thread, and on a Mac the UI must BE the main thread.
-    threading.Thread(target=serve.serve_forever, daemon=True).start()
+    # If a MyTFT server is already answering - an earlier window, or one
+    # started from a terminal - use it instead of fighting over the port.
+    # Two instances binding 8000 was how windows ended up pointed at dead
+    # servers: each new one killed the last out from under an open window.
+    if not wait_for_server(url, timeout=1):
+        # The server has to run in the background: a webview window owns
+        # the main thread, and on a Mac the UI must BE the main thread.
+        threading.Thread(target=serve.serve_forever, daemon=True).start()
 
     try:
         import webview
@@ -166,8 +198,30 @@ def main():
                  "keeps happening run serve.py from a terminal to see why.")
         return 1
 
-    webview.create_window("MyTFT", url, width=1180, height=880,
-                          min_size=(720, 600))
+    # background_color paints the native window itself - if the web layer
+    # ever fails to composite, the window shows dark instead of white and
+    # tells us which layer broke.
+    window = webview.create_window("MyTFT", url, width=1180, height=880,
+                                   min_size=(720, 600),
+                                   background_color="#0B0E14")
+
+    def heal():
+        """If the window ever ends up on WebKit's can't-connect page - the
+        server restarted underneath it - reload once the server answers,
+        instead of sitting on a white screen until a human notices."""
+        while True:
+            time.sleep(5)
+            try:
+                title = window.evaluate_js("document.title") or ""
+            except Exception:                         # noqa: BLE001
+                continue                # window closing; the loop dies with it
+            if "MyTFT" not in title and wait_for_server(url, timeout=3):
+                try:
+                    window.load_url(url)
+                except Exception:                     # noqa: BLE001
+                    pass
+
+    threading.Thread(target=heal, daemon=True).start()
     webview.start()        # returns when the window is closed, which quits
     return 0
 

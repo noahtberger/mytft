@@ -63,5 +63,10 @@ app = BUNDLE(
         # enforces this, which is why the unfrozen app worked and the
         # bundle showed a white screen.
         "NSAppTransportSecurity": {"NSAllowsLocalNetworking": True},
+        # Without this, a bundled app is forced into the LIGHT appearance
+        # regardless of the system setting - the media query resolves
+        # light, and this app's light palette is near-white. The user saw
+        # "all white with a RENDERED badge": our page, wrong theme.
+        "NSRequiresAquaSystemAppearance": False,
     },
 )
