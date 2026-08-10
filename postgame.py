@@ -523,7 +523,7 @@ def main():
 
     # ---- the era-level pattern, where conclusions are allowed ------------
     mine, _ = tft.lobby_profiles(games, set_number)
-    shift = tft.biggest_shift(mine)
+    shift = tft.latest_shift(mine)
     timeline = list(reversed(games))
     era_games = timeline[shift["cut"]:] if shift else timeline
 

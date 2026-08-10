@@ -129,7 +129,7 @@ def render(games, level_par, set_number, idx, who, puuid):
 
     # -- the advice, and the numbers it came from --------------------------
     mine, _ = tft.lobby_profiles(games, set_number)
-    shift = tft.biggest_shift(mine)
+    shift = tft.latest_shift(mine)
     timeline = list(reversed(games))
     era_games = timeline[shift["cut"]:] if shift else timeline
     pattern_rows = pg.pattern(era_games, set_number)

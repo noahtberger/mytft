@@ -428,7 +428,7 @@ def lobby_profiles(games, set_number):
     """(yours, the room's) playstyle profiles, oldest game first.
 
     One pass over every board in every lobby, split into the loaded player's
-    boards and everyone else's. Chronological because biggest_shift scans for
+    boards and everyone else's. Chronological because latest_shift scans for
     where a style changed, and that question only makes sense oldest-first.
 
     Boards with no shop units (a disconnect) are dropped, the same way
@@ -485,22 +485,14 @@ def playstyle_verdicts(era, room):
     return verdicts, enough
 
 
-def biggest_shift(profiles, min_era=MIN_ERA):
-    """Find where someone's playstyle changed, scanning oldest-to-newest.
+def _sharpest_split(profiles, min_era):
+    """The single most extreme before/after split in one stretch of games.
 
-    `profiles` is a list of playstyle() dicts in chronological order. For every
-    possible split point it measures each metric on both sides and keeps the
-    largest standardised difference, then reports that split.
-
-    Why this exists: a lifetime average blends every version of a player. This
-    player rerolled for the first 75 games of set 17 and went fast-8 after,
-    which averages out to a description of nobody. Worse, playstyle is
-    *supposed* to change - a new set is exactly when it should - so a tracker
-    that reports one number per set will be wrong every September.
-
-    Returns None if nothing crosses SHIFT_THRESHOLD. Scanning every split and
-    keeping the maximum will always find *something*, which is why the
-    threshold is deliberately high: this reports landslides, not tremors.
+    For every possible split point it measures each metric on both sides and
+    keeps the largest standardised difference. Returns None if nothing crosses
+    SHIFT_THRESHOLD. Scanning every split and keeping the maximum will always
+    find *something*, which is why the threshold is deliberately high: this
+    reports landslides, not tremors.
     """
     if len(profiles) < 2 * min_era:
         return None
@@ -520,6 +512,48 @@ def biggest_shift(profiles, min_era=MIN_ERA):
                         "gap": judged["gap"],
                         "direction": more if judged["gap"] > 0 else less}
     return best if best and best["z"] >= SHIFT_THRESHOLD else None
+
+
+def latest_shift(profiles, min_era=MIN_ERA):
+    """Find the MOST RECENT change in someone's playstyle.
+
+    `profiles` is a list of playstyle() dicts in chronological order. The
+    returned `cut` is an index into that list: everything from it onwards is
+    the player as they are now.
+
+    Why this exists: a lifetime average blends every version of a player. This
+    player rerolled for the first 80 games of set 17 and went fast 9 after,
+    which averages out to a description of nobody. Worse, playstyle is
+    *supposed* to change - a new set is exactly when it should - so a tracker
+    that reports one number per set will be wrong every August.
+
+    Why it is the most recent shift and not the biggest one: this used to keep
+    whichever split scored highest anywhere in the history, which quietly meant
+    a player's first big change outranked every later one forever. This player
+    switched back to cheap reroll boards at game 176 (avg cost 3.67 -> 2.84,
+    z=6.4 - a landslide by any measure), and the reports could not see it,
+    because his earlier reroll -> fast 9 switch at game 82 scored 8.8 and won
+    the comparison permanently. Eleven weeks of history outvoted who he
+    actually is. So: find the sharpest split, then look again in the games
+    after it, and keep looking until a stretch has no landslide left in it.
+    The last one standing is the current era.
+
+    Each pass judges its own stretch in isolation, which is the point - a
+    change is a change relative to what came just before it, not relative to
+    a player from four patches ago. Recursion terminates because every pass
+    leaves at least min_era games behind, and a stretch shorter than twice
+    min_era can never split again.
+    """
+    shift = _sharpest_split(profiles, min_era)
+    if shift is None:
+        return None
+    later = latest_shift(profiles[shift["cut"]:], min_era)
+    if later is None:
+        return shift
+    # Report the cut against the whole timeline, not the stretch it was
+    # found in - every caller slices the full list with it.
+    later["cut"] += shift["cut"]
+    return later
 
 
 def playstyle_sentence(verdicts):
@@ -584,6 +618,102 @@ PLAYSTYLE_LABELS = [
     ("item_focus",  "items on one carry",     "more funnelled", "more spread"),
     ("last_round",  "round eliminated",       "later",          "earlier"),
 ]
+
+# PLAYSTYLE_LABELS holds column headings, and a heading spliced into a
+# sentence reads like a bug: "your traits actually built went from 0.68 to
+# 0.21". These are the same seven metrics phrased as something that happened
+# to a player, as (rose, fell, unit). Kept apart from PLAYSTYLE_LABELS rather
+# than bolted onto it because four call sites unpack that list as 4-tuples.
+SHIFT_PHRASE = {
+    "avg_cost":    ("your boards got more expensive", "your boards got cheaper",
+                    "gold a unit"),
+    "big_units":   ("you started fielding more 4- and 5-costs",
+                    "you started fielding fewer 4- and 5-costs", "a game"),
+    "rerolled":    ("you started rerolling for 3-stars",
+                    "you stopped rerolling for 3-stars", "a game"),
+    "board_size":  ("your boards got wider", "your boards got smaller",
+                    "units"),
+    "lines_built": ("you started committing to traits",
+                    "you started splashing instead of committing", "a game"),
+    "item_focus":  ("you started funnelling items onto one carry",
+                    "you started spreading items around", "of your items"),
+    "last_round":  ("you started surviving longer", "you started dying earlier",
+                    None),
+}
+
+
+def shift_sentence(shift):
+    """What changed, as a sentence with the numbers that back it."""
+    rose, fell, unit = SHIFT_PHRASE.get(
+        shift["key"], ("your play changed", "your play changed", None))
+    what = rose if shift["gap"] > 0 else fell
+    if shift["key"] == "last_round":
+        return (f"{what} - out on {stage(round(shift['before']))} before, "
+                f"{stage(round(shift['after']))} now")
+    tail = f" {unit}" if unit else ""
+    return (f"{what} - {shift['before']:.2f} to {shift['after']:.2f}{tail}")
+
+
+# A fact is a thing a player would say about themselves out loud. Each one is
+# (key, sentence about you, what the lobby did, how to read one board).
+# Rates beat averages here: "you 3-star a cheap unit in 55% of games" is a
+# picture, "you 3-star 1.30 cheap units a game" is a spreadsheet cell. The
+# reader of this card told us so directly - "no one cares if u build .2 items
+# less than other people, it's not helpful" - which is also why item focus and
+# board size, the two metrics whose gaps are always small and always
+# meaningless, are not in this list at all.
+PLAYSTYLE_FACTS = [
+    ("reroll",  "You 3-star a cheap unit in {mine:.0%} of games",
+     "the lobby does it in {theirs:.0%}",       lambda p: p["rerolled"] >= 1),
+    ("commit",  "You finish a trait in {mine:.0%} of games",
+     "the lobby finishes one in {theirs:.0%}",  lambda p: p["lines_built"] >= 1),
+    ("big",     "You field {mine:.1f} four- and five-costs",
+     "the lobby fields {theirs:.1f}",           lambda p: p["big_units"]),
+    ("cost",    "Your board averages {mine:.2f} gold a unit",
+     "the lobby averages {theirs:.2f}",         lambda p: p["avg_cost"]),
+    ("late",    "You reach stage 6 in {mine:.0%} of games",
+     "the lobby reaches it in {theirs:.0%}",    lambda p: p["last_round"] >= 33),
+]
+
+
+def playstyle_facts(era, room, z=PLAYSTYLE_Z):
+    """How this player plays, in sentences rather than metric gaps.
+
+    Returns a list of facts, most distinctive first. Every fact carries its
+    own number AND the lobby's, and `real` says whether the difference cleared
+    the threshold - so the card can always show something true even when
+    nothing is solid enough to call a habit.
+
+    That "always" is the point. The old card measured seven metrics against
+    the lobby and said "Nothing about how you play stands out" whenever none
+    of them cleared the bar, which after the era fix is the normal state at
+    20 games. A card that goes blank is a card that gets ignored, and the
+    silence was never even accurate - it meant "no gap is big enough to be
+    called a habit", not "there is nothing to say about you".
+
+    Ordering is by how far the player sits from their lobbies, so the most
+    distinctive thing about them leads regardless of which metric it is.
+    """
+    out = []
+    for key, mine_text, theirs_text, measure in PLAYSTYLE_FACTS:
+        ours = [float(measure(p)) for p in era]
+        theirs = [float(measure(p)) for p in room]
+        if not ours or not theirs:
+            continue
+        judged = mean_gap(ours, theirs, z=z)
+        if not judged:
+            continue
+        spread = judged["moe"] / z if judged["moe"] else 0
+        out.append({
+            "key": key,
+            "text": mine_text.format(mine=judged["a"], theirs=judged["b"]),
+            "lobby": theirs_text.format(mine=judged["a"], theirs=judged["b"]),
+            "mine": judged["a"], "theirs": judged["b"],
+            "real": judged["real"] and len(era) >= MIN_PLAYSTYLE_GAMES,
+            "z": abs(judged["gap"]) / spread if spread else 0.0,
+        })
+    out.sort(key=lambda f: -f["z"])
+    return out
 
 
 def default_puuid():

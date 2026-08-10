@@ -534,7 +534,7 @@ for g in timeline:
             continue
         (mine_style if board["puuid"] == g["puuid"] else room_style).append(prof)
 
-style_shift = tft.biggest_shift(mine_style)
+style_shift = tft.latest_shift(mine_style)
 style_era = mine_style[style_shift["cut"]:] if style_shift else mine_style
 era_games = timeline[style_shift["cut"]:] if style_shift else timeline
 

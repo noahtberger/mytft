@@ -50,7 +50,7 @@ set_number = games[0]["_set"]
 timeline = list(reversed(games))
 mine, room = tft.lobby_profiles(games, set_number)
 
-shift = tft.biggest_shift(mine)
+shift = tft.latest_shift(mine)
 era = mine[shift["cut"]:] if shift else mine
 era_games = timeline[shift["cut"]:] if shift else timeline
 

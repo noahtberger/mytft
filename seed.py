@@ -1,6 +1,6 @@
 """Seed the pool with games from the top of the ranked ladder.
 
-Run:  python seed.py                 5 players, 10 games each
+Run:  python seed.py                 10 players, 10 games each
       python seed.py 8 12            8 players, 12 games each
 
 This is what makes day one of a new set work. Your own games take weeks
@@ -41,7 +41,7 @@ def top_players(count):
     return out
 
 
-def seed(players=5, games_each=10, progress=None):
+def seed(players=10, games_each=10, progress=None):
     """Pull recent ranked games for the ladder's best. Returns
     (players_seeded, boards_now_in_pool_for_them)."""
     tops = top_players(players)
@@ -56,7 +56,7 @@ def seed(players=5, games_each=10, progress=None):
 
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("-")]
-    players = int(args[0]) if args else 5
+    players = int(args[0]) if args else 10
     games_each = int(args[1]) if len(args) > 1 else 10
 
     try:

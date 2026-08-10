@@ -201,17 +201,16 @@ def proven(games, data):
 
 
 def playstyle_now(games, set_number):
-    """Current-era playstyle verdicts and the sentence they add up to.
+    """How this player plays right now: (era size, what changed, the facts).
 
-    The sentence is None below tft.MIN_PLAYSTYLE_GAMES: naming habits off a
-    handful of games gets the player backwards more often than not.
+    `shift` is the most recent change of style, or None. `facts` is always
+    populated when there are games at all - see tft.playstyle_facts for why
+    this no longer returns a sentence that can be empty.
     """
     mine, room = tft.lobby_profiles(games, set_number)
-    shift = tft.biggest_shift(mine)
+    shift = tft.latest_shift(mine)
     era = mine[shift["cut"]:] if shift else mine
-    verdicts, enough = tft.playstyle_verdicts(era, room)
-    return len(era), verdicts, (tft.playstyle_sentence(verdicts)
-                                if enough else None)
+    return len(era), shift, tft.playstyle_facts(era, room)
 
 
 def scout_targets(names, set_number, offline):
@@ -339,20 +338,28 @@ def main():
              "each one has to go.")
 
     # ---- 4. how you play right now ---------------------------------------
-    era_n, verdicts, sentence = playstyle_now(games, set_number)
+    era_n, shift, facts = playstyle_now(games, set_number)
     print(f"\nHOW YOU PLAY RIGHT NOW  (current era, {era_n} games)")
     print()
-    wrap(sentence if sentence else
-         (f"Not enough games yet - it takes about "
-          f"{tft.MIN_PLAYSTYLE_GAMES} before habits can be told from luck."
-          if era_n < tft.MIN_PLAYSTYLE_GAMES else
-          "Nothing about how you play is far enough from the lobby to name - "
-          "you play the way your lobbies do."))
-    real = [(tft.PLAYSTYLE_LABELS[i][1], verdicts[k])
-            for i, (k, *_rest) in enumerate(tft.PLAYSTYLE_LABELS)
-            if k in verdicts and verdicts[k]["real"]]
-    for label, v in real:
-        print(f"     {label:<24} you {v['a']:>5.2f}   lobby {v['b']:>5.2f}")
+    if shift:
+        wrap(f"{era_n} games ago {tft.shift_sentence(shift)}. Everything "
+             "below is the player you have been since then, not an average "
+             "of you and who you were before.")
+    else:
+        wrap(f"Your style has held steady across all {era_n} games this set "
+             "- no change big enough to split them into before and after.")
+    print()
+    for f in facts:
+        mark = "  <- habit" if f["real"] else ""
+        print(f"     {f['text']:<44}{f['lobby']}{mark}")
+    print()
+    if any(f["real"] for f in facts):
+        wrap("Marked lines are far enough from the lobby to call a habit; "
+             "the rest are simply what you did.")
+    else:
+        wrap("None of these is far enough from the lobby to call a settled "
+             f"habit yet - that takes about {tft.MIN_PLAYSTYLE_GAMES} games "
+             "and a clear gap. They are still what you did.")
 
     # ---- 5. the people you're about to face ------------------------------
     if args:

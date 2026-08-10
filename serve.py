@@ -321,7 +321,7 @@ def seed_job(job_id, puuid, label):
             set_job(job_id, status=f"Player {i} of {total} - "
                                    f"a {tier} player at {lp} LP")
 
-        seed_mod.seed(players=5, games_each=10, progress=progress)
+        seed_mod.seed(players=10, games_each=10, progress=progress)
         set_job(job_id, status=None,
                 redirect=f"/pregame?p={quote(puuid)}&n={quote(label)}")
     except riot.RiotError as problem:
