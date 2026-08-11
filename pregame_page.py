@@ -108,22 +108,15 @@ def plan_card(record):
                 'tell your plans apart.</p>')
 
     best = record["best"]
-    # "No clear plan" is not a fifth way to spend gold, and it must not be
-    # ranked beside the real ones: its raw 5.43 average is mostly survival,
-    # not strategy - holding the death round fixed those boards place 0.03
-    # worse (+/-0.09), ie. not at all. Listing it would put a made-up leak at
-    # the top of the page.
+    # "No clear plan" is not a way to spend gold and must not be ranked
+    # beside the real ones: its raw average is mostly survival, not strategy
+    # - holding the death round fixed those boards place 0.03 worse
+    # (+/-0.09), ie. not at all. Listing it would put a made-up leak at the
+    # top of the page. It still counts in the "everything else" baseline,
+    # because they are games this player played.
     #
-    # It is two different things in a trenchcoat, though. Two thirds are games
-    # that ended before a plan could show. The rest are FAST 8 - finished
-    # boards of 2-star 4-costs that park at level 8, which the plan axis
-    # cannot see because they neither 3-star a cheap unit nor clear the 3.5
-    # average-cost bar for Fast 9. Across the pool 147 of those survived to
-    # stage 6 and averaged 2.93. Fast 8 is due as a real plan for set 18; the
-    # copy below has to stay honest until then.
-    #
-    # Either way they still count in the "everything else" baseline, because
-    # they are games this player played.
+    # It used to be twice the size it is now: 276 of those boards were fast 8
+    # and had nowhere else to go. They have a plan of their own since.
     shown = [r for r in record["rows"] if r["plan"] != comps.NO_PLAN]
     if not shown:
         return ('<p class="fine" style="margin:0">Not enough games yet to '
@@ -131,22 +124,50 @@ def plan_card(record):
     rows = "".join(plan_row(r, best["plan"] if best else None) for r in shown)
     table = (f'<ul class="rowlist" style="margin:0 0 12px">{rows}</ul>')
 
+    spread = record.get("spread")
     if not best:
         played = max(shown, key=lambda r: r["n"])
         head = (f'<p class="tip"><strong>No plan has pulled ahead for you '
                 f'yet.</strong><span>Your most played is '
-                f'{esc(played["plan"])} at {plural(played["n"], "game")}. The number '
-                f'on the right is how often each one ends in first &mdash; when '
-                f'one of them separates from the rest, it will say so '
-                f'here.</span></p>')
+                f'{esc(played["plan"])} at {plural(played["n"], "game")}. The '
+                f'number on the right is how often each one ends in first '
+                f'&mdash; when one of them separates from the rest, it will '
+                f'say so here.</span></p>')
+        # For someone who plays something different every game this is the
+        # finding, not a shrug: nothing has been repeated often enough to
+        # read yet, and that is worth saying with the count attached. Only
+        # when it is actually TRUE, though - a player whose top plan has 29
+        # games has a verdict-free card for a different reason (their plan
+        # simply doesn't win more), and telling them they spread too wide
+        # would be both wrong and unhelpful.
+        thin = max((r["n"] for r in shown), default=0) < comps.MIN_PLAN_GAMES
+        if spread and thin:
+            head += (f'<p class="fine" style="margin:0 0 12px">You have '
+                     f'played {plural(spread["comps"], "comp")} across '
+                     f'{plural(spread["games"], "game")} and none of them '
+                     f'often enough to read yet &mdash; your most played is '
+                     f'{esc(spread["top"])}, at {100 * spread["share"]:.0f}% '
+                     f'of games. That is a finding, not a gap in the data: '
+                     f'playing something different every game is a style.</p>')
         return head + table
 
-    head = (f'<p class="tip"><strong>{esc(best["plan"])} is where your 1sts '
-            f'come from &mdash; {100 * best["first"]:.0f}% of those games, '
-            f'against {100 * best["others"]:.0f}% of everything else.'
-            f'</strong><span>Over {best["n"]} games. Your average placement '
-            f'barely moves between plans; what changes is how often the game '
-            f'ends with you on top.</span></p>')
+    if best.get("coarse"):
+        # The coarse split answers a different question, so it says so
+        # rather than borrowing the specific plan's voice.
+        head = (f'<p class="tip"><strong>{esc(best["plan"])} is where your '
+                f'1sts come from &mdash; {100 * best["first"]:.0f}% of those '
+                f'games, against {100 * best["others"]:.0f}% of the rest.'
+                f'</strong><span>Over {best["n"]} games. No single plan '
+                f'below has enough games to read on its own, so this is the '
+                f'coarser question: rolling for 3-stars, or levelling to the '
+                f'big units.</span></p>')
+    else:
+        head = (f'<p class="tip"><strong>{esc(best["plan"])} is where your '
+                f'1sts come from &mdash; {100 * best["first"]:.0f}% of those '
+                f'games, against {100 * best["others"]:.0f}% of everything '
+                f'else.</strong><span>Over {best["n"]} games. Your average '
+                f'placement barely moves between plans; what changes is how '
+                f'often the game ends with you on top.</span></p>')
 
     drift = ""
     if record["now"] is not None:
@@ -159,9 +180,8 @@ def plan_card(record):
                  f'everything before that.</p>')
     skipped = sum(r["n"] for r in record["rows"] if r["plan"] == comps.NO_PLAN)
     note = (f'<p class="fine" style="margin:8px 0 0">{plural(skipped, "game")} '
-            f'not listed: the board showed no plan the app can name. Most of '
-            f'those ended early, but some are fast 8 boards &mdash; that is '
-            f'not a plan it can pick out yet.</p>'
+            f'not listed: the board never showed a plan at all, which is '
+            f'almost always a game that ended early.</p>'
             if skipped else "")
     return head + table + drift + note
 
@@ -322,7 +342,7 @@ def render(games, set_number, who, puuid, scouted=None):
     # so neither a hot dozen boards nor a big pile of mediocre ones can
     # claim the top. Rows still display the plain average.
     named = [r for r in m["comps"] if r["n"] >= 10 and r["comp"] != comps.NO_COMP
-             and r["comp"] not in set(comps.REROLL_PLAN.values()) | {comps.FAST9}]
+             and r["comp"] not in comps.PLAN_NAMES]
     top = sorted(named, key=lambda r: r["avg"] + r["moe"])[:5]
     # Right after a patch day every comp is an early read - five identical
     # pills say that five times. Say it once under the list instead, and
@@ -365,7 +385,9 @@ solid 30+, confirmed 100+.</p>"""
         f'ranked. The number after a Reroll comp is the level the rolling '
         f'happened at: Reroll (7) means rolling at level 7 to 3-star a '
         f'3-cost carry, (6) a 2-cost at level 6, (4/5) a 1-cost at '
-        f'level 4 or 5. The top list is ordered by the worst each average '
+        f'level 4 or 5. Fast 8 is a board of 2-star 4-costs that stopped at '
+        f'8; Fast 9 pushed on for the legendaries. The top list is ordered '
+        f'by the worst each average '
         f'could plausibly be given its sample, so a hot dozen boards '
         f'can&rsquo;t outrank a steady forty.</p>')
     details = seed_form + provenance
@@ -404,7 +426,7 @@ solid 30+, confirmed 100+.</p>"""
     <h3>The meta &middot; {f'patch {m["patch"]} &middot; ' if m["patch"] else ""}{m["boards"]} boards</h3>
     {strong}
     {more}
-    <p class="fine">The four ways to spend gold:</p>
+    <p class="fine">The ways to spend gold:</p>
     <ul class="rowlist" style="margin-top:8px">{plan_rows}</ul>
     {details}
   </div>

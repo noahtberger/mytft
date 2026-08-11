@@ -16,13 +16,24 @@ a new set when there is nothing to cluster.
   PLAN     - how the gold was spent. Reroll (split by the cost tier you
              3-starred, which is the fingerprint of WHERE you rerolled:
              1-costs = lvl 4/5 reroll, 2-costs = lvl 6, 3-costs = lvl 7),
-             or fast 9 (expensive board), or neither.
+             or fast 8 (rolled at 8, board of 2-star 4-costs), or fast 9
+             (the expensive board), or neither.
+
   IDENTITY - what the board was. The deepest vertical if there is one;
              "Five Cost" for the flat legendary board; the carry for a
              pure reroll board.
 
 A board that shows neither a plan nor an identity usually just died early
 - that is an outcome, not a comp, and it is named honestly.
+
+Fast 8 shipped late. The clustering above named it from the start, but the
+first rules collapsed it into fast 9 and "no plan", because a board of
+2-star 4-costs averages about 3.2 gold and misses the fast 9 bar while
+3-starring nothing cheap. That cost the model a real population: of the
+boards filed as "no plan", 147 were still alive at stage 6 on level 8.9
+with 4.2 big units, averaging 2.93 - finished boards, not games that ended
+early. The user spotted the gap from the game side ("fast8 is a thing too -
+dark star this set, ionia last set") before the data was asked.
 """
 
 import json
@@ -36,10 +47,18 @@ REROLL_PLAN = {1: "Lvl 4/5 Reroll", 2: "Lvl 6 Reroll", 3: "Lvl 7 Reroll"}
 FAST9 = "Fast 9"
 FAST9_COST = 3.5      # average unit cost at/above this reads as fast 9
 FAST9_BIG = 6         # ...or this many 4/5-costs
+FAST8 = "Fast 8"
+FAST8_BIG = 4         # 4/5-costs that say "rolled at 8", below the fast 9 bar
 FIVECOST_UNIQUES = 3  # uniques online for a flat board to be "five cost"
 
 NO_COMP = "Never came together"
 NO_PLAN = "No clear plan"
+
+# The plan axis as bare strings. Two places filter comp lists with this to
+# drop rows that are a plan with no identity attached - "Fast 8" alone is a
+# leftover bucket, not a comp anyone can go and play - and both used to
+# rebuild the set inline, so adding a plan silently broke one of them.
+PLAN_NAMES = set(REROLL_PLAN.values()) | {FAST9, FAST8}
 
 _META_CACHE = {}
 
@@ -59,6 +78,15 @@ def parts(board, set_number):
         plan = REROLL_PLAN[max(threes)]
     elif avg >= FAST9_COST or big >= FAST9_BIG:
         plan = FAST9
+    elif big >= FAST8_BIG:
+        # Fast 8: rolled at 8 and hit, so the board is 2-star 4-costs. It
+        # 3-stars nothing cheap (that would be reroll) and it does not clear
+        # the fast 9 bar, because a board of 4-costs averages about 3.2 gold
+        # - which is exactly why this used to fall out of the model entirely
+        # and land in "no plan". Fast 9 is tested FIRST on purpose: a board
+        # with 6+ big units keeps the label it already had, so adding this
+        # plan relabels nothing that was previously named.
+        plan = FAST8
 
     # Deepest vertical: most units in a committed, non-unique trait.
     uniques = tft.unique_traits(set_number)
@@ -92,8 +120,11 @@ def name(board, set_number):
         return None
     plan, identity = p
     if plan and identity:
-        if plan == FAST9:
-            return f"{FAST9} {identity}"
+        # Only reroll plans get the "(7)" suffix form. Testing `== FAST9` here
+        # instead sent every Fast 8 board down the reroll branch, where
+        # "Fast 8".split(" Reroll")[0] renders "Brawler Reroll (Fast 8)".
+        if plan not in REROLL_PLAN.values():
+            return f"{plan} {identity}"
         return f"{identity} Reroll ({plan.split(' Reroll')[0].removeprefix('Lvl ')})"
     if identity:
         return identity
@@ -211,7 +242,7 @@ def _first_rate(placements):
 
 
 def plan_record(games, set_number, recent=RECENT_GAMES):
-    """How this player's own results split across the four ways to spend gold.
+    """How this player's own results split across the ways to spend gold.
 
     Average placement is the wrong number to read here and that is the whole
     point of this function. Over 196 games this player averages 3.95 on Fast 9
@@ -245,6 +276,21 @@ def plan_record(games, set_number, recent=RECENT_GAMES):
                      "tier": tft.confidence(len(places))})
     rows.sort(key=lambda r: -r["n"])
 
+    def beats_the_rest(label, places, rest):
+        """Does `places` win outright more often than the player's other
+        games, by more than the error bar on the difference?"""
+        if not places or not rest:
+            return None
+        p1, _ = _first_rate(places)
+        p2, _ = _first_rate(rest)
+        n1, n2 = len(places), len(rest)
+        se = (p1 * (1 - p1) / n1 + p2 * (1 - p2) / n2) ** 0.5
+        if not se or p1 - p2 <= 1.96 * se:
+            return None
+        return {"plan": label, "n": n1, "first": p1, "others": p2,
+                "gap": p1 - p2, "gap_moe": 1.96 * se,
+                "tier": tft.confidence(n1)}
+
     # The best plan for winning, judged against the player's OTHER games -
     # not against the second-best plan, which would be a comparison the
     # player never actually faces. They are choosing between "this plan" and
@@ -255,18 +301,46 @@ def plan_record(games, set_number, recent=RECENT_GAMES):
     for row in sorted(ranked, key=lambda r: -r["first"]):
         others = [p for plan, places in by_plan.items() if plan != row["plan"]
                   for p in places]
-        if not others:
-            break
-        rate, _ = _first_rate(others)
-        n1, n2 = row["n"], len(others)
-        p1, p2 = row["first"], rate
-        se = (p1 * (1 - p1) / n1 + p2 * (1 - p2) / n2) ** 0.5
-        if se and p1 - p2 > 1.96 * se:
-            best = {**row, "others": rate, "gap": p1 - p2, "gap_moe": 1.96 * se}
+        found = beats_the_rest(row["plan"], by_plan[row["plan"]], others)
+        if found:
+            best = {**row, **found}
         break
 
-    out = {"rows": rows, "best": best, "then": None, "now": None}
-    if best and len(games) > recent:
+    # Nothing separated? Try the coarse split. A player who plays a different
+    # comp every game never gets 15 games on any single plan, so the test
+    # above can never fire for them and the card would read "no plan has
+    # pulled ahead" forever. Rolling for 3-stars versus levelling to the big
+    # units is the one division every player is on one side of, and it
+    # doubles the sample. It is a weaker claim, so it is marked `coarse` and
+    # the page says which question it answered.
+    if best is None:
+        reroll = [p for plan, places in by_plan.items()
+                  if plan in REROLL_PLAN.values() for p in places]
+        standard = [p for plan, places in by_plan.items()
+                    if plan in (FAST9, FAST8) for p in places]
+        for label, side, other in (("Rerolling", reroll, standard),
+                                   ("Levelling", standard, reroll)):
+            if len(side) < MIN_PLAN_GAMES:
+                continue
+            found = beats_the_rest(label, side, other)
+            if found:
+                best = {**found, "coarse": True}
+                break
+
+    # How widely they spread. Counting distinct comps would mostly count how
+    # many games are on disk (r=0.71 across the players here); the share of
+    # games on the single most played comp does not (r=+0.11).
+    ids = Counter(p[1] for g in games if (p := parts(g, set_number)) and p[1])
+    spread = None
+    if ids:
+        total = sum(ids.values())
+        spread = {"comps": len(ids), "games": total,
+                  "top": ids.most_common(1)[0][0],
+                  "share": ids.most_common(1)[0][1] / total}
+
+    out = {"rows": rows, "best": best, "spread": spread,
+           "then": None, "now": None}
+    if best and not best.get("coarse") and len(games) > recent:
         # games arrive newest first, so the recent stretch is the head.
         share = lambda gs: sum(                       # noqa: E731
             1 for g in gs if plan_of(g, set_number) == best["plan"]) / len(gs)
@@ -284,11 +358,11 @@ def recommend(games, set_number, meta_rows, min_boards=10):
     one line. Every claim carries its sample size and confidence - a hunch
     is shown as a hunch, not hidden and not dressed up.
     """
-    # A comp needs an identity to be recommended - a bare "fast 9" row is
-    # the leftover boards that fit no named comp, not a thing to go play.
-    plan_names = set(REROLL_PLAN.values()) | {FAST9}
+    # A comp needs an identity to be recommended - a bare "Fast 9" or
+    # "Fast 8" row is the leftover boards that fit no named comp, not a
+    # thing to go play.
     usable = [r for r in meta_rows if r["n"] >= min_boards
-              and r["comp"] != NO_COMP and r["comp"] not in plan_names]
+              and r["comp"] != NO_COMP and r["comp"] not in PLAN_NAMES]
     if not usable:
         return None
     # Ranked by the worst the average could plausibly be (avg + its error
@@ -306,8 +380,7 @@ def recommend(games, set_number, meta_rows, min_boards=10):
     if top_plan:
         family = "Reroll" if "Reroll" in top_plan else top_plan
         for r in pool:
-            if family in r["comp"] or (family == FAST9
-                                       and r["comp"].startswith(FAST9)):
+            if family in r["comp"] or r["comp"].startswith(family):
                 fit = r
                 break
     share = next((pct for p, _, pct in mix if p == top_plan), 0)
