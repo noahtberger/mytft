@@ -377,7 +377,9 @@ def render(games, set_number, who, puuid, scouted=None):
 into the pool - a few minutes, and the read above gets sharper. Numbers
 are average placement over how many boards; hunch &lt;10, early read 10+,
 solid 30+, confirmed 100+.</p>"""
-    patch_note = f"patch {m['patch']} only - " if m["patch"] else ""
+    n_patches = len(m.get("patches") or [])
+    patch_word = "patch" if n_patches <= 1 else "patches"
+    patch_note = f"{patch_word} {m['patch']} only - " if m["patch"] else ""
     provenance = (
         f'<p class="fine">Everything above reads {patch_note}'
         f'{m["boards"]} final boards: your games on it, the seven other '
@@ -424,7 +426,7 @@ solid 30+, confirmed 100+.</p>"""
     {foryou}
   </div>
   <div class="card">
-    <h3>The meta &middot; {f'patch {m["patch"]} &middot; ' if m["patch"] else ""}{m["boards"]} boards</h3>
+    <h3>The meta &middot; {f'{patch_word} {m["patch"]} &middot; ' if m["patch"] else ""}{m["boards"]} boards</h3>
     {strong}
     {more}
     <p class="fine">The ways to spend gold:</p>

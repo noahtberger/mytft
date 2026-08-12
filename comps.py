@@ -52,6 +52,11 @@ FAST8 = "Fast 8"
 FAST8_BIG = 4         # 4/5-costs that say "built on 4-costs", under fast 9
 FIVECOST_UNIQUES = 3  # uniques online for a flat board to be "five cost"
 
+# Boards the meta needs before it stops reaching back through patches. Eight
+# to a game, so this is about 25 games - enough for a handful of comps to
+# clear the 10-board display bar rather than a card that says nothing.
+MIN_META_BOARDS = 200
+
 NO_COMP = "Never came together"
 NO_PLAN = "No clear plan"
 
@@ -231,10 +236,25 @@ def meta(set_number=None):
     3,000+ boards on disk are a meal, and on day one of a set the seeded
     boards are the only meal there is.
 
-    Newest patch only. Patches shift the meta - a 1.8-place swing was
-    measured between patches in this very dataset - so blending them
-    reports an average of two different games. The cost is a smaller
-    sample after every patch day; the seed button refills it.
+    Newest patch first, and only as far back as it has to go. Patches shift
+    the meta - a 1.8-place swing was measured between patches in this very
+    dataset - so blending them reports an average of two different games.
+
+    But "newest patch only" alone had a failure that showed up the first
+    time this ran on a fresh clone. The newest patch on disk is whatever is
+    newest, not whatever is BIG: a clone holding 1,568 of the owner's boards
+    across patches 16.8-16.14 reported a 104-board meta, and then pressing
+    Seed made it worse rather than better - the ladder games arrive on the
+    current live patch, newer than anything the owner has played, so the
+    filter threw away 1,568 boards to keep 24 and every comp fell under the
+    display bar. Seeding is supposed to be the fix for a thin meta, and it
+    was making it thinner.
+
+    So: take the newest patch, and if it is under MIN_META_BOARDS keep
+    reaching back a patch at a time until there is enough to say anything.
+    The card names every patch it used, because a two-patch read is a
+    different claim from a one-patch read and the page must not imply
+    otherwise.
     """
     files = []
     chosen = set_number
@@ -252,10 +272,26 @@ def meta(set_number=None):
         found = re.search(r"(\d+\.\d+)", info.get("game_version") or "")
         return found.group(1) if found else None
 
+    def patch_key(name):
+        return tuple(int(n) for n in name.split("."))
+
     in_set = [i for i in files if (i.get("tft_set_number") or 0) == chosen]
-    patches = {p for i in in_set if (p := patch_of(i))}
-    newest = (max(patches, key=lambda s: tuple(int(n) for n in s.split(".")))
-              if patches else None)
+    counts = Counter(p for i in in_set if (p := patch_of(i)))
+    ordered = sorted(counts, key=patch_key, reverse=True)
+
+    used, running = [], 0
+    for name in ordered:
+        used.append(name)
+        running += counts[name] * 8      # boards, not matches
+        if running >= MIN_META_BOARDS:
+            break
+    span = sorted(used, key=patch_key, reverse=True)
+    used = set(span)
+    # "16.15" when one patch was enough, "16.14 and 16.13" when it had to
+    # reach back. The page says "patch" or "patches" off len(span).
+    newest = (span[0] if len(span) == 1 else
+              (" and ".join([", ".join(span[:-1]), span[-1]])
+               if span else None))
 
     by_comp = defaultdict(lambda: {"places": [], "carries": Counter(),
                                    "identity": None})
@@ -263,7 +299,7 @@ def meta(set_number=None):
     boards = 0
 
     for info in in_set:
-        if newest and patch_of(info) != newest:
+        if used and patch_of(info) not in used:
             continue
         for b in info["participants"]:
             # One parts() per board, reused for the name, the plan and the
@@ -304,8 +340,8 @@ def meta(set_number=None):
               "confidence": tft.confidence(len(v))}
              for p, v in by_plan.items()]
     plans.sort(key=lambda r: r["avg"])
-    out = {"set": chosen, "patch": newest, "boards": boards,
-           "comps": rows, "plans": plans}
+    out = {"set": chosen, "patch": newest, "patches": span,
+           "boards": boards, "comps": rows, "plans": plans}
     _META_CACHE["key"], _META_CACHE["value"] = cache_key, out
     return out
 
