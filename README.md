@@ -18,6 +18,35 @@ source; everything below works from saved match files.)
 when a new set launches nothing needs editing — fetch and play. To look
 back at an older set: `TFT_SET=17 .venv/bin/python stats.py`
 
+## Where this is right now (12 Aug 2026)
+
+Set 18 lands **26 August**, which is the deadline that matters: comp data
+resets to zero for everyone, and playstyle is the only thing that carries
+over. Day one needs exactly one command, `python fetch_names.py`.
+
+Working and shipped: the pre-game and post-game views, the "What wins you
+games" card (your own record per plan, ranked by rate of firsts rather than
+average placement), "How you play" (never blank — it states what you do and
+only marks a habit when it clears the bar), the comp model with Fast 8, a
+SQLite index over every board, and rank recording.
+
+Known-open, in rough priority order:
+
+- **The dev key expires every 24h.** Nothing live works without it, and
+  every day it lapses is rank history that Set 18 will never have.
+  A personal key was applied for on 8 Aug — chase it.
+- **The League client test.** `curl -k https://127.0.0.1:2999/liveclientdata/playerlist`
+  while actually in a TFT game. If it returns the eight Riot IDs, auto-scout
+  is possible and the lobby box stops being manual. Untested, and it is the
+  last unknown blocking a feature that was asked for.
+- **Item names** are not in `names.json`; `items.pretty()` un-camel-cases
+  raw API ids. Data Dragon has them — a small `fetch_names.py` addition.
+- **Items carry no measurable signal yet** at 4,102 boards. That is a
+  finding, not a bug: 2 of 33 clear the ordinary bar and chance predicts
+  1.7, and zero survive correction. More boards, not more statistics.
+- **`postgame.SOUP_COST`** duplicates `comps.FAST9_COST` without being
+  linked to it.
+
 ## Running it on another computer
 
 The repo lives at `github.com/noahtberger/mytft` (private). To set it up
@@ -26,15 +55,51 @@ on a second machine — Windows included, nothing here is Mac-specific:
 ```bash
 git clone https://github.com/noahtberger/mytft.git
 cd mytft
-python -m venv .venv
-.venv/Scripts/python -m pip install requests   # Windows
-# .venv/bin/python -m pip install requests     # Mac/Linux
+python -m pip install requests
 ```
 
-Then put that day's key in `.riot_key` and run any script with
-`.venv/Scripts/python` (Windows) or `.venv/bin/python` (Mac). Your
-`matches/`, `me.json` and `names.json` come with the clone, so every
-report works immediately with no downloading.
+That is the whole install. `requests` is the only thing the app needs —
+everything else (reports, web app, SQLite index, every chart) is standard
+library, so a fresh clone runs `python stats.py` with nothing installed at
+all. `requirements.txt` exists but also pulls pywebview and pyinstaller,
+which are only for building the double-click app; `pip install -r
+requirements.txt` is the slow way to get here unless you want that.
+
+A virtualenv is optional and on Windows it has caused more trouble than it
+solved. If you use one, `python -m venv .venv` must be its **own command** —
+pasting it and the install on one line makes venv's argument parser report
+`-r requirements.txt is an unrecognized argument`, which reads like a pip
+error and isn't one. Then use `.venv\Scripts\python -m pip install requests`
+rather than `.venv\Scripts\pip`, because PowerShell refuses to run an
+executable by relative path without a `.\` prefix. Whatever you pick, use
+the **same** python to install and to run, or you get
+`ModuleNotFoundError: No module named 'requests'` from a machine that
+definitely has requests.
+
+Then put that day's key in `.riot_key`. On Windows, do not use Notepad —
+it saves `.riot_key.txt` unless you pick "All Files". In PowerShell:
+
+```powershell
+Set-Content -Path .riot_key -Value "RGAPI-..." -Encoding ascii
+```
+
+`-Encoding ascii` is load-bearing: PowerShell otherwise writes a UTF-8
+byte-order mark, and those three invisible bytes end up glued to the front
+of the key. `.strip()` will not remove them because they are not
+whitespace, so Riot rejects a key that looks perfect on screen. Check it
+with `python -c "import riot; print(riot.api_key())"` — no network needed,
+and anything before the `R` is the BOM.
+
+Your `matches/`, `me.json`, `names.json` and `rank_history.jsonl` come with
+the clone, so every report works immediately with no downloading. Two
+things do **not** clone, both on purpose: `pool/` (other players' games —
+re-downloadable, press Seed) and `boards.db` (the SQLite index — run
+`python index.py`, about a second).
+
+**Only run the app on one machine at a time.** `rank_history.jsonl` is
+committed because it cannot be regenerated, so two machines recording
+independently will both append and collide in git. Whichever machine you
+play on should be the one that records.
 
 Keeping two machines in sync is `git pull` before you start and
 `git add matches && git commit && git push` after you fetch new games —
