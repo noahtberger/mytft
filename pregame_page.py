@@ -385,8 +385,9 @@ solid 30+, confirmed 100+.</p>"""
         f'ranked. The number after a Reroll comp is the level the rolling '
         f'happened at: Reroll (7) means rolling at level 7 to 3-star a '
         f'3-cost carry, (6) a 2-cost at level 6, (4/5) a 1-cost at '
-        f'level 4 or 5. Fast 8 is a board of 2-star 4-costs that stopped at '
-        f'8; Fast 9 pushed on for the legendaries. The top list is ordered '
+        f'level 4 or 5. Fast 8 is a board built on 2-star 4-costs; Fast 9 is '
+        f'built on the legendaries. Where a comp is played both ways, the '
+        f'list shows whichever does better. The top list is ordered '
         f'by the worst each average '
         f'could plausibly be given its sample, so a hot dozen boards '
         f'can&rsquo;t outrank a steady forty.</p>')
