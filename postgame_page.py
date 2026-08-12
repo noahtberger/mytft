@@ -12,6 +12,7 @@ carry every player's Riot ID, so "the 2nd-place board" can be a person.
 from datetime import datetime
 from urllib.parse import quote
 
+import comps
 import postgame as pg
 import tftdata as tft
 from theme import (BRAND, CSS, SCRIPT, app_bar, esc, new_game_watcher,
@@ -61,6 +62,57 @@ def board_row(facts, me, lpbreak=False):
             f'<td class="num"><span class="{tone}">{facts["place"]}</span></td>'
             f'<td>{name}</td>'
             f'<td>{comp_cell}</td><td>{carry}</td>{cells}</tr>')
+
+
+def version_card(set_number, puuid, identity):
+    """How this player builds the comp they just played, against the field.
+
+    Scoped to the ONE comp in front of them rather than every comp they have
+    ever played, which is what the terminal report does. The page rule is one
+    idea per card, and the idea here is "your version of this".
+
+    Returns None when there is nothing honest to show - too few of their
+    boards in the comp, or the comp has no identity at all - and the caller
+    leaves the card out entirely rather than printing a header over a shrug.
+    """
+    if not identity:
+        return None
+    try:
+        import index
+        import version as ver
+        db = index.ensure()
+        rows = ver.load(db, set_number, puuid)
+    except Exception:                                # noqa: BLE001
+        return None                                  # index unavailable; skip
+    study = ver.study(rows, identity)
+    if not study:
+        return None
+
+    real = [f for f in study["found"]
+            if ver.real_shape(f) or ver.real_choice(f)]
+    shown = real or study["found"][:2]
+    if not shown:
+        return None
+
+    items = "".join(
+        f'<li><span>{esc(ver.describe(f))}</span></li>' for f in shown)
+    lead = ("What is different about your version, and moves placement:"
+            if real else
+            "Nothing about your version clears the bar. The biggest gaps, "
+            "for the record:")
+    thin = ("" if study["mine"] >= ver.READABLE else
+            f' Under {ver.READABLE} boards, so treat it as a hint.')
+    return f"""
+  <div class="card full">
+    <h3>Your {esc(identity)}</h3>
+    <p class="tip"><strong>{lead}</strong></p>
+    <ul class="rowlist" style="margin:0">{items}</ul>
+    <p class="fine">Your {study["mine"]} boards in this comp against the
+    field&rsquo;s {study["field"]}, so this is never &ldquo;you play a bad
+    comp&rdquo; &mdash; it is how you build this one. Survival is held fixed
+    on both sides. {study["family"]} things were tested, so a claim needs
+    z={study["z"]:.2f}.{thin}</p>
+  </div>"""
 
 
 def render(games, level_par, set_number, idx, who, puuid):
@@ -193,6 +245,10 @@ def render(games, level_par, set_number, idx, who, puuid):
         f'</button></form>')
     top4 = g["placement"] <= 4
     tone = "win" if top4 else "loss"
+    # Your version of the comp you just played, when there is enough of it.
+    parts = comps.parts(g, set_number)
+    yours = version_card(set_number, puuid, parts[1] if parts else None) or ""
+
     headline = (f'You <span class="{tone}">won</span>' if won else
                 f'You placed <span class="{tone}">{placed}</span>')
     body = f"""
@@ -206,6 +262,7 @@ def render(games, level_par, set_number, idx, who, puuid):
 {picker}
 <div class="grid" style="margin-top:20px">
   {margin}
+  {yours}
   {pattern}
   <div class="card full">
     <h3>The lobby</h3>
