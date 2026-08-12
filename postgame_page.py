@@ -92,36 +92,31 @@ def version_card(set_number, puuid, identity, plan=None, carry=None):
     if not study:
         return None
 
+    # Solid findings first - those are the ones with a consequence attached -
+    # then the plain differences. Three at most: this is a card somebody reads
+    # on the way to queueing again, not a report.
     real = [f for f in study["found"]
             if ver.real_shape(f) or ver.real_choice(f)]
-    shown = real or study["found"][:2]
-    if not shown:
-        return None
+    # Shape differences are the fallback: a carry or plan with no measured
+    # effect just fills a line with "you run it 7 of 19, the field 31%".
+    rest = [f for f in study["found"]
+            if f not in real and f["kind"] == "shape"
+            and ver.worth_saying(f)]
+    shown = (real + rest)[:3]
 
-    items = "".join(
-        f'<li><span>{esc(ver.describe(f))}</span></li>' for f in shown)
-    lead = ("What is different about your version, and moves placement:"
-            if real else
-            "Nothing about your version clears the bar. The biggest gaps, "
-            "for the record:")
-    thin = ("" if study["mine"] >= ver.READABLE else
-            f' Under {ver.READABLE} boards, so treat it as a hint.')
+    # "Nothing differs" is a real answer and a good one - it means this comp
+    # is not where the leak is. It has to be said out loud, though: dropping
+    # the card would read as the app having no opinion.
+    lines = ([ver.plain(f) for f in shown] if shown else
+             ["You build this one much the way everyone else in your "
+              "lobbies does."])
+    items = "".join(f'<li><span>{esc(t)}</span></li>' for t in lines)
     return f"""
   <div class="card full">
-    <h3>Your {esc(identity)}</h3>
-    <p class="tip"><strong>{lead}</strong></p>
+    <h3>Your {esc(identity)}, next to everyone else&rsquo;s</h3>
     <ul class="rowlist" style="margin:0">{items}</ul>
-    <p class="fine">Your {study["mine"]} boards against the field&rsquo;s
-    {study["field"]} on the same comp, survival held fixed.{thin}</p>
-    <details><summary>How this was judged</summary>
-    <p class="fine">A finding has to differ from the field AND move
-    placement, and the effect is measured on the field&rsquo;s boards only -
-    never on yours, or it would be estimated from the same games it then
-    judges. This board played {esc(str(study["plan"] or "no clear plan"))}
-    with {esc(str(study["carry"] or "no carry"))}, so it was asked the
-    questions that kind of board is about - {study["family"]} of them, which
-    means a claim needs z={study["z"]:.2f} rather than the usual 1.96.
-    </p></details>
+    <p class="fine">From your {study["mine"]} games on this comp and
+    {study["field"]} more from your own lobbies.</p>
   </div>"""
 
 

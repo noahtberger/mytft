@@ -111,7 +111,10 @@ BY_PLAN = {
     comps.REROLL_PLAN[2]: _REROLL_EARLY,           # Lvl 6 Reroll
     comps.REROLL_PLAN[3]: ["rerolled", "big_2star", "board_size"],
     comps.FAST8:          ["big_2star", "avg_cost", "board_size"],
-    comps.FAST9:          ["big_2star", "top_cost", "avg_cost"],
+    # top_cost is deliberately not asked of a fast 9 board: essentially every
+    # one of them fields a 5-cost, so it measures nothing (z=0.5 across 2,215
+    # boards) and spends a test that board_size uses better.
+    comps.FAST9:          ["big_2star", "avg_cost", "board_size"],
     None:                 ["board_size", "avg_cost", "big_units"],
 }
 # Only asked of a board whose identity IS a trait - "did you finish it" is not
@@ -329,6 +332,96 @@ def describe(f):
     return (f"{f['level']}: {cost} {abs(e['gap']):.2f} +/-{e['moe']:.2f} "
             f"places in this comp - you play it {f['yours']}/{f['played']}, "
             f"the field {f['share_them'] * 100:.0f}%")
+
+
+# One sentence per metric, as (you have less, you have more). The card shows
+# the survival-adjusted difference and NOT the two raw averages, which looks
+# like the smaller claim and is the only honest one: measured over the 326
+# findings this page would show, the raw averages point the opposite way to
+# the adjusted gap 40% of the time. "You 3.70, the field 3.49 (fewer)" is not
+# a typo when that happens - surviving longer earns you more of most of these,
+# so you can average more of something overall while running less of it than
+# the boards that lasted as long - but there is no way to show both numbers at
+# a glance without it reading as broken.
+PHRASE = {
+    "avg_cost":    ("Your board is about {n} gold cheaper per unit.",
+                    "Your board is about {n} gold pricier per unit."),
+    "big_units":   ("You field about {n} fewer units at 4+ gold.",
+                    "You field about {n} more units at 4+ gold."),
+    "big_2star":   ("About {n} fewer of your big units reach 2-star.",
+                    "About {n} more of your big units reach 2-star."),
+    "board_size":  ("You finish with about {n} fewer units on the board.",
+                    "You finish with about {n} more units on the board."),
+    "items_held":  ("You finish with about {n} fewer items.",
+                    "You finish with about {n} more items."),
+    "carry_items": ("Your carry holds about {n} fewer items.",
+                    "Your carry holds about {n} more items."),
+    "carry_tier":  ("Your carry is usually a lower star level.",
+                    "Your carry is usually a higher star level."),
+    "lines_built": ("You commit to about {n} fewer traits.",
+                    "You commit to about {n} more traits."),
+    "rerolled":    ("You 3-star about {n} fewer cheap units.",
+                    "You 3-star about {n} more cheap units."),
+    "maxed_line":  ("You finish about {n} fewer traits than they do.",
+                    "You finish about {n} more traits than they do."),
+    "style_sum":   ("Your board picks up about {n} less trait value.",
+                    "Your board picks up about {n} more trait value."),
+    "top_cost":    ("Your priciest unit is usually cheaper than theirs.",
+                    "Your priciest unit is usually pricier than theirs."),
+    "unitemised":  ("You leave about {n} fewer units without items.",
+                    "You leave about {n} more units without items."),
+}
+
+
+def worth_saying(f):
+    """Is this difference big enough to earn a line on the card?
+
+    A gap that rounds to 0.0 at one decimal is not a small finding, it is no
+    finding: "about 0.0 fewer units on the board" is noise wearing a sentence,
+    and three of those in a row is how a card teaches someone to stop reading
+    it. A carry or plan has to have a measured effect for the same reason -
+    "you run it 7 of 19, the field 31%" is true and says nothing.
+    """
+    if f["kind"] == "choice":
+        return f["effect"]["real"]
+    return abs(f["differs"]["gap"]) >= 0.05
+
+
+def plain(f):
+    """One finding as a sentence somebody can read at a glance.
+
+    No error bars, no z, no talk of bars being cleared. The statistics decide
+    WHICH findings reach this function; they are not the reader's problem once
+    they have. What survives is the difference and, when it is solid enough to
+    claim, what it costs.
+    """
+    if f["kind"] == "choice":
+        e = f["effect"]
+        share = (f"you run it in {f['yours']} of your {f['played']}, "
+                 f"the field in {round(f['share_them'] * 100)}%")
+        if e["real"] and e["gap"] > 0:
+            return (f"{f['level']} is costing you about {abs(e['gap']):.1f} "
+                    f"of a place here - {share}.")
+        if e["real"]:
+            return (f"{f['level']} is working here, worth about "
+                    f"{abs(e['gap']):.1f} of a place - {share}.")
+        return f"{f['level']}: {share}."
+
+    gap = f["differs"]["gap"]
+    lower, higher = PHRASE[f["key"]]
+    text = (higher if gap > 0 else lower).format(n=f"{abs(gap):.1f}")
+    m = f["matters"]
+    if m and m["real"]:
+        # matters["gap"] is high-minus-low on place_residual and a LOWER
+        # residual is a better placement, so a negative gap means the high
+        # side is the good side. Backwards here prints inverted advice.
+        good = "more" if m["gap"] < 0 else "fewer"
+        mine = "more" if gap > 0 else "fewer"
+        text += (" That is the better side of it."
+                 if mine == good else
+                 f" Going the other way is worth about "
+                 f"{abs(m['gap']):.1f} of a place.")
+    return text
 
 
 def report(s):
