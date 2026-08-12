@@ -16,7 +16,7 @@ import comps
 import postgame as pg
 import tftdata as tft
 from theme import (BRAND, CSS, SCRIPT, app_bar, esc, new_game_watcher,
-                   stale_names_banner)
+                   purpose, stale_names_banner, why)
 
 PICKER = 10   # recent games shown in the switcher row
 
@@ -169,6 +169,16 @@ def render(games, level_par, set_number, idx, who, puuid):
         &mdash; the lobby below is the one you beat.</p></div>"""
     else:
         bullets = pg.margin_bullets(g, above, set_number, level_par)
+        # A line, not a box: the page was already four cards and the feedback
+        # that prompted this was that there are too many of them. It belongs
+        # here anyway - "you were contested" and "here is what nobody took"
+        # are halves of one thought.
+        moved = pg.pivot(g, lobby, pg.comp_cores(games, set_number), set_number)
+        if moved:
+            bullets = bullets + [
+                f"Nobody in that lobby took {moved['comp']}, and you already "
+                f"had {len(moved['shared'])} of its {moved['core']} core "
+                f"units: {', '.join(moved['shared'])}."]
         if bullets:
             items = "".join(f'<li><span>{esc(b)}</span></li>'
                             for b in bullets)
@@ -176,7 +186,9 @@ def render(games, level_par, set_number, idx, who, puuid):
   <h3>This game</h3>
   <ul class="rowlist">{items}</ul>
   <p class="fine">One game only &mdash; the advice beside this is built
-  from all of them.</p>
+  from all of them.{" Both halves of the pivot line are read off finished "
+  "boards, so it is what was open in hindsight, not what you could see at "
+  "the time." if moved else ""}</p>
 </div>"""
         else:
             margin = """<div class="card">
@@ -266,6 +278,9 @@ def render(games, level_par, set_number, idx, who, puuid):
   <h1>{headline}</h1>
   <span class="sub">{when} &middot; patch {esc(g["_patch"])}</span>
 </div>
+{purpose("One game, pulled apart. Your board against the seven that were "
+         "in the lobby with you - same patch, same players, same items "
+         "dropping - so the comparison needs no adjusting.")}
 {picker}
 <div class="grid" style="margin-top:20px">
   {margin}

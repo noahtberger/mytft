@@ -22,6 +22,7 @@ design.
 import statistics
 import sys
 import textwrap
+from collections import Counter, defaultdict
 from datetime import datetime
 
 import comps
@@ -82,6 +83,116 @@ def board_line(board, set_number):
 def short_name(board):
     """A player's name, or their seat when a name is somehow missing."""
     return board.get("riotIdGameName") or f"the {ordinal(board['placement'])} board"
+
+
+MIN_CORE_BOARDS = 25   # boards of a comp before its core units are worth trusting
+CORE_PRESENCE = 0.5    # on this share of them to count as core
+PIVOT_SHARE = 0.5      # of a comp's core already on your board to suggest it
+PIVOT_UNITS = 3        # ...and this many of them, in absolute terms
+
+
+def bought_units(board):
+    """Units somebody actually bought, by display name.
+
+    tft.board_units includes everything on the board, summons included, and
+    that is wrong here in a way that shows: the first version of this offered
+    pivots on the strength of already holding "Summon" and "PVE_ElderDragon".
+    Nobody bought those and no comp is closer because you have one.
+    """
+    return {tft.display(u["character_id"], "units")
+            for u in tft.shop_units(board)}
+
+
+def comp_cores(games, set_number):
+    """The units that define each comp, from every board in these lobbies.
+
+    A comp's core is the units that turn up on at least half the boards that
+    played it. Half rather than all of it, because nobody fields the same
+    eight units twice - the core is what the comp always has, and the rest is
+    what that game gave you.
+
+    Built from every board in every lobby, not just this player's, so a comp
+    they have never touched still has a core. That is the whole point: the
+    comp worth pivoting into is usually one they do not play.
+    """
+    played = Counter()
+    seen = defaultdict(Counter)
+    for game in games:
+        for board in game.get("_lobby", ()):
+            if not tft.shop_units(board):
+                continue
+            parts = comps.parts(board, set_number)
+            identity = parts[1] if parts else None
+            if not identity:
+                continue
+            played[identity] += 1
+            for unit in bought_units(board):
+                seen[identity][unit] += 1
+    return {comp: {u for u, n in seen[comp].items()
+                   if n / played[comp] >= CORE_PRESENCE}
+            for comp in played if played[comp] >= MIN_CORE_BOARDS}
+
+
+def pivot(mine, lobby, cores, set_number):
+    """A comp nobody in that lobby took, that your board was already close to.
+
+    Only offered when the comp actually played was contested, because that is
+    the only time the question "what else was there" has an answer worth
+    hearing. Scores every comp nobody in the lobby committed to by how much of
+    its core was already sitting on the final board, and returns the closest.
+
+    READ IT AS A REPLAY, NOT AS A READ
+    ----------------------------------
+    Both halves come off end-of-game boards. "Nobody was on it" is what the
+    lobby looked like when it finished, not what could be seen at the point
+    somebody would have had to commit, and the units counted are the ones that
+    survived to the end rather than the ones held at the decision. So this is
+    what was there in hindsight. The card has to say so - dressed up as a read
+    it would be advice about information nobody had.
+
+    Measured across this player's 195 contested games, 71 of them had a comp
+    nobody took that shared 40% or more of its core with the final board.
+    """
+    parts = comps.parts(mine, set_number)
+    identity = parts[1] if parts else None
+    if not identity or not cores:
+        return None
+    rivals = 0
+    taken = set()
+    for board in lobby:
+        board_parts = comps.parts(board, set_number)
+        their = board_parts[1] if board_parts else None
+        if not their:
+            continue
+        taken.add(their)
+        if their == identity and board["puuid"] != mine["puuid"]:
+            rivals += 1
+    if not rivals:
+        return None
+
+    held = bought_units(mine)
+    best = None
+    for comp, core in cores.items():
+        if comp in taken or not core:
+            continue
+        shared = core & held
+        share = len(shared) / len(core)
+        # Both bars, because a share on its own rewards small cores: a comp
+        # with a five-unit core clears 40% on two units, which is not being
+        # close to a comp, it is owning two of its champions. Requiring three
+        # in absolute terms took this from 61 suggestions of which most were
+        # that, to 18 that are actually near-misses.
+        if len(shared) < PIVOT_UNITS:
+            continue
+        # Ties broken on the name: these come out of a dict of strings and
+        # Python randomises string hashing per process, so two comps on the
+        # same share would otherwise swap between runs on identical data.
+        key = (share, len(shared), comp)
+        if share >= PIVOT_SHARE and (best is None or key > best["key"]):
+            best = {"key": key, "comp": comp, "share": share,
+                    "shared": sorted(shared), "core": len(core),
+                    "rivals": rivals, "identity": identity}
+    return best
 
 
 def margin_bullets(mine, above, set_number, level_par):

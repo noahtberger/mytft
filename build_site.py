@@ -650,8 +650,10 @@ body.append(f"""
 <header class="masthead">
   <div class="who">{esc(WHO)} &middot; Set {set_number} ranked</div>
   <h1>Your Set {set_number} ranked stats</h1>
-  <p class="standfirst">Everything here comes from your own ranked games.
-  Numbers without enough games behind them say so instead of pretending.</p>
+  <p class="standfirst">The long view: your whole set, comp by comp, with
+  every number sized against how many games are behind it. Read it when you
+  want to know what is true about your play rather than what to do next
+  game.</p>
   <div class="verdict">
     <p class="eyebrow">Summary</p>
     <p style="margin:0">Across {n_games} ranked games, {headline}. You fully

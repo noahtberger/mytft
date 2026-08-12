@@ -27,7 +27,7 @@ import pregame as pre
 import scout
 import tftdata as tft
 from theme import (BRAND, CSS, app_bar, esc, new_game_watcher, plural,
-                   stale_names_banner)
+                   purpose, stale_names_banner, why)
 
 
 def query(puuid, who):
@@ -240,17 +240,19 @@ def style_card(games, set_number):
 
     settled = sum(1 for f in facts if f["real"])
     if settled:
-        note = (f'<p class="fine">Measured over your last {len(era)} games '
-                f'against the {len(room)} boards everyone else in them '
-                f'played. Marked ones are far enough from the lobby to call '
-                f'a habit; the rest are just what you did.</p>')
+        note = why("What counts as a habit",
+                   f'Measured over your last {len(era)} games against the '
+                   f'{len(room)} boards everyone else in them played. Marked '
+                   f'ones are far enough from the lobby to call a habit; the '
+                   f'rest are just what you did.')
     else:
-        note = (f'<p class="fine">Measured over your last {len(era)} games '
-                f'against the {len(room)} boards everyone else in them '
-                f'played. None of these is far enough from the lobby to call '
-                f'a settled habit yet &mdash; that takes about '
-                f'{tft.MIN_PLAYSTYLE_GAMES} games and a clear gap. They are '
-                f'still what you did.</p>')
+        note = why("What counts as a habit",
+                   f'Measured over your last {len(era)} games against the '
+                   f'{len(room)} boards everyone else in them played. None of '
+                   f'these is far enough from the lobby to call a settled '
+                   f'habit yet &mdash; that takes about '
+                   f'{tft.MIN_PLAYSTYLE_GAMES} games and a clear gap. They '
+                   f'are still what you did.')
     return lead + listed + note
 
 
@@ -380,8 +382,13 @@ solid 30+, confirmed 100+.</p>"""
     n_patches = len(m.get("patches") or [])
     patch_word = "patch" if n_patches <= 1 else "patches"
     patch_note = f"{patch_word} {m['patch']} only - " if m["patch"] else ""
-    provenance = (
-        f'<p class="fine">Everything above reads {patch_note}'
+    # 129 words of provenance and glossary, folded away. All of it is true and
+    # none of it is what somebody wants in the ten seconds before they queue -
+    # it is there for the reader who wants to argue with the number, and that
+    # reader will open it.
+    provenance = why(
+        "Where these numbers come from",
+        f'Everything above reads {patch_note}'
         f'{m["boards"]} final boards: your games on it, the seven other '
         f'boards in each of those lobbies, and seeded top-ladder games, '
         f'ranked. The number after a Reroll comp is the level the rolling '
@@ -392,7 +399,7 @@ solid 30+, confirmed 100+.</p>"""
         f'list shows whichever does better. The top list is ordered '
         f'by the worst each average '
         f'could plausibly be given its sample, so a hot dozen boards '
-        f'can&rsquo;t outrank a steady forty.</p>')
+        f'can&rsquo;t outrank a steady forty.')
     details = seed_form + provenance
 
     style = style_card(games, set_number)
@@ -407,6 +414,9 @@ solid 30+, confirmed 100+.</p>"""
   <span class="sub">{overall['games']} ranked games &middot; avg
   {overall['avg']:.2f} &middot; {overall['top4']:.0f}% top 4</span>
 </div>
+{purpose("Read this one before you hit find match. What has been working "
+         "for you, what has been costing you, and what is strong right now "
+         "in the lobbies you actually get put in.")}
 <div class="grid">
   <div class="card full">
     <h3>What wins you games</h3>

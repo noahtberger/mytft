@@ -109,6 +109,39 @@ def app_bar(who, set_number, q, here, extra=""):
             f'<nav class="tabs">{links}{extra}{switch}</nav></div>')
 
 
+def purpose(text):
+    """One line under a page title saying what the page is for.
+
+    The three tabs never announced themselves. A reader landing on Post-game
+    has to work out from the contents whether it is about one game or all of
+    them, and players who were not the author reported exactly that: the tabs
+    were clear, what each tab was FOR was not.
+
+    It sits on its own row under the hero rather than beside the title,
+    because .hero is a baseline-aligned flex row and a sentence dropped into
+    it would line up against the h1 and read as a subtitle.
+    """
+    return f'<p class="purpose">{text}</p>'
+
+
+def why(summary, text):
+    """An explanation, folded away until somebody wants it.
+
+    This app explains itself constantly - every number carries the reason it
+    can be trusted, which is the whole point of it and also why the pages read
+    as a wall. Pre-game was carrying 282 words of small print and post-game
+    94, all of it true and none of it what somebody wants in the ten seconds
+    before they queue.
+
+    Folding rather than cutting: every word stays and stops arriving at once.
+    <details> is the right element for it - it works with no JavaScript, which
+    matters because build_site.py's page has to survive being mailed to
+    somebody as a single file.
+    """
+    return (f'<details class="why"><summary>{summary}</summary>'
+            f'<p class="fine">{text}</p></details>')
+
+
 def plural(n, word, many=None):
     """'1 line' / '3 lines'. Small thing, but '1 different lines' on the page
     reads as a bug in the maths even when the maths is right."""
@@ -385,6 +418,18 @@ details summary:hover { color:var(--ink); }
 .hero h1 { font-size:clamp(26px,4vw,34px); letter-spacing:-.03em;
            font-weight:800; margin:0; }
 .hero .sub { font-family:var(--mono); font-size:12.5px; color:var(--muted); }
+/* Purpose line: what this page is for, on its own row under the hero. Its
+   own row because .hero is a baseline flex and a sentence inside it aligns
+   against the h1 and reads as a subtitle rather than an explanation. */
+.purpose { color:var(--muted); font-size:14.5px; line-height:1.5;
+           margin:-8px 0 20px; max-width:62ch; }
+/* A folded explanation. Sits quiet until asked: the reasoning is the point
+   of this app and it is not what somebody wants before they queue. */
+.why { margin:12px 0 0; }
+.why summary { font-family:var(--mono); font-size:11.5px; letter-spacing:.08em;
+               text-transform:uppercase; color:var(--muted); cursor:pointer; }
+.why summary:hover { color:var(--ink); }
+.why .fine { margin:8px 0 0; }
 /* Two columns at desktop width, one on a laptop or phone. minmax is set
    past a third of the container on purpose: three columns of these cards
    leaves an empty slot far more often than it fills one. */
