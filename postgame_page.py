@@ -64,20 +64,22 @@ def board_row(facts, me, lpbreak=False):
             f'<td>{comp_cell}</td><td>{carry}</td>{cells}</tr>')
 
 
-def version_card(set_number, puuid, identity, plan=None, carry=None):
-    """How this player builds the comp they just played, against the field.
+def version_card(set_number, puuid, match_id, identity):
+    """Where THIS board sat among the boards that played the same comp.
 
-    Scoped to the ONE board in front of them, not just the one comp: `plan`
-    and `carry` are what THIS game did, and version.study uses them to pick
-    which questions to ask. A reroll board gets asked whether it hit the
-    3-star, a fast 8 board whether its 4-costs are 2-star, and the carry it
-    checks is the one that was actually played rather than all of them. That
-    keeps the family around 7 instead of 15, which is what lets anything clear
-    at all - see the measurement in version.py's docstring.
+    About the one game in front of the reader, not about how they build the
+    comp in general. The comp-level version of this card gave the same answer
+    for every game of that comp, so 37% of this player's games sat in a run of
+    identical cards - one of them 13 long - and he noticed: "im building a
+    diff comp per game sometimes so it should compare only that game."
 
-    Returns None when there is nothing honest to show - too few of their
-    boards in the comp, or the comp has no identity at all - and the caller
-    leaves the card out entirely rather than printing a header over a shrug.
+    It needs no games from this player at all, only a comp with enough boards
+    in the pool, which is what closes the hole the comp-level card had: it
+    went blank on 24% of games because it wanted 8 of their own boards first,
+    and a comp they have played five times is exactly when they want a read.
+
+    Returns None when the comp has too few boards to place one among, or the
+    board has no comp identity at all, and the caller leaves the card out.
     """
     if not identity:
         return None
@@ -88,35 +90,35 @@ def version_card(set_number, puuid, identity, plan=None, carry=None):
         rows = ver.load(db, set_number, puuid)
     except Exception:                                # noqa: BLE001
         return None                                  # index unavailable; skip
-    study = ver.study(rows, identity, plan=plan, carry=carry)
+    board = next((r for r in rows if r["match_id"] == match_id
+                  and r["puuid"] == puuid), None)
+    if board is None:
+        return None
+    study = ver.study_board(rows, board)
     if not study:
         return None
 
-    # Solid findings first - those are the ones with a consequence attached -
-    # then the plain differences. Three at most: this is a card somebody reads
-    # on the way to queueing again, not a report.
+    # Findings with a consequence first, then the rest of what stood out.
+    # Three at most: this is a card somebody reads on the way back to queue.
     real = [f for f in study["found"]
-            if ver.real_shape(f) or ver.real_choice(f)]
-    # Shape differences are the fallback: a carry or plan with no measured
-    # effect just fills a line with "you run it 7 of 19, the field 31%".
+            if ver.real_board(f) or ver.real_choice(f)]
     rest = [f for f in study["found"]
-            if f not in real and f["kind"] == "shape"
-            and ver.worth_saying(f)]
+            if f not in real and ver.worth_saying(f)]
     shown = (real + rest)[:3]
 
-    # "Nothing differs" is a real answer and a good one - it means this comp
-    # is not where the leak is. It has to be said out loud, though: dropping
-    # the card would read as the app having no opinion.
+    # "This one looked normal" is a real answer and a good one - it means the
+    # game was not lost on the shape of the board. It has to be said out loud,
+    # though: dropping the card would read as the app having no opinion.
     lines = ([ver.plain(f) for f in shown] if shown else
-             ["You build this one much the way everyone else in your "
-              "lobbies does."])
+             ["This board sat in the middle of the pack on everything "
+              "measured - whatever went wrong, it was not the shape of it."])
     items = "".join(f'<li><span>{esc(t)}</span></li>' for t in lines)
     return f"""
   <div class="card full">
-    <h3>Your {esc(identity)}, next to everyone else&rsquo;s</h3>
+    <h3>This board, next to the {esc(identity)} boards in your lobbies</h3>
     <ul class="rowlist" style="margin:0">{items}</ul>
-    <p class="fine">From your {study["mine"]} games on this comp and
-    {study["field"]} more from your own lobbies.</p>
+    <p class="fine">Against {study["field"]} {esc(identity)} boards from games
+    you were in, each compared at the round it died on.</p>
   </div>"""
 
 
@@ -250,10 +252,9 @@ def render(games, level_par, set_number, idx, who, puuid):
         f'</button></form>')
     top4 = g["placement"] <= 4
     tone = "win" if top4 else "loss"
-    # Your version of the board you just played, when there is enough of it.
+    # Where this board sat among the boards that played the same comp.
     parts = comps.parts(g, set_number) or (None, None)
-    yours = version_card(set_number, puuid, parts[1],
-                         plan=parts[0], carry=tft.carry_of(g)) or ""
+    yours = version_card(set_number, puuid, g["_match_id"], parts[1]) or ""
 
     headline = (f'You <span class="{tone}">won</span>' if won else
                 f'You placed <span class="{tone}">{placed}</span>')

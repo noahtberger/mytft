@@ -169,7 +169,7 @@ def questions(plan, identity, set_number):
     return list(dict.fromkeys(picked))
 
 
-def live(pool, mine, keys):
+def live(pool, mine, keys, need=2):
     """Drop metrics this comp cannot be asked about.
 
     A metric with one value across the whole comp is not a finding waiting for
@@ -177,10 +177,14 @@ def live(pool, mine, keys):
     because that is what the name means. Reporting +0.00 +/-0.00 for it would
     be a hardcoded conclusion dressed as a measurement, and it would inflate
     the correction for every real test beside it.
+
+    `need` is how many of `mine` must carry the metric. Comparing two means
+    takes at least two; placing a single board among a distribution takes one,
+    and leaving it at two silently emptied every board-level card.
     """
     return [k for k in keys
             if len({r[k] for r in pool if r.get(k) is not None}) > 1
-            and sum(1 for r in mine if r.get(k + "_res") is not None) >= 2]
+            and sum(1 for r in mine if r.get(k + "_res") is not None) >= need]
 
 
 def shape_finding(key, mine, field, z):
@@ -273,6 +277,101 @@ def study(rows, identity, plan=None, carry=None):
     return {"identity": identity, "plan": plan, "carry": carry,
             "mine": len(mine), "field": len(field),
             "family": family, "z": z, "found": found}
+
+
+MIN_FIELD = 25   # boards in the comp before one board can be placed among them
+
+
+def study_board(rows, board):
+    """ONE board, placed among every board in the pool that played that comp.
+
+    The comp-level study() answers "how do you build this comp", which is a
+    question about your 15 games and gives the same answer for all 15. That
+    made the post-game card repeat itself: 37% of this player's games sat in a
+    run of back-to-back identical cards, one of them 13 games long. His read
+    on it: "im building a diff comp per game sometimes so it should compare
+    only that game."
+
+    So this asks where THIS board sat. One board against a distribution is not
+    a comparison of means and no significance test applies to it - which is
+    freeing rather than limiting, because "you fielded 7 units and four in
+    five of their boards had more" is a fact, not a claim. The claim, when
+    there is one, still comes from the field: whether the side this board
+    landed on is the better one is tested on the field's boards alone and
+    corrected over the metrics asked.
+
+    It also needs no games from you at all - only a comp with enough boards in
+    the pool. The comp-level card went blank on 24% of games because it wanted
+    8 of your own boards first; going 8th on a comp you have played five times
+    is exactly when you want to read something.
+    """
+    identity = board["identity"]
+    if not identity:
+        return None
+    pool = [r for r in rows if r["identity"] == identity]
+    # Everyone else's boards, not just "every board but this one". Leaving
+    # this player's own history in the field lets a habit hide itself: build
+    # small on this comp fifteen times and those fifteen drag the middle
+    # towards you, so the sixteenth reads as normal.
+    field = [r for r in pool if r["puuid"] != board["puuid"]]
+    if len(field) < MIN_FIELD:
+        return None
+
+    keys = live(pool, [board], questions(board["plan"], identity,
+                                         board["set_num"]), need=1)
+    choices = [(col, board[col]) for col in ("carry", "plan") if board[col]]
+    family = len(keys) + len(choices)
+    z = comps.bonferroni_z(family)
+
+    found = []
+    for key in keys:
+        mine = board.get(key + "_res")
+        if mine is None:
+            continue
+        vals = [r[key + "_res"] for r in field if r.get(key + "_res") is not None]
+        if len(vals) < MIN_FIELD:
+            continue
+        # Where this board sat among boards that died as late as it did. The
+        # percentile is on the residualised metric for the usual reason; the
+        # number shown to the reader is the raw one, which is what they
+        # actually fielded and would recognise.
+        below = sum(1 for v in vals if v < mine) / len(vals)
+        cut = statistics.median(vals)
+        hi = [r["place_residual"] for r in field
+              if r.get(key + "_res") is not None and r[key + "_res"] > cut]
+        lo = [r["place_residual"] for r in field
+              if r.get(key + "_res") is not None and r[key + "_res"] <= cut]
+        matters = (tft.mean_gap(hi, lo, z=z)
+                   if len(hi) >= MIN_CELL and len(lo) >= MIN_CELL else None)
+        found.append({
+            "kind": "board", "key": key, "label": SHAPE[key],
+            "you": board[key],
+            "them": statistics.mean([r[key] for r in field
+                                     if r[key] is not None]),
+            "below": below, "above": 1.0 - below,
+            "high": mine > statistics.median(vals),
+            "matters": matters,
+            "strength": abs(below - 0.5)})
+    for col, val in choices:
+        got = choice_finding(col, val, [board], field, z)
+        if got:
+            found.append(got)
+    found.sort(key=lambda f: (-f["strength"], f.get("level") or f["label"]))
+    return {"identity": identity, "plan": board["plan"], "carry": board["carry"],
+            "mine": 1, "field": len(field), "family": family, "z": z,
+            "found": found}
+
+
+def unusual(f, edge=0.25):
+    """Did this board actually sit away from the middle of the pack?
+
+    Everything is somewhere in a distribution, so without this the card would
+    solemnly report that a board was slightly above average at five things.
+    Outside the middle half is the bar for being worth a sentence.
+    """
+    if f["kind"] != "board":
+        return f["effect"]["real"]
+    return f["below"] <= edge or f["below"] >= 1 - edge
 
 
 def _most_played(mine, col):
@@ -373,6 +472,25 @@ PHRASE = {
 }
 
 
+# How to open a sentence about ONE board. {v} is what that board actually had,
+# which is the number the player recognises from the game they just finished.
+BOARD_PHRASE = {
+    "avg_cost":    "Your board averaged {v} gold a unit",
+    "big_units":   "You fielded {v} units at 4+ gold",
+    "big_2star":   "{v} of your big units hit 2-star",
+    "board_size":  "You finished with {v} units",
+    "items_held":  "You finished holding {v} items",
+    "carry_items": "Your carry held {v} items",
+    "carry_tier":  "Your carry finished at {v} star",
+    "lines_built": "You committed to {v} traits",
+    "rerolled":    "You 3-starred {v} cheap units",
+    "maxed_line":  "You finished {v} traits",
+    "style_sum":   "Your board picked up {v} trait value",
+    "top_cost":    "Your priciest unit was {v} gold",
+    "unitemised":  "{v} of your units held no items",
+}
+
+
 def worth_saying(f):
     """Is this difference big enough to earn a line on the card?
 
@@ -382,9 +500,17 @@ def worth_saying(f):
     it. A carry or plan has to have a measured effect for the same reason -
     "you run it 7 of 19, the field 31%" is true and says nothing.
     """
+    if f["kind"] == "board":
+        return unusual(f)
     if f["kind"] == "choice":
         return f["effect"]["real"]
     return abs(f["differs"]["gap"]) >= 0.05
+
+
+def real_board(f):
+    """A board that sat away from the pack, on a metric that moves placement."""
+    return (f["kind"] == "board" and unusual(f)
+            and f["matters"] and f["matters"]["real"])
 
 
 def plain(f):
@@ -395,8 +521,40 @@ def plain(f):
     they have. What survives is the difference and, when it is solid enough to
     claim, what it costs.
     """
+    if f["kind"] == "board":
+        value = f["you"]
+        shown = (f"{value:.0f}" if float(value) == int(value)
+                 else f"{value:.1f}")
+        text = BOARD_PHRASE[f["key"]].format(v=shown)
+        if f["high"]:
+            text += f" - more than {f['below'] * 100:.0f}% of their boards."
+        else:
+            text += f" - {f['above'] * 100:.0f}% of their boards had more."
+        m = f["matters"]
+        if m and m["real"]:
+            # matters["gap"] is high-minus-low on place_residual and a LOWER
+            # residual is a better placement, so a negative gap means the high
+            # side is the good side.
+            if f["high"] == (m["gap"] < 0):
+                text += " That is the better side of it."
+            else:
+                text += (f" The other side is worth about "
+                         f"{abs(m['gap']):.1f} of a place.")
+        return text
+
     if f["kind"] == "choice":
         e = f["effect"]
+        if f["played"] <= 1:
+            # Board-level card: "you run it in 1 of your 1" is nonsense. The
+            # only interesting share here is how common it is in the field.
+            where = f"{round(f['share_them'] * 100)}% of their boards run it"
+            if e["real"] and e["gap"] > 0:
+                return (f"{f['level']} costs about {abs(e['gap']):.1f} of a "
+                        f"place on this comp - {where}.")
+            if e["real"]:
+                return (f"{f['level']} is the strong pick here, worth about "
+                        f"{abs(e['gap']):.1f} of a place - {where}.")
+            return f"{f['level']}: {where}."
         share = (f"you run it in {f['yours']} of your {f['played']}, "
                  f"the field in {round(f['share_them'] * 100)}%")
         if e["real"] and e["gap"] > 0:
