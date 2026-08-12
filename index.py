@@ -54,7 +54,7 @@ DB_PATH = Path(__file__).with_name("boards.db")
 # Bump when comps.parts(), tft.playstyle() or the columns below change what
 # a row MEANS. A stamp mismatch triggers a rebuild instead of mixing two
 # models in one table.
-MODEL_VERSION = "5"
+MODEL_VERSION = "6"
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS stamp (key TEXT PRIMARY KEY, value TEXT);
@@ -84,6 +84,17 @@ CREATE TABLE IF NOT EXISTS boards (
     items_held     INTEGER,
     carry_items    INTEGER,
     carry_tier     INTEGER,
+    -- Added for version.py, which asks a board what KIND of board it is and
+    -- then asks only the questions that kind is about. big_2star is the one
+    -- that earned its place on measurement: across 2,215 boards it moves
+    -- placement harder than any shape column above it, because "four 4-costs"
+    -- and "four 2-star 4-costs" are different boards and nothing here could
+    -- tell them apart.
+    big_2star      INTEGER,
+    maxed_line     INTEGER,
+    style_sum      INTEGER,
+    top_cost       INTEGER,
+    unitemised     INTEGER,
     PRIMARY KEY (match_id, puuid)
 );
 
@@ -128,6 +139,8 @@ def board_row(match_id, info, board, residual):
     units = tft.shop_units(board)
 
     items, carry_items, carry_tier = [], 0, None
+    big_2star = unitemised = 0
+    top_cost = 0
     for u in units:
         unit = tft.display(u["character_id"], "units")
         cost = tft.UNIT_COST[u["rarity"]]
@@ -135,9 +148,23 @@ def board_row(match_id, info, board, residual):
         if unit == carry:
             carry_items = len(held)
             carry_tier = u["tier"]
+        if cost >= 4 and u["tier"] >= 2:
+            big_2star += 1
+        if not held:
+            unitemised += 1
+        top_cost = max(top_cost, cost)
         for it in held:
             items.append((match_id, board["puuid"], unit, cost, u["tier"],
                           it, int(unit == carry)))
+
+    # A trait is "maxed" when it reached its own last breakpoint - the
+    # difference between finishing a vertical and stopping one unit short,
+    # which lines_built cannot see because it counts lines rather than depth.
+    traits = board.get("traits") or []
+    maxed_line = sum(1 for t in traits
+                     if t.get("tier_current")
+                     and t["tier_current"] == t.get("tier_total"))
+    style_sum = sum(t.get("style") or 0 for t in traits)
 
     name = board.get("riotIdGameName") or ""
     tag = board.get("riotIdTagline") or ""
@@ -155,6 +182,7 @@ def board_row(match_id, info, board, residual):
         prof["board_size"] if prof else None,
         sum(len(u.get("itemNames") or []) for u in units),
         carry_items, carry_tier,
+        big_2star, maxed_line, style_sum, top_cost, unitemised,
     )
     return row, items
 
@@ -214,7 +242,7 @@ def build(db, only_new=True, progress=None):
             progress(i, len(pending))
 
     db.executemany(
-        f"INSERT OR REPLACE INTO boards VALUES ({','.join('?' * 24)})", rows)
+        f"INSERT OR REPLACE INTO boards VALUES ({','.join('?' * 29)})", rows)
     db.executemany(
         "INSERT INTO board_items VALUES (?,?,?,?,?,?,?)", item_rows)
     recompute_residuals(db, touched)
@@ -269,14 +297,32 @@ def ensure(path=DB_PATH, quiet=True):
     fresh = not path.exists()
     db = connect(path)
     if not fresh and stamp_of(db) != MODEL_VERSION:
-        db.close()
-        path.unlink()
-        db = connect(path)
+        reset(db)
         fresh = True
         if not quiet:
             print("  model changed - rebuilding from scratch")
     build(db, only_new=not fresh)
     return db
+
+
+def reset(db):
+    """Throw the tables away, without touching the file on disk.
+
+    Deleting boards.db is the obvious way to start over and it fails on
+    Windows. serve.py calls ensure() on every post-game render, so the app
+    holds this file open, and unlink() raises PermissionError [WinError 32]
+    where macOS would quietly succeed. A MODEL_VERSION bump would then break
+    the index on exactly the machine being played on - and silently, because
+    postgame_page catches the exception and just leaves the card out.
+
+    Dropping the tables needs no exclusive access and works the same on both
+    platforms. The file does not shrink, since SQLite keeps the freed pages
+    for reuse; that is a cosmetic difference and the next build fills them.
+    """
+    db.executescript("DROP TABLE IF EXISTS boards;"
+                     "DROP TABLE IF EXISTS board_items;"
+                     "DROP TABLE IF EXISTS stamp;")
+    db.commit()
 
 
 def show_stats(db):
@@ -293,15 +339,16 @@ def show_stats(db):
 
 def main():
     args = sys.argv[1:]
-    if "--rebuild" in args and DB_PATH.exists():
-        DB_PATH.unlink()
-        print("  dropped the old index")
-    fresh = not DB_PATH.exists()
     db = connect()
-    if not fresh and stamp_of(db) != MODEL_VERSION:
-        db.close()
-        DB_PATH.unlink()
-        db = connect()
+    fresh = False
+    # One copy of the model check, shared with ensure(). Two copies is how the
+    # unlink survived here after being fixed there.
+    if "--rebuild" in args:
+        reset(db)
+        fresh = True
+        print("  dropped the old index")
+    elif stamp_of(db) != MODEL_VERSION:
+        reset(db)
         fresh = True
         print("  model version changed - rebuilding from scratch")
 
