@@ -103,7 +103,7 @@ def version_card(set_number, puuid, identity):
     thin = ("" if study["mine"] >= ver.READABLE else
             f' Under {ver.READABLE} boards, so treat it as a hint.')
     return f"""
-  <div class="card">
+  <div class="card full">
     <h3>Your {esc(identity)}</h3>
     <p class="tip"><strong>{lead}</strong></p>
     <ul class="rowlist" style="margin:0">{items}</ul>
