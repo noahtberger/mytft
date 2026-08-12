@@ -64,12 +64,16 @@ def board_row(facts, me, lpbreak=False):
             f'<td>{comp_cell}</td><td>{carry}</td>{cells}</tr>')
 
 
-def version_card(set_number, puuid, identity):
+def version_card(set_number, puuid, identity, plan=None, carry=None):
     """How this player builds the comp they just played, against the field.
 
-    Scoped to the ONE comp in front of them rather than every comp they have
-    ever played, which is what the terminal report does. The page rule is one
-    idea per card, and the idea here is "your version of this".
+    Scoped to the ONE board in front of them, not just the one comp: `plan`
+    and `carry` are what THIS game did, and version.study uses them to pick
+    which questions to ask. A reroll board gets asked whether it hit the
+    3-star, a fast 8 board whether its 4-costs are 2-star, and the carry it
+    checks is the one that was actually played rather than all of them. That
+    keeps the family around 7 instead of 15, which is what lets anything clear
+    at all - see the measurement in version.py's docstring.
 
     Returns None when there is nothing honest to show - too few of their
     boards in the comp, or the comp has no identity at all - and the caller
@@ -84,7 +88,7 @@ def version_card(set_number, puuid, identity):
         rows = ver.load(db, set_number, puuid)
     except Exception:                                # noqa: BLE001
         return None                                  # index unavailable; skip
-    study = ver.study(rows, identity)
+    study = ver.study(rows, identity, plan=plan, carry=carry)
     if not study:
         return None
 
@@ -113,8 +117,11 @@ def version_card(set_number, puuid, identity):
     <p class="fine">A finding has to differ from the field AND move
     placement, and the effect is measured on the field&rsquo;s boards only -
     never on yours, or it would be estimated from the same games it then
-    judges. {study["family"]} things were tested here, so a claim needs
-    z={study["z"]:.2f} rather than the usual 1.96.</p></details>
+    judges. This board played {esc(str(study["plan"] or "no clear plan"))}
+    with {esc(str(study["carry"] or "no carry"))}, so it was asked the
+    questions that kind of board is about - {study["family"]} of them, which
+    means a claim needs z={study["z"]:.2f} rather than the usual 1.96.
+    </p></details>
   </div>"""
 
 
@@ -248,9 +255,10 @@ def render(games, level_par, set_number, idx, who, puuid):
         f'</button></form>')
     top4 = g["placement"] <= 4
     tone = "win" if top4 else "loss"
-    # Your version of the comp you just played, when there is enough of it.
-    parts = comps.parts(g, set_number)
-    yours = version_card(set_number, puuid, parts[1] if parts else None) or ""
+    # Your version of the board you just played, when there is enough of it.
+    parts = comps.parts(g, set_number) or (None, None)
+    yours = version_card(set_number, puuid, parts[1],
+                         plan=parts[0], carry=tft.carry_of(g)) or ""
 
     headline = (f'You <span class="{tone}">won</span>' if won else
                 f'You placed <span class="{tone}">{placed}</span>')

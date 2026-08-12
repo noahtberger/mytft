@@ -2,58 +2,77 @@
 
 Run:  python version.py                 every comp you have enough games in
       python version.py dark star       one comp in detail
-      python version.py --field         how the field builds it, ignoring you
 
 "Your Dark Star is a bottom-3 version" is a score, not a lesson. This file
 answers the next question instead: WHICH measurable thing is different about
 the way you build it, and does that thing move placement.
 
-Two questions per metric, and a finding needs both:
+Two tests per metric, and a finding needs both:
 
-  DIFFERS - your boards in this comp against the field's boards in the same
-            comp. Same comp on both sides, so this is not "you play a bad
-            comp", it is "you build this comp differently".
-  MATTERS - inside the comp, split the FIELD at the median of that metric
-            and compare placement. The field only, never your own boards,
-            or the effect would be estimated from the same games it is then
-            used to judge.
+  DIFFERS - your boards against the field's boards in the SAME comp, so this
+            is never "you play a bad comp", it is "you build this one
+            differently".
+  MATTERS - split the field at the median of that metric and compare
+            placement. The field only, never your own boards, or the effect
+            would be estimated from the same games it is then used to judge.
 
-A metric that differs but does not matter is worth printing anyway - it is
-a real fact about how you play - but it is not a leak, and the report says
-which it is.
+A metric that differs and does not matter still prints, marked as such. It is
+a real fact about how you play; it is just not a leak.
+
+IT ASKS EACH BOARD ONLY ITS OWN QUESTIONS
+-----------------------------------------
+The first version tested everything on every board - all nine shape metrics,
+every carry in the comp, every plan. That is a lot of chances to get lucky, so
+the bar had to rise to z~2.95 to stay honest, and at that height nothing ever
+cleared. The card said "nothing about your version clears the bar" on all of
+them, which was true and useless.
+
+So the questions now come from what the board IS. A reroll board is asked
+whether it hit the 3-star; a fast 8 board is asked whether its 4-costs are
+2-star; a board with a vertical is asked whether it finished the vertical. And
+it tests the carry you actually played rather than all seven in the comp,
+because a card about one board has no business asking about a carry that board
+never had.
+
+Fewer swings, so a lower bar is safe. Measured over 250 shuffled seasons of
+this player's own games - labels and placements randomised, so anything that
+fires is a false positive:
+
+    scan everything    ~15 tests   z~2.95   fires on 6.4% of noise
+    ask this board     ~7 tests    z=2.69   fires on 2.1% of noise
+
+The looser-looking design is the more trustworthy one, because the correction
+was never the thing keeping it honest - the number of attempts was. 2.1% is
+where the rest of the app sits: plan_record was tuned to 2.0%, PLAYSTYLE_Z to
+2-5%.
+
+The mapping from plan to questions is FIXED BELOW, before anything is
+measured. Choosing metrics because they came out significant is how a card
+learns to always find something.
 
 SURVIVAL IS HELD FIXED, INCLUDING ON THE METRIC
 -----------------------------------------------
-Everything here reads place_residual, never placement. That is index.py's
-stored column: placement minus the average placement of everyone who died on
-the same round. The metrics get the same treatment via tft.survival_residuals
-before being compared, because "you hold more items than the field" is
-otherwise just "you survived longer than the field" - a board that dies on
-round 24 cannot have collected anything.
+Everything here reads place_residual, never placement - index.py's stored
+column, placement minus the average placement of everyone who died on the same
+round. The metrics get the same treatment via tft.survival_residuals before
+being compared, because "you hold more items than the field" is otherwise just
+"you survived longer than the field": a board that dies on round 24 cannot
+have collected anything.
 
-The raw-placement version of this report was built first and it inverts.
-Measured on this pool, the two readings disagree in SIGN on nearly every
-case that clears either bar:
+The raw-placement version was built first and it inverts. Measured on this
+pool, the two readings disagree in SIGN on nearly every case that clears
+either bar:
 
     Meeple, Corki carry     residual -0.41    placement +1.90
     Dark Star, Fast 8       residual -0.17    placement +1.32
     N.O.V.A., Lvl 7 Reroll  residual +0.02    placement -1.75
 
-The reason is that a carry on a final board is not a free early choice. It
-is the unit you ENDED UP with - miss the one you wanted and you finish on
-something else - so carry-at-death is partly an outcome, and reading it on
-raw placement measures who survived. The residual keeps 15% of the variance
-in placement (sd 0.88 against 2.29) precisely because it has thrown the
-survival away, and that 15% is the part board shape is allowed to explain.
-
-WHAT THIS COSTS IN POWER
-------------------------
-Every metric in one comp is one more chance to get lucky, so the bar is
-raised to alpha/k over the whole family tested - see comps.bonferroni_z.
-At ~15 tests that is z=3.0, and most real-looking gaps do not survive it.
-That is the intended behaviour and the report prints the near-misses with
-their numbers rather than going quiet, because "nothing cleared" and "there
-is nothing here" are different claims.
+A carry on a final board is not a free early choice. It is the unit you ENDED
+UP with - miss the one you wanted and you finish on something else - so
+carry-at-death is partly an outcome, and reading it on raw placement measures
+who survived. The residual keeps 15% of the variance in placement (sd 0.88
+against 2.29) precisely because it has thrown the survival away, and that 15%
+is the part board shape is allowed to explain.
 """
 
 import statistics
@@ -64,22 +83,42 @@ import comps
 import index
 import tftdata as tft
 
-# Shape metrics, as stored by index.board_row. `level` is deliberately absent:
-# it equals board_size on 88% of boards (93% inside a comp), so testing both
-# double-counts one fact and widens the correction for nothing.
+# Every shape metric the index stores, with the words a player would use.
+# `level` is deliberately absent: it equals board_size on 88% of boards and
+# 93% inside a comp, so testing both states one fact twice.
 SHAPE = {
     "avg_cost":    "average unit cost",
     "big_units":   "units at 4+ gold",
+    "big_2star":   "big units at 2-star or better",
     "board_size":  "units on the board",
     "items_held":  "items on the board",
     "carry_items": "items on the carry",
     "carry_tier":  "carry star level",
     "lines_built": "traits committed",
     "rerolled":    "cheap units 3-starred",
+    "maxed_line":  "traits finished",
+    "style_sum":   "trait value on the board",
+    "top_cost":    "priciest unit",
+    "unitemised":  "units holding no items",
 }
-CHOICE = {"carry": "carry", "plan": "plan"}
 
-MIN_MINE = 8     # your games in a comp before it is worth a section at all
+# What each kind of board is worth being asked about. Keyed off comps' own
+# constants rather than the strings, so renaming a plan there cannot silently
+# empty a row here.
+_REROLL_EARLY = ["rerolled", "unitemised", "board_size"]
+BY_PLAN = {
+    comps.REROLL_PLAN[1]: _REROLL_EARLY,           # Lvl 4/5 Reroll
+    comps.REROLL_PLAN[2]: _REROLL_EARLY,           # Lvl 6 Reroll
+    comps.REROLL_PLAN[3]: ["rerolled", "big_2star", "board_size"],
+    comps.FAST8:          ["big_2star", "avg_cost", "board_size"],
+    comps.FAST9:          ["big_2star", "top_cost", "avg_cost"],
+    None:                 ["board_size", "avg_cost", "big_units"],
+}
+# Only asked of a board whose identity IS a trait - "did you finish it" is not
+# a question you can put to a flat Five Cost board or a pure reroll carry.
+VERTICAL = ["maxed_line", "style_sum"]
+
+MIN_MINE = 8     # your boards in a comp before it is worth a card at all
 MIN_CELL = 8     # either side of any split needs this many boards
 READABLE = 30    # tft's own bar for "actionable"; under it, say so
 
@@ -88,16 +127,16 @@ def load(db, set_num, puuid):
     """Every board in the set, with each shape metric residualised on round.
 
     The residual baseline is the whole set, not the comp, for the same reason
-    index.py computes place_residual set-wide: round groups inside one comp
-    get thin enough that a board ends up compared against itself. Any
-    comp-level offset cancels anyway, because both sides of every comparison
-    below are the same comp.
+    index.py computes place_residual set-wide: round groups inside one comp get
+    thin enough that a board ends up compared against itself. Any comp-level
+    offset cancels anyway, because both sides of every comparison below are
+    the same comp.
     """
     rows = [dict(r) for r in db.execute(
         "SELECT * FROM boards WHERE set_num=? AND place_residual IS NOT NULL",
         (set_num,))]
     for key in SHAPE:
-        have = [r for r in rows if r[key] is not None]
+        have = [r for r in rows if r.get(key) is not None]
         if not have:
             continue
         res = tft.survival_residuals([(r["last_round"], r[key]) for r in have])
@@ -108,29 +147,37 @@ def load(db, set_num, puuid):
     return rows
 
 
-def testable(pool, mine, field):
-    """Which metrics this comp can actually be asked about.
+def questions(plan, identity, set_number):
+    """Which shape metrics a board of this kind is about.
 
-    A metric with one value across the whole comp is not a finding waiting
-    for more data, it is a definition - "Five Cost" boards commit zero traits
+    Fixed by the plan, decided before any of it is measured. The vertical
+    questions are added only when the comp's identity is a trait, which is
+    what tells "Dark Star" (a vertical someone can finish) apart from "Five
+    Cost" (a flat board with no vertical to finish) and from a reroll comp
+    named for its carry.
+    """
+    picked = list(BY_PLAN.get(plan, BY_PLAN[None]))
+    try:
+        verticals = set(tft.set_traits(set_number))
+    except Exception:                                    # noqa: BLE001
+        verticals = set()
+    if identity in verticals:
+        picked += VERTICAL
+    return list(dict.fromkeys(picked))
+
+
+def live(pool, mine, keys):
+    """Drop metrics this comp cannot be asked about.
+
+    A metric with one value across the whole comp is not a finding waiting for
+    more data, it is a definition - "Five Cost" boards commit zero traits
     because that is what the name means. Reporting +0.00 +/-0.00 for it would
     be a hardcoded conclusion dressed as a measurement, and it would inflate
     the correction for every real test beside it.
     """
-    shape = [k for k in sorted(SHAPE)
-             if len({r[k] for r in pool if r[k] is not None}) > 1
-             and sum(1 for r in mine if r.get(k + "_res") is not None) >= 2]
-    levels = {}
-    for col in sorted(CHOICE):
-        seen = Counter(r[col] for r in field if r[col])
-        named = sum(seen.values())
-        keep = sorted(k for k, n in seen.items()
-                      if n >= MIN_CELL and named - n >= MIN_CELL)
-        # With exactly two levels the two tests are the same test: "Fast 8 vs
-        # the rest" IS "Fast 9 vs the rest" with the sign flipped. Printing
-        # both says one thing twice and charges the correction for two.
-        levels[col] = keep[:1] if len(keep) == 2 else keep
-    return shape, levels
+    return [k for k in keys
+            if len({r[k] for r in pool if r.get(k) is not None}) > 1
+            and sum(1 for r in mine if r.get(k + "_res") is not None) >= 2]
 
 
 def shape_finding(key, mine, field, z):
@@ -154,54 +201,83 @@ def shape_finding(key, mine, field, z):
             "you": raw_you, "them": raw_them,
             "differs": differs, "matters": matters,
             # How far past its own bar the difference sits. Ranking on this
-            # rather than on the raw gap keeps metrics on different units
-            # (gold, unit counts, item counts) comparable in one list.
+            # rather than the raw gap keeps metrics on different units (gold,
+            # unit counts, item counts) comparable in one list.
             "strength": abs(differs["gap"]) / (differs["moe"] or 1e9)}
 
 
 def choice_finding(col, level, mine, field, z):
-    """One categorical level - a carry, a plan - against the rest of the comp."""
+    """One carry or plan - the one this board played - against the rest."""
     with_ = [r["place_residual"] for r in field if r[col] == level]
     without = [r["place_residual"] for r in field if r[col] and r[col] != level]
+    if len(with_) < MIN_CELL or len(without) < MIN_CELL:
+        return None
     effect = tft.mean_gap(with_, without, z=z)
     if not effect:
         return None
     played = [r for r in mine if r[col]]
     yours = sum(1 for r in played if r[col] == level)
     share_them = len(with_) / sum(1 for r in field if r[col])
-    return {"kind": "choice", "key": col, "label": CHOICE[col], "level": level,
+    return {"kind": "choice", "key": col, "label": col, "level": level,
             "n": len(with_), "yours": yours, "played": len(played),
             "share_them": share_them, "effect": effect,
             "strength": abs(effect["gap"]) / (effect["moe"] or 1e9)}
 
 
-def study(rows, identity):
-    """Everything measurable about how you build one comp. Never returns None."""
+def study(rows, identity, plan=None, carry=None):
+    """How you build one comp, asked the questions that comp's boards are about.
+
+    `plan` and `carry` describe ONE board - the game just played - and make
+    this a card about that board. Left out, it falls back to your most-played
+    plan and carry in the comp, which is the same card about your typical
+    board there.
+
+    Returns None only when there is nothing honest to compare: too few of your
+    boards, or too small a field. Never returns an empty finding list for a
+    comp it accepted.
+    """
     pool = [r for r in rows if r["identity"] == identity]
     mine = [r for r in pool if r["_mine"]]
     field = [r for r in pool if not r["_mine"]]
     if len(mine) < MIN_MINE or len(field) < MIN_CELL * 2:
         return None
-    shape, levels = testable(pool, mine, field)
-    family = len(shape) + sum(len(v) for v in levels.values())
+
+    set_number = pool[0]["set_num"]
+    if plan is None:
+        plan = _most_played(mine, "plan")
+    if carry is None:
+        carry = _most_played(mine, "carry")
+
+    keys = live(pool, mine, questions(plan, identity, set_number))
+    choices = [(col, val) for col, val in (("carry", carry), ("plan", plan))
+               if val]
+    family = len(keys) + len(choices)
     z = comps.bonferroni_z(family)
 
     found = []
-    for key in shape:
+    for key in keys:
         got = shape_finding(key, mine, field, z)
         if got:
             found.append(got)
-    for col in sorted(levels):
-        for level in levels[col]:
-            got = choice_finding(col, level, mine, field, z)
-            if got:
-                found.append(got)
+    for col, val in choices:
+        got = choice_finding(col, val, mine, field, z)
+        if got:
+            found.append(got)
     # Sort ties on the name: these lists are built by iterating dict keys and
     # two findings on the same strength would otherwise swap places between
     # runs on identical data - see the note in README.
     found.sort(key=lambda f: (-f["strength"], f.get("level") or f["label"]))
-    return {"identity": identity, "mine": len(mine), "field": len(field),
+    return {"identity": identity, "plan": plan, "carry": carry,
+            "mine": len(mine), "field": len(field),
             "family": family, "z": z, "found": found}
+
+
+def _most_played(mine, col):
+    """Your commonest value for a column, ties broken on the name."""
+    counted = Counter(r[col] for r in mine if r[col])
+    if not counted:
+        return None
+    return sorted(counted.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
 
 
 def real_shape(f):
@@ -220,16 +296,24 @@ def describe(f):
     if f["kind"] == "shape":
         d = f["differs"]
         way = "more" if d["gap"] > 0 else "fewer"
-        if f["key"] in ("avg_cost", "carry_tier"):
+        if f["key"] in ("avg_cost", "carry_tier", "top_cost", "style_sum"):
             way = "higher" if d["gap"] > 0 else "lower"
-        line = (f"{f['label']}: you {f['you']:.2f}, the field {f['them']:.2f} "
-                f"({way}, {d['gap']:+.2f} +/-{d['moe']:.2f})")
+        # The raw means and the gap can point opposite ways, and that is not a
+        # bug: the means are what everyone actually fielded, the gap holds the
+        # death round fixed. Surviving longer earns you more of most of these,
+        # so a player can average MORE of something overall while running
+        # FEWER of it than the boards that lasted as long. Printing "you 3.70,
+        # the field 3.49 (fewer)" side by side reads as broken, so the gap
+        # says out loud which comparison it is.
+        line = (f"{f['label']}: you {f['you']:.2f}, the field {f['them']:.2f}"
+                f" - among boards that lasted as long, {way} by "
+                f"{abs(d['gap']):.2f} +/-{d['moe']:.2f}")
         m = f["matters"]
         if m and m["real"]:
             # matters["gap"] is high-minus-low on place_residual, and a LOWER
             # residual is a better placement - so a negative gap means the
             # high side of the metric is the good side. Getting this backwards
-            # prints the advice inverted, which is worse than printing nothing.
+            # prints the advice inverted, which is worse than printing none.
             good_side = "more" if m["gap"] < 0 else "fewer"
             yours = "more" if d["gap"] > 0 else "fewer"
             verdict = ("and that is the better side"
@@ -242,15 +326,17 @@ def describe(f):
         return line
     e = f["effect"]
     cost = "costs" if e["gap"] > 0 else "is worth"
-    return (f"{f['level']} {f['label']}: {cost} {abs(e['gap']):.2f} "
-            f"+/-{e['moe']:.2f} places in this comp - you play it "
-            f"{f['yours']}/{f['played']}, the field {f['share_them']*100:.0f}%")
+    return (f"{f['level']}: {cost} {abs(e['gap']):.2f} +/-{e['moe']:.2f} "
+            f"places in this comp - you play it {f['yours']}/{f['played']}, "
+            f"the field {f['share_them'] * 100:.0f}%")
 
 
 def report(s):
     """Print one comp. Says what the numbers are even when none of them clear."""
+    asked = f"{s['plan']} / {s['carry']}" if s["plan"] else str(s["carry"])
     print(f"\n  {s['identity']}   your {s['mine']} boards vs the field's "
           f"{s['field']}")
+    print(f"    asked as: {asked}")
     print(f"    {s['family']} things tested, so a claim needs z={s['z']:.2f}"
           + ("" if s["mine"] >= READABLE else
              f"   ({s['mine']} games is under the {READABLE} that makes a "
@@ -282,10 +368,7 @@ def report(s):
 
 def comps_for(rows, puuid):
     """Comps you have enough games in, most played first, ties on the name."""
-    count = {}
-    for r in rows:
-        if r["_mine"] and r["identity"]:
-            count[r["identity"]] = count.get(r["identity"], 0) + 1
+    count = Counter(r["identity"] for r in rows if r["_mine"] and r["identity"])
     return [c for c, n in sorted(count.items(), key=lambda kv: (-kv[1], kv[0]))
             if n >= MIN_MINE]
 
@@ -293,16 +376,15 @@ def comps_for(rows, puuid):
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     db = index.ensure()
-    set_num = db.execute(
-        "SELECT MAX(set_num) s FROM boards").fetchone()["s"]
+    set_num = db.execute("SELECT MAX(set_num) s FROM boards").fetchone()["s"]
     puuid = tft.default_puuid()
     rows = load(db, set_num, puuid)
     mine = sum(1 for r in rows if r["_mine"])
 
     print(f"\nYOUR VERSION - set {set_num}, {mine} of your boards "
           f"against {len(rows) - mine} others")
-    print("Survival held fixed on both the outcome and the metric; a gap "
-          "must clear\nthe bar for the whole family tested in its comp.")
+    print("Each comp is asked the questions its own boards are about, so the\n"
+          "list is short on purpose. Survival held fixed on both sides.")
 
     wanted = comps_for(rows, puuid)
     if args:
