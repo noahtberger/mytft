@@ -40,6 +40,7 @@ import json
 import re
 import statistics
 from collections import Counter, defaultdict
+from statistics import NormalDist
 
 import tftdata as tft
 
@@ -328,6 +329,18 @@ RECENT_GAMES = 20     # "lately" - about a long evening, and it matches MIN_ERA
 MIN_FIRST_GAP = 0.08
 
 
+def bonferroni_z(tests):
+    """The z a claim must clear when it is one of `tests` being tried.
+
+    Running k tests at the ordinary bar means k chances to get lucky, so the
+    bar moves to alpha/k. At k=1 this returns 1.96 and nothing changes; at
+    k=4 it is 2.50. Same reasoning as tft.PLAYSTYLE_Z, which was set by
+    measuring the wrong-claim rate rather than by argument - see the note in
+    plan_record for the measurement behind this one.
+    """
+    return NormalDist().inv_cdf(1 - 0.025 / max(tests, 1))
+
+
 def _first_rate(placements):
     """Share of games won outright, with its error bar."""
     n = len(placements) or 1
@@ -382,7 +395,7 @@ def plan_record(games, set_number, recent=RECENT_GAMES):
                      "tier": tft.confidence(len(places))})
     rows.sort(key=lambda r: -r["n"])
 
-    def beats_the_rest(label, places, rest):
+    def beats_the_rest(label, places, rest, z=1.96):
         """Does `places` win outright more often than the player's other
         games - by more than the error bar, AND by enough to be worth saying?
 
@@ -398,10 +411,10 @@ def plan_record(games, set_number, recent=RECENT_GAMES):
         p2, _ = _first_rate(rest)
         n1, n2 = len(places), len(rest)
         se = (p1 * (1 - p1) / n1 + p2 * (1 - p2) / n2) ** 0.5
-        if not se or p1 - p2 <= 1.96 * se or p1 - p2 < MIN_FIRST_GAP:
+        if not se or p1 - p2 <= z * se or p1 - p2 < MIN_FIRST_GAP:
             return None
         return {"plan": label, "n": n1, "first": p1, "others": p2,
-                "gap": p1 - p2, "gap_moe": 1.96 * se,
+                "gap": p1 - p2, "gap_moe": z * se,
                 "tier": tft.confidence(n1),
                 # Every non-coarse `best` is a row spread with these keys;
                 # the coarse one is built from scratch, so it carries them
@@ -415,16 +428,36 @@ def plan_record(games, set_number, recent=RECENT_GAMES):
     # not against the second-best plan, which would be a comparison the
     # player never actually faces. They are choosing between "this plan" and
     # "how I otherwise play".
+    #
+    # Every eligible plan is tested, at a threshold raised for the number of
+    # tests. The first version tested only the highest first-rate plan and
+    # broke, on the theory that one test needs no correction - but selecting
+    # the maximum IS the comparison, so it bought nothing while costing
+    # coverage. Measured over 3000 shuffles of this player's own games, with
+    # placements shuffled so no plan can truly differ:
+    #
+    #     test the top-rate plan only, at 1.96   6.9% false positives
+    #     test every plan, at 1.96               7.0%
+    #     test every plan, Bonferroni            1.4%
+    #
+    # Identical false-positive rate, and the old way could miss a real
+    # finding on a bigger plan because a small noisy one outranked it. The
+    # correction costs power (75% vs 89% detection on a strong effect), which
+    # is the same trade PLAYSTYLE_Z=3.2 already makes: this app's job is to
+    # not name things it cannot back up, and the findings that matter here
+    # clear the higher bar anyway.
     ranked = [r for r in rows if r["plan"] != NO_PLAN
               and r["n"] >= MIN_PLAN_GAMES]
-    best = None
-    for row in sorted(ranked, key=lambda r: -r["first"]):
+    z = bonferroni_z(len(ranked))
+    found = []
+    for row in ranked:
         others = [p for plan, places in by_plan.items() if plan != row["plan"]
                   for p in places]
-        found = beats_the_rest(row["plan"], by_plan[row["plan"]], others)
-        if found:
-            best = {**row, **found}
-        break
+        hit = beats_the_rest(row["plan"], by_plan[row["plan"]], others, z=z)
+        if hit:
+            found.append({**row, **hit})
+    # More than one can survive; report the biggest edge.
+    best = max(found, key=lambda r: r["gap"]) if found else None
 
     # Nothing separated? Try the coarse split. A player who plays a different
     # comp every game never gets 15 games on any single plan, so the test
@@ -443,6 +476,13 @@ def plan_record(games, set_number, recent=RECENT_GAMES):
         # test uses. Leaving no-plan games out of both sides made the coarse
         # claim easier to fire than the finer one it stands in for.
         noplan = by_plan.get(NO_PLAN, [])
+        # This pair is reached only after the fine tests failed, so by the
+        # time it runs the player has had len(ranked) + 2 chances at a
+        # verdict, and the bar has to account for all of them. Correcting
+        # only the fine tests left this branch as the main way a shuffled
+        # season still produced a headline: 6.7% of nulls fired, and 81 of
+        # every 100 of those came from here.
+        coarse_z = bonferroni_z(len(ranked) + 2)
         for label, side, other in (("Rerolling", reroll, levelling),
                                    ("Levelling", levelling, reroll)):
             rest = other + noplan
@@ -452,7 +492,7 @@ def plan_record(games, set_number, recent=RECENT_GAMES):
             # whenever the baseline happens to be 0% or 100%.
             if len(side) < MIN_PLAN_GAMES or len(rest) < MIN_PLAN_GAMES:
                 continue
-            found = beats_the_rest(label, side, rest)
+            found = beats_the_rest(label, side, rest, z=coarse_z)
             if found:
                 best = {**found, "coarse": True}
                 break
