@@ -1,0 +1,11 @@
+# rank_history.jsonl is append-only and written independently on every
+# machine that runs the app, so two sides will routinely have added
+# different lines to the end of the same file. Git's default merge sees
+# that as a conflict in the same region and stops.
+#
+# union takes BOTH sides instead. That is exactly right for this format:
+# every line stands alone, order does not matter (rank.history sorts by
+# timestamp), and duplicates are dropped on read. The worst case is a
+# duplicated reading, which is invisible; the alternative is a merge
+# conflict every time you switch machines.
+rank_history.jsonl merge=union

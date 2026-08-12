@@ -96,14 +96,22 @@ def last_for(puuid, path=HISTORY):
 
 
 def history(puuid, path=HISTORY):
-    """Every snapshot for one player, oldest first.
+    """Every snapshot for one player, oldest first, deduplicated.
 
     A malformed line is skipped rather than fatal: this file is appended to
     by a background thread, and one torn write must not cost the graph.
+
+    Deduplicating on read is what makes the file safe to merge. Two machines
+    both running the app append to their own copies, and .gitattributes
+    tells git to take the union of both rather than declare a conflict -
+    which can leave the same reading in twice. A reading is identified by
+    (player, timestamp), so a repeat is dropped and nothing is lost either
+    way. The alternative was a merge conflict on every machine switch, on
+    the one file in the repo that cannot be regenerated.
     """
     if not path.exists():
         return []
-    out = []
+    out, seen = [], set()
     for line in path.read_text().splitlines():
         line = line.strip()
         if not line:
@@ -112,8 +120,13 @@ def history(puuid, path=HISTORY):
             row = json.loads(line)
         except ValueError:
             continue
-        if row.get("puuid") == puuid:
-            out.append(row)
+        if row.get("puuid") != puuid:
+            continue
+        stamp = row.get("at")
+        if stamp in seen:
+            continue
+        seen.add(stamp)
+        out.append(row)
     out.sort(key=lambda r: r.get("at", 0))
     return out
 
