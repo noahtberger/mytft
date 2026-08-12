@@ -103,15 +103,18 @@ def version_card(set_number, puuid, identity):
     thin = ("" if study["mine"] >= ver.READABLE else
             f' Under {ver.READABLE} boards, so treat it as a hint.')
     return f"""
-  <div class="card full">
+  <div class="card">
     <h3>Your {esc(identity)}</h3>
     <p class="tip"><strong>{lead}</strong></p>
     <ul class="rowlist" style="margin:0">{items}</ul>
-    <p class="fine">Your {study["mine"]} boards in this comp against the
-    field&rsquo;s {study["field"]}, so this is never &ldquo;you play a bad
-    comp&rdquo; &mdash; it is how you build this one. Survival is held fixed
-    on both sides. {study["family"]} things were tested, so a claim needs
-    z={study["z"]:.2f}.{thin}</p>
+    <p class="fine">Your {study["mine"]} boards against the field&rsquo;s
+    {study["field"]} on the same comp, survival held fixed.{thin}</p>
+    <details><summary>How this was judged</summary>
+    <p class="fine">A finding has to differ from the field AND move
+    placement, and the effect is measured on the field&rsquo;s boards only -
+    never on yours, or it would be estimated from the same games it then
+    judges. {study["family"]} things were tested here, so a claim needs
+    z={study["z"]:.2f} rather than the usual 1.96.</p></details>
   </div>"""
 
 
@@ -262,8 +265,8 @@ def render(games, level_par, set_number, idx, who, puuid):
 {picker}
 <div class="grid" style="margin-top:20px">
   {margin}
-  {yours}
   {pattern}
+  {yours}
   <div class="card full">
     <h3>The lobby</h3>
     {table}
