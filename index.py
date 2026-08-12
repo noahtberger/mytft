@@ -54,7 +54,7 @@ DB_PATH = Path(__file__).with_name("boards.db")
 # Bump when comps.parts(), tft.playstyle() or the columns below change what
 # a row MEANS. A stamp mismatch triggers a rebuild instead of mixing two
 # models in one table.
-MODEL_VERSION = "4"
+MODEL_VERSION = "5"
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS stamp (key TEXT PRIMARY KEY, value TEXT);
@@ -183,11 +183,7 @@ def build(db, only_new=True, progress=None):
         have = {r["match_id"] for r in
                 db.execute("SELECT DISTINCT match_id FROM boards")}
 
-    # The survival residual needs every board in a set at once - it is
-    # "against everyone who died on the same round" - so read first, write
-    # after. At this size that is a few MB and far simpler than trying to
-    # keep a running mean correct as rows arrive.
-    pending, per_set = [], {}
+    pending = []
     for path in tft.match_files():
         got = read_match(path)
         if got is None:
@@ -197,35 +193,23 @@ def build(db, only_new=True, progress=None):
             continue
         have.add(match_id)
         pending.append((match_id, info, boards))
-        # Only boards that will actually get a row feed the per-round means.
-        # Counting disconnects here and not below left the stored residual
-        # disagreeing with tft.survival_residuals by up to 0.011 - harmless
-        # in size, but this column exists to be the canonical answer.
-        per_set.setdefault(info["set_num"], []).extend(
-            (b["last_round"], b["placement"])
-            for b in boards if tft.shop_units(b))
 
     if not pending:
         return 0, 0
 
-    # Residuals are per set: rounds mean different things across sets.
-    means = {}
-    for set_num, entries in per_set.items():
-        by_round = {}
-        for rnd, place in entries:
-            by_round.setdefault(rnd, []).append(place)
-        means[set_num] = {r: sum(v) / len(v) for r, v in by_round.items()}
-
-    rows, item_rows = [], []
+    # Rows go in with a null residual and the whole set is re-derived below.
+    # Computing it here from the boards in hand is what the first version did,
+    # and it was wrong on exactly the path that matters - see
+    # recompute_residuals.
+    rows, item_rows, touched = [], [], set()
     for i, (match_id, info, boards) in enumerate(pending):
         for b in boards:
             if not tft.shop_units(b):
                 continue          # a disconnect has no board to describe
-            base = means[info["set_num"]].get(b["last_round"])
-            residual = b["placement"] - base if base is not None else None
-            row, items = board_row(match_id, info, b, residual)
+            row, items = board_row(match_id, info, b, None)
             rows.append(row)
             item_rows.extend(items)
+            touched.add(info["set_num"])
         if progress and i % 200 == 0:
             progress(i, len(pending))
 
@@ -233,10 +217,47 @@ def build(db, only_new=True, progress=None):
         f"INSERT OR REPLACE INTO boards VALUES ({','.join('?' * 24)})", rows)
     db.executemany(
         "INSERT INTO board_items VALUES (?,?,?,?,?,?,?)", item_rows)
+    recompute_residuals(db, touched)
     db.execute("INSERT OR REPLACE INTO stamp VALUES ('model', ?)",
                (MODEL_VERSION,))
     db.commit()
     return len(pending), len(rows)
+
+
+def recompute_residuals(db, sets):
+    """Re-derive place_residual for a whole set, from every board in it.
+
+    This runs over the entire set on every build, not just the new rows, and
+    that is the point. The residual is "against everyone who died on the same
+    round", so it is a property of the population, not of one board: adding
+    games shifts the round means and every existing row goes slightly stale.
+
+    The first version computed the means from the boards being inserted. On a
+    full rebuild that is the whole set and it is correct, which is why it
+    tested clean. On a top-up - fetch a few games, run index.py, the ordinary
+    daily path - it computed them from the handful of new boards instead.
+    Measured on this pool by building once in full and once as 274 matches
+    plus a 3-match top-up, all 24 topped-up boards disagreed, by up to 0.94
+    places against a column whose whole standard deviation is 0.88, and 5 of
+    them came out at exactly 0.00 because their death round appeared once in
+    the batch and they were being compared against themselves.
+
+    Day one of a new set is the worst case: the newest set holds one match,
+    so every board in it would be scored against the seven people it just
+    played. MODEL_VERSION is bumped alongside this so an index built by the
+    old code is thrown away rather than half-corrected.
+    """
+    for set_num in sorted(s for s in sets if s is not None):
+        rows = db.execute(
+            "SELECT match_id, puuid, last_round, placement FROM boards "
+            "WHERE set_num=?", (set_num,)).fetchall()
+        if not rows:
+            continue
+        res = tft.survival_residuals(
+            [(r["last_round"], r["placement"]) for r in rows])
+        db.executemany(
+            "UPDATE boards SET place_residual=? WHERE match_id=? AND puuid=?",
+            [(v, r["match_id"], r["puuid"]) for r, v in zip(rows, res)])
 
 
 def ensure(path=DB_PATH, quiet=True):
