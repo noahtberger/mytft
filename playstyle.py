@@ -156,6 +156,50 @@ if shift:
          f"({', '.join(was)} then {', '.join(now)}), so the style switch and "
          "the meta moved together and neither can be credited on its own.")
 
+# ---- across the set boundary ----------------------------------------------
+# Absent until a second set exists on disk, which is the honest state right up
+# until the rollover - and the one section that can speak on day one of it.
+crossed = tft.carryover()
+if crossed:
+    print(f"\nWHAT CARRIED OVER  (set {crossed['old']} -> set {crossed['new']})")
+    print()
+    played = crossed["new_games"]
+    if not crossed["metrics"]:
+        # One game gives a metric no spread, so mean_gap declines to judge it
+        # and there is no table to print. Say that in words - an empty table
+        # under a heading reads as "measured, found nothing".
+        wrap(f"Set {crossed['new']} is {played} game{'' if played == 1 else 's'} "
+             f"old. One game has no spread to measure, so there is nothing to "
+             f"compare yet - your set {crossed['old']} profile above is still "
+             "the best read on you, and it is the one that carries over.")
+    else:
+        if not crossed["enough"]:
+            wrap(f"Set {crossed['new']} is {played} "
+                 f"game{'' if played == 1 else 's'} old, so nothing here gets "
+                 f"named yet - it takes about {tft.MIN_PLAYSTYLE_GAMES}. The "
+                 "numbers are real; the reading of them is not.")
+        else:
+            wrap(f"{played} games into set {crossed['new']}, against "
+                 f"{crossed['old_games']} in set {crossed['old']}.")
+
+        old_col, new_col = f"set {crossed['old']}", f"set {crossed['new']}"
+        print(f"\n  {'':<24}{old_col:>9}{new_col:>9}{'change':>9}   read")
+    for m in crossed["metrics"]:
+        if not crossed["enough"]:
+            read = "too early to say"
+        elif m["real"]:
+            read = f"{m['more'] if m['change'] > 0 else m['less']} than before"
+        else:
+            read = "carried over unchanged"
+        print(f"  {m['label']:<24}{m['old_gap']:>+9.2f}{m['new_gap']:>+9.2f}"
+              f"{m['change']:>+9.2f}   {read}")
+    if crossed["metrics"]:
+        print()
+        wrap("Both columns are your gap to your own lobby, not your raw "
+             "average. A new set moves econ and board sizes for all eight "
+             "players at once, and reading raw numbers would report that as "
+             "something you did.")
+
 print()
 wrap("None of this says the lobby is right and you are wrong. It says where "
      "you differ, which is where a habit lives - and habits are the part of "

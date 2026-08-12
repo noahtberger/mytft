@@ -734,6 +734,106 @@ def playstyle_facts(era, room, z=PLAYSTYLE_Z):
     return out
 
 
+def sets_played(puuid=None):
+    """How many games this player has in each TFT set, oldest set first.
+
+    load_games exits the process when the set it is handed is empty. That is
+    right for a report someone typed TFT_SET into, and wrong for code asking
+    "is a cross-set comparison possible at all" - on day one of a new set the
+    answer is no, and finding that out must not kill the report. So this
+    answers the question first and the caller never asks for a set that is
+    not there.
+    """
+    puuid = puuid or default_puuid()
+    found = defaultdict(int)
+    for path in match_files():
+        try:
+            info = json.loads(path.read_text())["info"]
+        except (json.JSONDecodeError, KeyError, OSError):
+            continue
+        if any(p["puuid"] == puuid for p in info.get("participants") or []):
+            found[info.get("tft_set_number") or 0] += 1
+    return dict(sorted(found.items()))
+
+
+def carryover(puuid=None, old_set=None, new_set=None, z=PLAYSTYLE_Z):
+    """What changed about how you play when the set changed under you.
+
+    Set 18 lands 26 August and every comp number in this app resets to zero
+    that morning - for you and for the sites too. Playstyle is what crosses
+    the boundary, so this is the one comparison that can speak on day one,
+    and "how fast do you find your footing in a new set" is a real skill that
+    nothing else measures.
+
+    THE COMPARISON IS GAP-TO-LOBBY, NOT RAW NUMBERS
+    -----------------------------------------------
+    It compares (you minus your lobby) in the old set against (you minus your
+    lobby) in the new one - never your raw averages across sets. A new set
+    moves econ pacing and board sizes for all eight players at once, so if
+    everybody's boards get bigger and we read raw numbers, a set-wide change
+    is reported as something you did. Normalising against the lobby is the
+    same rule the rest of this file follows, and here it is load-bearing
+    rather than a refinement: it is the only thing making two sets
+    comparable.
+
+    Returns None when there is only one set on disk, which is the honest
+    state until the rollover. `enough` says whether the new set has the games
+    to name anything yet; the numbers are returned either way so a card can
+    show them and say it is early.
+    """
+    puuid = puuid or default_puuid()
+    played = sets_played(puuid)
+    order = sorted(played)
+    if len(order) < 2:
+        return None
+    new_set = new_set if new_set is not None else order[-1]
+    earlier = [s for s in order if s < new_set]
+    if old_set is None:
+        if not earlier:
+            return None
+        old_set = earlier[-1]
+    if old_set not in played or new_set not in played:
+        return None
+
+    sides = {}
+    for label, chosen in (("old", old_set), ("new", new_set)):
+        games, _ = load_games(puuid, set_number=chosen)
+        sides[label] = lobby_profiles(games, chosen)
+
+    metrics = []
+    for key, label, more, less in PLAYSTYLE_LABELS:
+        judged = {}
+        for side in ("old", "new"):
+            mine, room = sides[side]
+            judged[side] = mean_gap([p[key] for p in mine],
+                                    [p[key] for p in room], z=1.96)
+        if not judged["old"] or not judged["new"]:
+            continue
+        # mean_gap's moe is z standard errors; recover the plain SE so the two
+        # sets' error bars can be combined, then re-apply the strict bar.
+        spread = ((judged["old"]["moe"] / 1.96) ** 2
+                  + (judged["new"]["moe"] / 1.96) ** 2) ** 0.5
+        change = judged["new"]["gap"] - judged["old"]["gap"]
+        moe = z * spread
+        metrics.append({
+            "key": key, "label": label, "more": more, "less": less,
+            "old_gap": judged["old"]["gap"], "new_gap": judged["new"]["gap"],
+            "you_old": judged["old"]["a"], "you_new": judged["new"]["a"],
+            "change": change, "moe": moe,
+            "real": abs(change) > moe and moe > 0,
+            "z": abs(change) / spread if spread else 0.0,
+        })
+    # Tie-break on the label: this list is built from a fixed sequence but two
+    # metrics on an identical z would otherwise depend on sort stability.
+    metrics.sort(key=lambda m: (-m["z"], m["label"]))
+
+    new_games = len(sides["new"][0])
+    return {"old": old_set, "new": new_set,
+            "old_games": len(sides["old"][0]), "new_games": new_games,
+            "enough": new_games >= MIN_PLAYSTYLE_GAMES,
+            "metrics": metrics}
+
+
 def default_puuid():
     """Whoever fetch_matches.py last downloaded for - the owner of this copy.
 
