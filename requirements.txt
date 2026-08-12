@@ -1,0 +1,23 @@
+# Everything MyTFT needs beyond the standard library.
+#
+#   python -m venv .venv
+#   .venv/bin/pip install -r requirements.txt          (Mac/Linux)
+#   .venv\Scripts\pip install -r requirements.txt      (Windows)
+#
+# Deliberately short. The reports, the web app, the SQLite index and every
+# chart are standard library only - sqlite3, json, statistics and hand-built
+# SVG rather than pandas and matplotlib. That is what lets a fresh clone run
+# `python stats.py` with nothing installed at all.
+
+# Talking to Riot. The only hard requirement, and riot.py imports it lazily
+# so the offline reports still run without it.
+requests>=2.31
+
+# The desktop window app.py opens. Not needed to use the app in a browser
+# via `python serve.py` - only to build or run the packaged version.
+pywebview>=4.4
+
+# Building that packaged version. Run it on the machine you want the app
+# for: a bundle is platform-specific, so the Mac .app and the Windows .exe
+# each have to be built where they will run.
+pyinstaller>=6.3

@@ -41,10 +41,15 @@ def find_home():
 
     here = Path(__file__).resolve().parent
     roots = [here, here.parent, Path.home()]
-    # A .app bundle sits several folders deep inside itself; the project is
-    # near where the bundle was put, not where its executable ended up.
+    # A frozen build buries its executable, and by a different depth on each
+    # platform: MyTFT.app/Contents/MacOS/MyTFT is three deep, while Windows
+    # COLLECT gives dist/MyTFT/MyTFT.exe, one deep. Walking every level up
+    # from the executable covers both without the spec having to say which
+    # it is - the project is wherever the bundle was PUT, not where its
+    # executable ended up inside it.
     if getattr(sys, "frozen", False):
-        roots.insert(0, Path(sys.executable).resolve().parents[3])
+        exe = Path(sys.executable).resolve()
+        roots = list(exe.parents[:5]) + roots
 
     for root in roots:
         if (root / "names.json").exists() and (root / "serve.py").exists():

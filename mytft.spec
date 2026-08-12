@@ -10,7 +10,17 @@
 # source, so anything imported inside a function is invisible to it and
 # has to be named here or the packaged app dies on first use.
 
+import sys
+from pathlib import Path
+
 block_cipher = None
+
+# A frozen app is platform-specific and so is this recipe. The two things
+# that differ are the pywebview backend (PyInstaller cannot see it - the
+# library picks one at runtime) and the macOS-only .app wrapper.
+IS_MAC = sys.platform == "darwin"
+BACKENDS = (["webview.platforms.cocoa"] if IS_MAC
+            else ["webview.platforms.edgechromium", "webview.platforms.winforms"])
 
 a = Analysis(
     ["app.py"],
@@ -20,12 +30,13 @@ a = Analysis(
     hiddenimports=[
         "serve", "build_site", "theme", "tftdata", "riot", "scout",
         "pregame", "postgame", "pregame_page", "postgame_page",
-        "comps", "seed",
+        "comps", "seed", "rank", "index", "items",
         "requests", "webview",
         # pywebview picks its backend at runtime, which PyInstaller's
-        # source scan cannot see - without this the frozen app has no
-        # Cocoa backend and the window renders nothing.
-        "webview.platforms.cocoa",
+        # source scan cannot see - without the right one the frozen app has
+        # no backend and the window renders nothing. Cocoa on a Mac,
+        # EdgeChromium (WebView2) on Windows with winforms as the fallback.
+        *BACKENDS,
     ],
     hookspath=[],
     runtime_hooks=[],
@@ -42,12 +53,16 @@ exe = EXE(
     strip=False,
     upx=False,
     console=False,                 # no terminal window
+    icon=("icon/MyTFT.icns" if IS_MAC else
+          ("icon/MyTFT.ico" if Path("icon/MyTFT.ico").exists() else None)),
 )
 coll = COLLECT(
     exe, a.binaries, a.zipfiles, a.datas,
     strip=False, upx=False, name="MyTFT",
 )
-app = BUNDLE(
+# BUNDLE wraps the folder into MyTFT.app and only means anything on macOS.
+# On Windows the deliverable is dist/MyTFT/MyTFT.exe from COLLECT above.
+app = IS_MAC and BUNDLE(
     coll,
     name="MyTFT.app",
     icon="icon/MyTFT.icns",
