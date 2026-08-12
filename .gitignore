@@ -34,3 +34,7 @@ icon/icon.html
 
 # The LAN toggle is a local choice, not a project setting
 lan-access
+
+# Flat copy of every board, rebuilt from matches/ + pool/ by index.py.
+# Derived and disposable - `python index.py --rebuild` regenerates it.
+boards.db
