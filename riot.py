@@ -106,6 +106,26 @@ def resolve(riot_id):
     return account["puuid"], f"{account['gameName']}#{account['tagLine']}"
 
 
+def current_rank(puuid, name=None, keep=True):
+    """This player's ranked TFT standing right now, and write it down.
+
+    Riot serves rank as a single current value with no history, so the only
+    way a graph of it can ever exist is to keep every reading. `keep` writes
+    a snapshot via rank.record(), which no-ops unless the rank has moved.
+
+    Returns the raw entry (tier / rank / leaguePoints / wins / losses) or
+    None for an unranked player. One request.
+    """
+    import rank as rank_log
+
+    payload = riot_get(f"{PLATFORM}/tft/league/v1/by-puuid/{puuid}",
+                       allow_404=True)
+    entry = rank_log.entry_from(payload)
+    if entry and keep:
+        rank_log.record(puuid, entry, name=name)
+    return entry
+
+
 def saved_match_ids():
     """Every match id already on disk, so we never pay for one twice."""
     return {p.stem for p in tft.match_files()}

@@ -128,6 +128,12 @@ def watch_for_games():
                 STATS_CACHE.clear()          # their numbers just changed
                 with WATCH_LOCK:
                     WATCH["match_id"] = newest
+                # A game just finished, so the LP just moved. This is the
+                # only moment it is worth a request: Riot keeps no history,
+                # so a reading not taken now is gone for good, and taking it
+                # every cycle instead would spend the budget on a number
+                # that only changes when a game ends.
+                riot.current_rank(owner)
             with WATCH_LOCK:
                 WATCH["checked"] = int(time.time())
         except Exception:                    # noqa: BLE001
@@ -202,6 +208,14 @@ def run_job(job_id, riot_id):
 
         have, _ = riot.backfill(puuid, want=GAMES_WANTED, progress=progress,
                                 into=own_dir(puuid))
+        # One extra request per new player, and it starts their rank history
+        # from today. Riot serves no past, so the first reading is only ever
+        # worth as much as how early it was taken. Never fatal: an expired
+        # key must not turn a working lookup into an error page.
+        try:
+            riot.current_rank(puuid, name=label)
+        except Exception:                            # noqa: BLE001
+            pass
         if not have:
             set_job(job_id, status=None, error=(
                 f"{label} has no ranked TFT games in the current set. "

@@ -514,6 +514,24 @@ def _sharpest_split(profiles, min_era):
     return best if best and best["z"] >= SHIFT_THRESHOLD else None
 
 
+def all_shifts(profiles, min_era=MIN_ERA):
+    """Every style change in order, oldest first - the whole career, not the
+    current era.
+
+    latest_shift answers "who is this player now" and throws the rest away.
+    A chart of the set wants all of them, because a bend in the results next
+    to a change of style is worth more than either alone.
+    """
+    out, offset, rest = [], 0, profiles
+    while True:
+        shift = _sharpest_split(rest, min_era)
+        if shift is None:
+            return out
+        shift = {**shift, "cut": shift["cut"] + offset}
+        out.append(shift)
+        offset, rest = shift["cut"], rest[shift["cut"] - offset:]
+
+
 def latest_shift(profiles, min_era=MIN_ERA):
     """Find the MOST RECENT change in someone's playstyle.
 

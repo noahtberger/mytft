@@ -25,8 +25,10 @@ import json
 import os
 import statistics
 from collections import defaultdict
+from datetime import datetime
 from pathlib import Path
 
+import rank as rank_mod
 import tftdata as tft
 from theme import (BRAND, CSS, SCRIPT, app_bar, esc, fit, plural,
                    stale_names_banner)
@@ -282,6 +284,144 @@ def playstyle_chart(rows):
         parts.append(f'<text x="{label_w + plot + 6}" y="{y + 24}" '
                      f'class="tick">{esc(read)}</text>')
 
+    parts.append("</svg>")
+    return "".join(parts)
+
+
+def form_chart(placements, marks=(), window=20):
+    """Rolling average placement across the set, oldest game on the left.
+
+    This is the chart people ask for when they ask for a rank graph, and it
+    is the one this data can actually support: Riot serves no LP history, so
+    the honest version of "was I getting better" is the thing every game
+    does record - where you finished.
+
+    A single game says nothing (placement has sd 2.3), so nothing is drawn
+    until `window` games have been played and every point is the mean of the
+    last `window`. The lifetime average is the reference line, because the
+    question is "better than usual", and lower is better - the y-axis is
+    inverted so up on the page means up in the game.
+
+    `marks` are (index, label) for the style changes latest_shift found:
+    those are the moments the player became a different player, and a bend
+    in this line next to one is worth more than the line alone.
+    """
+    if len(placements) < window + 2:
+        return None
+    w, h = 680, 240
+    left, right, top, base = 46, 14, 22, 190
+    span = w - left - right
+
+    rolling = [sum(placements[i - window:i]) / window
+               for i in range(window, len(placements) + 1)]
+    lifetime = sum(placements) / len(placements)
+    lo = min(min(rolling), lifetime) - 0.35
+    hi = max(max(rolling), lifetime) + 0.35
+
+    def x_at(i):
+        return left + span * i / max(len(rolling) - 1, 1)
+
+    def y_at(v):                      # inverted: 1st at the top
+        return top + (base - top) * (v - lo) / (hi - lo)
+
+    parts = [f'<svg viewBox="0 0 {w} {h}" class="chart" role="img" '
+             f'aria-label="Rolling {window}-game average placement across '
+             f'{len(placements)} games">']
+
+    for value in (lo + (hi - lo) * f for f in (0.0, 0.5, 1.0)):
+        y = y_at(value)
+        parts.append(f'<line x1="{left}" y1="{y:.1f}" x2="{w - right}" '
+                     f'y2="{y:.1f}" class="axis"/>')
+        parts.append(f'<text x="{left - 8}" y="{y + 4:.1f}" class="tick" '
+                     f'text-anchor="end">{value:.1f}</text>')
+
+    y_life = y_at(lifetime)
+    parts.append(f'<line x1="{left}" y1="{y_life:.1f}" x2="{w - right}" '
+                 f'y2="{y_life:.1f}" class="rule-dash"/>')
+    parts.append(f'<text x="{w - right}" y="{y_life - 8:.1f}" class="tick" '
+                 f'text-anchor="end">set average {lifetime:.2f}</text>')
+
+    for at, name in marks:
+        i = at - window
+        if not 0 <= i < len(rolling):
+            continue
+        x = x_at(i)
+        parts.append(f'<line x1="{x:.1f}" y1="{top - 8}" x2="{x:.1f}" '
+                     f'y2="{base + 6}" class="rule-dash"/>')
+        parts.append(f'<text x="{x:.1f}" y="{top - 12}" class="tick" '
+                     f'text-anchor="middle">{esc(name)}</text>')
+
+    line = " ".join(f"{x_at(i):.1f},{y_at(v):.1f}"
+                    for i, v in enumerate(rolling))
+    parts.append(f'<polyline points="{line}" fill="none" '
+                 f'stroke="var(--accent)" class="trend"/>')
+
+    # Endpoints only: 177 dots is a smear, and the two that carry meaning
+    # are where it started and where it is now.
+    for i in (0, len(rolling) - 1):
+        games_to = i + window
+        parts.append(
+            f'<circle cx="{x_at(i):.1f}" cy="{y_at(rolling[i]):.1f}" r="5" '
+            f'fill="var(--accent)" class="mark ring" '
+            f'data-tip="games {games_to - window + 1}&ndash;{games_to} '
+            f'&middot; {rolling[i]:.2f} average"/>')
+
+    parts.append(f'<text x="{left}" y="{base + 24}" class="tick">game '
+                 f'{window}</text>')
+    parts.append(f'<text x="{w - right}" y="{base + 24}" class="tick" '
+                 f'text-anchor="end">game {len(placements)}</text>')
+    parts.append(f'<text x="{left}" y="{h - 6}" class="tick">'
+                 f'each point averages the {window} games up to it; '
+                 f'higher on this chart is better</text>')
+    parts.append("</svg>")
+    return "".join(parts)
+
+
+def rank_chart(points):
+    """Actual LP over time, once there is any to draw.
+
+    `points` is (when_ms, ladder_points, label) from rank.series(). Empty
+    until the recorder has caught at least two different ranks, which is the
+    honest state: Riot keeps no history, so this chart cannot show anything
+    from before the day recording started.
+    """
+    if len(points) < 2:
+        return None
+    w, h = 680, 220
+    left, right, top, base = 58, 14, 22, 172
+    span = w - left - right
+
+    times = [p[0] for p in points]
+    values = [p[1] for p in points]
+    t0, t1 = min(times), max(times)
+    lo, hi = min(values) - 30, max(values) + 30
+
+    def x_at(t):
+        return left + span * (t - t0) / max(t1 - t0, 1)
+
+    def y_at(v):
+        return base - (base - top) * (v - lo) / (hi - lo)
+
+    parts = [f'<svg viewBox="0 0 {w} {h}" class="chart" role="img" '
+             f'aria-label="Ranked LP across {len(points)} recorded readings">']
+    for frac in (0.0, 0.5, 1.0):
+        v = lo + (hi - lo) * frac
+        y = y_at(v)
+        parts.append(f'<line x1="{left}" y1="{y:.1f}" x2="{w - right}" '
+                     f'y2="{y:.1f}" class="axis"/>')
+        parts.append(f'<text x="{left - 8}" y="{y + 4:.1f}" class="tick" '
+                     f'text-anchor="end">{rank_mod.tier_at(v)}</text>')
+
+    line = " ".join(f"{x_at(t):.1f},{y_at(v):.1f}" for t, v, _ in points)
+    parts.append(f'<polyline points="{line}" fill="none" '
+                 f'stroke="var(--accent)" class="trend"/>')
+    for t, v, name in points:
+        parts.append(f'<circle cx="{x_at(t):.1f}" cy="{y_at(v):.1f}" r="4" '
+                     f'fill="var(--accent)" class="mark ring" '
+                     f'data-tip="{esc(name)}"/>')
+    parts.append(f'<text x="{left}" y="{h - 6}" class="tick">'
+                 f'{esc(points[0][2])} to {esc(points[-1][2])}, '
+                 f'{len(points)} readings</text>')
     parts.append("</svg>")
     return "".join(parts)
 
@@ -626,6 +766,48 @@ body.append(f"""
     dashed line. {shape} The average carries a margin of error of
     &plusmn;{overall['moe']:.2f} places.</figcaption>
   </figure>
+</section>""")
+
+# ---- rank over time, and the form curve that stands in for it ---------------
+PUUID = games[0]["puuid"]
+placements_oldest_first = [g["placement"] for g in timeline]
+# Both changepoints, not just the current one: the chart covers the whole set.
+era_marks = [(s["cut"], "style change") for s in tft.all_shifts(mine_style)]
+# Riot serves rank as one current value and keeps no history, so an LP graph
+# can only cover the period since this copy started recording. Until there
+# are two readings, the honest chart is the one every game does record.
+rank_points = rank_mod.series(PUUID)
+rank_svg = rank_chart(rank_points)
+form_svg = form_chart(placements_oldest_first, marks=era_marks)
+
+if rank_svg or form_svg:
+    blocks = []
+    if rank_svg:
+        first = rank_mod.history(PUUID)[0]
+        since = datetime.fromtimestamp(first["at"] / 1000).strftime("%-d %b %Y")
+        blocks.append(f"""
+  <figure style="margin-top:26px">
+    {rank_svg}
+    <figcaption>Every rank reading since {esc(since)}, when this copy started
+    keeping them. Riot serves only your current rank and no history, so
+    nothing before that date exists to draw &mdash; this graph grows from
+    here.</figcaption>
+  </figure>""")
+    if form_svg:
+        blocks.append(f"""
+  <figure style="margin-top:26px">
+    {form_svg}
+    <figcaption>Rolling 20-game average placement, oldest game on the
+    left. This is what a rank graph would show if Riot kept one &mdash; where
+    you finished is the only thing every game records. Dashed verticals are
+    the points where your style changed.</figcaption>
+  </figure>""")
+    body.append(f"""
+<section>
+  <p class="eyebrow">Over the set</p>
+  <h2>{'Rank and form' if rank_svg else 'Form across the set'}</h2>
+  <p class="lede">Whether the numbers moved, and when.</p>
+  {''.join(blocks)}
 </section>""")
 
 if coverage_rows:
