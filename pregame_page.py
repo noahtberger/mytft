@@ -281,7 +281,14 @@ def style_card(games, set_number):
                    f'habit yet &mdash; that takes about '
                    f'{tft.MIN_PLAYSTYLE_GAMES} games and a clear gap. They '
                    f'are still what you did.')
-    return lead + listed + note
+    # The whole card folds - the user's call: "making the how you play a
+    # drop down button entirely." It reads the same for weeks at a time
+    # (an era moves every ~20 games), so on a daily page it is furniture;
+    # the fold label carries the era size so the face still says what is
+    # being offered. The sparse paths above stay unfolded on purpose - a
+    # toggle that opens onto "no data" is a trap, not a card.
+    return fold(f'Your last {plural(len(era), "game")}, next to your '
+                f'lobbies', lead + listed + note)
 
 
 def render(games, set_number, who, puuid, scouted=None):
@@ -474,11 +481,15 @@ def render(games, set_number, who, puuid, scouted=None):
     {strong}
     {fit_note}
     {more}
-    {fold("How each plan places here",
-          f'<ul class="rowlist" style="margin-top:8px">{plan_rows}</ul>')}
     {details}
   </div>
   <div class="card">
+    <h3>How each plan places</h3>
+    <ul class="rowlist" style="margin:0">{plan_rows}</ul>
+    <p class="fine">Same {m["boards"]} boards as the meta, grouped by plan
+    instead of comp.</p>
+  </div>
+  <div class="card full">
     <h3>How you play</h3>
     {style}
   </div>
