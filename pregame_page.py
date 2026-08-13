@@ -171,13 +171,15 @@ def plan_card(record):
     # Reuses the stats page's own .stats/.stat tiles rather than inventing
     # a second look for the same idea. The context sentence that used to
     # follow the verdict moves into the fold, above the table.
+    # "1sts on it" rather than "1sts on Fast 9": the plan's name now sits
+    # big in the card heading, and repeating it in a 10px label under a
+    # 27px number demotes it back to fine print - the exact complaint.
+    label = "1sts on it"
     if best.get("coarse"):
-        label = f'1sts when {best["plan"]}'
         context = ('No single plan has enough games to read on its own, so '
                    'this is the coarser question: rolling for 3-stars, or '
                    'levelling to the big units.')
     else:
-        label = f'1sts on {best["plan"]}'
         context = ('Your average placement barely moves between plans; what '
                    'changes is how often the game ends with you on top.')
     head = (f'<div class="stats" style="margin:0 0 12px">'
@@ -290,6 +292,13 @@ def render(games, set_number, who, puuid, scouted=None):
     # -- what wins YOUR games: your own record, split by plan --------------
     record = comps.plan_record(games, set_number)
     wins = plan_card(record)
+    # The answer goes in the heading, big, next to the question - the user's
+    # call on the tiles' first pass: "emphasize the fast 9 more, its a little
+    # too tiny." Only when there IS an answer; the no-verdict card keeps a
+    # plain heading rather than promoting a plan it declined to name.
+    best_plan = (record or {}).get("best") or {}
+    wins_answer = (f' <span class="answer">{esc(best_plan["plan"])}</span>'
+                   if best_plan.get("plan") else "")
 
     # -- scouting ----------------------------------------------------------
     results = scouted_rows(scouted) if scouted else ""
@@ -446,7 +455,7 @@ def render(games, set_number, who, puuid, scouted=None):
          "in the lobbies you actually get put in.")}
 <div class="grid">
   <div class="card full">
-    <h3>What wins you games</h3>
+    <h3>What wins you games{wins_answer}</h3>
     {wins}
   </div>
   <div class="card full">
@@ -466,7 +475,7 @@ def render(games, set_number, who, puuid, scouted=None):
     <h3>The meta &middot; {f'{patch_word} {m["patch"]} &middot; ' if m["patch"] else ""}{m["boards"]} boards</h3>
     {strong}
     {more}
-    {fold("The ways to spend gold",
+    {fold("How each plan places here",
           f'<ul class="rowlist" style="margin-top:8px">{plan_rows}</ul>')}
     {details}
   </div>

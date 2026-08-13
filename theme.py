@@ -456,6 +456,14 @@ details summary:hover { color:var(--ink); }
 .card .tablewrap { background:none; border:0; padding:0; }
 .card .stats { margin:0; border:0; background:var(--line); }
 .card details summary { margin:12px 0 0; }
+/* The card's answer, sitting inside its eyebrow heading. The h3 is a 10.5px
+   uppercase label, so the answer at twice that reads as the headline of the
+   card - "WHAT WINS YOU GAMES  Fast 9" - which is the right hierarchy: the
+   question small, the answer big. text-transform resets so plan names keep
+   their own capitals instead of shouting. */
+.card > h3 .answer { font-size:21px; letter-spacing:-.02em;
+                     text-transform:none; color:var(--ink);
+                     margin-left:10px; vertical-align:middle; }
 .fine { color:var(--muted); font-size:12.5px; line-height:1.5; margin:12px 0 0; }
 .banner { background:var(--panel); border:1px solid var(--neg);
           border-left-width:3px; border-radius:3px; padding:12px 16px;
