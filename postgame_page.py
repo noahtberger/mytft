@@ -106,17 +106,49 @@ def version_card(set_number, puuid, match_id, identity):
             if f not in real and ver.worth_saying(f)]
     shown = (real + rest)[:3]
 
+    # Board findings render as tiles - the same value-plus-kicker grammar as
+    # the pre-game verdict, because "3.5 gold a unit, more than 94% of
+    # theirs" is a number pair wearing a sentence. The percentile line
+    # mirrors ver.plain()'s wording and its consequence logic exactly, so
+    # the tile and the sentence can never disagree about which side is good.
+    # Carry and plan findings stay sentences: "Akali costs 0.3 places here"
+    # has no value-vs-pack pair to tile.
+    tiles, lines = "", []
+    for f in shown:
+        if f["kind"] != "board":
+            lines.append(ver.plain(f))
+            continue
+        v = f["you"]
+        n = f"{v:.0f}" if float(v) == int(v) else f"{v:.1f}"
+        side = (f'more than {f["below"] * 100:.0f}% of theirs'
+                if f["high"] else
+                f'{f["above"] * 100:.0f}% of theirs had more')
+        m = f["matters"]
+        if m and m["real"]:
+            side += (" &middot; the better side"
+                     if f["high"] == (m["gap"] < 0) else
+                     f' &middot; other side worth ~{abs(m["gap"]):.1f} places')
+        tiles += (f'<div class="stat"><span class="n">{n}</span>'
+                  f'<span class="k">{esc(ver.SHAPE[f["key"]])}</span>'
+                  f'<span class="pm" style="display:block;margin-top:2px">'
+                  f'{side}</span></div>')
+    if tiles:
+        tiles = f'<div class="stats" style="margin:0 0 12px">{tiles}</div>'
+
     # "This one looked normal" is a real answer and a good one - it means the
     # game was not lost on the shape of the board. It has to be said out loud,
     # though: dropping the card would read as the app having no opinion.
-    lines = ([ver.plain(f) for f in shown] if shown else
-             ["This board sat in the middle of the pack on everything "
-              "measured - whatever went wrong, it was not the shape of it."])
+    if not shown:
+        lines = ["This board sat in the middle of the pack on everything "
+                 "measured - whatever went wrong, it was not the shape of it."]
     items = "".join(f'<li><span>{esc(t)}</span></li>' for t in lines)
+    listed = (f'<ul class="rowlist" style="margin:0">{items}</ul>'
+              if items else "")
     return f"""
   <div class="card full">
     <h3>This board, next to the {esc(identity)} boards in your lobbies</h3>
-    <ul class="rowlist" style="margin:0">{items}</ul>
+    {tiles}
+    {listed}
     <p class="fine">Against {study["field"]} {esc(identity)} boards from games
     you were in, each compared at the round it died on.</p>
   </div>"""
