@@ -26,8 +26,30 @@ import comps
 import pregame as pre
 import scout
 import tftdata as tft
-from theme import (BRAND, CSS, app_bar, esc, fold, new_game_watcher, plural,
-                   purpose, stale_names_banner, why)
+from theme import (BRAND, CSS, SCRIPT, app_bar, esc, fold, new_game_watcher,
+                   plural, purpose, stale_names_banner, why)
+
+# What each pill means, said on hover. The user asked for exactly this ("a
+# little box where u hover over early read and it explains what it is").
+# Confidence thresholds are read from the same tuple confidence() judges
+# with, so this copy cannot drift from the code that awards the pill.
+_FLOOR = {label: floor for floor, label in tft.CONFIDENCE_TIERS}
+PILL_TIPS = {
+    "hunch": (f'Under {_FLOOR["early read"]} boards &mdash; a guess wearing '
+              f'a number. Watch it, don&rsquo;t act on it.'),
+    "early read": (f'{_FLOOR["early read"]}+ boards. Enough to notice, not '
+                   f'enough to trust &mdash; the average can still swing.'),
+    "solid": (f'{_FLOOR["solid"]}+ boards &mdash; enough games that the '
+              f'average is worth acting on.'),
+    "confirmed": (f'{_FLOOR["confirmed"]}+ boards &mdash; as settled as '
+                  f'this pool gets.'),
+    "fits you": ('The strongest comp here on the plan you play most. The '
+                 'line under the list carries your numbers.'),
+    "habit": ('Far enough from your lobbies&rsquo; average that luck alone '
+              'almost never produces it.'),
+    "forces": ('They keep playing this one &mdash; expect them to go it '
+               'again.'),
+}
 
 
 def query(puuid, who):
@@ -67,8 +89,9 @@ def scouted_rows(scouted):
         if r["carry"]:
             bits += f' &middot; {esc(r["carry"])}'
         if r["forces"]:
-            bits = (f'<span class="pill blank">forces {esc(r["forces"])}</span> '
-                    + bits)
+            bits = (f'<span class="pill blank" '
+                    f'data-tip="{PILL_TIPS["forces"]}">forces '
+                    f'{esc(r["forces"])}</span> ' + bits)
         out.append(
             f'<li><span><strong>{esc(r["label"])}</strong><br>'
             f'<span class="k" style="font-size:13px">{bits}</span></span>'
@@ -260,7 +283,9 @@ def style_card(games, set_number):
 
     rows = []
     for f in facts[:4]:
-        pill = ('<span class="pill ready">habit</span> ' if f["real"] else "")
+        pill = (f'<span class="pill ready" '
+                f'data-tip="{PILL_TIPS["habit"]}">habit</span> '
+                if f["real"] else "")
         rows.append(f'<li><span>{pill}{esc(f["text"])}</span>'
                     f'<span class="k" style="font-size:12px;text-align:right">'
                     f'{esc(f["lobby"])}</span></li>')
@@ -322,7 +347,8 @@ def render(games, set_number, who, puuid, scouted=None):
     def pill(conf):
         cls = {"confirmed": "ready", "solid": "ready",
                "early read": "part", "hunch": "blank"}[conf]
-        return f'<span class="pill {cls}">{conf}</span>'
+        return (f'<span class="pill {cls}" '
+                f'data-tip="{PILL_TIPS[conf]}">{conf}</span>')
 
     # The meta reads the pool's newest patch; "how you play" reads YOUR
     # newest patch - the two can differ (seeded ladder games move to a new
@@ -371,7 +397,8 @@ def render(games, set_number, who, puuid, scouted=None):
                 if show_pill and r["confidence"] in ("hunch", "early read")
                 else "")
         if fit_name and r["comp"] == fit_name:
-            flag += ' <span class="pill ready">fits you</span>'
+            flag += (f' <span class="pill ready" '
+                     f'data-tip="{PILL_TIPS["fits you"]}">fits you</span>')
         carries = ""
         if show_carries and r.get("carries"):
             carries = (f'<br><span class="k" style="font-size:11.5px">'
@@ -508,6 +535,8 @@ def render(games, set_number, who, puuid, scouted=None):
 </head>
 <body>
 <div class="app">{body}</div>
+<div id="tip" role="status" aria-live="polite"></div>
+<script>{SCRIPT}</script>
 </body>
 </html>
 """

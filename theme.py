@@ -441,6 +441,8 @@ details summary:hover { color:var(--ink); }
                text-transform:uppercase; color:var(--muted); cursor:pointer; }
 .why summary:hover { color:var(--ink); }
 .why .fine { margin:8px 0 0; }
+/* A pill that explains itself on hover says so with the cursor. */
+.pill[data-tip] { cursor:help; }
 /* Two columns at desktop width, one on a laptop or phone. minmax is set
    past a third of the container on purpose: three columns of these cards
    leaves an empty slot far more often than it fills one. */
