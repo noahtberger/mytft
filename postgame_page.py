@@ -164,21 +164,17 @@ def version_card(set_number, puuid, match_id, identity):
     if tiles:
         tiles = f'<div class="stats" style="margin:0 0 12px">{tiles}</div>'
 
-    # "This one looked normal" is a real answer and a good one - it means the
-    # game was not lost on the shape of the board. It has to be said out loud,
-    # though: dropping the card would read as the app having no opinion.
+    # When the shape disagrees with the result - better than the pack but
+    # lost, or worse and won - the card does not appear. The previous
+    # version said it out loud ("the 8th didn't come from the shape of it")
+    # and the user saw it live and called it: "if my board is better than
+    # the average but i lost, it should just not pop up, and vice versa."
+    # So absence now also means "the board was not the story". Middle of
+    # the pack still speaks, because "nothing stood out" aligns with any
+    # result and going quiet there would read as the app having no opinion.
     if not shown and against:
-        # Everything unusual sat on the wrong side of the story. After a
-        # loss that is the most useful sentence this card can produce.
-        lines = [("Everything that stood out about this board sits on the "
-                  "side that usually wins this comp - the "
-                  f"{pg.ordinal(board['placement'])} didn't come from the "
-                  "shape of it.")
-                 if not top4 else
-                 ("Everything that stood out sits on the side that usually "
-                  "loses this comp - this one was won in spite of the "
-                  "shape.")]
-    elif not shown:
+        return None
+    if not shown:
         lines = ["This board sat in the middle of the pack on everything "
                  "measured - whatever went wrong, it was not the shape of it."]
     items = "".join(f'<li><span>{esc(t)}</span></li>' for t in lines)
