@@ -443,6 +443,9 @@ details summary:hover { color:var(--ink); }
 .why .fine { margin:8px 0 0; }
 /* A pill that explains itself on hover says so with the cursor. */
 .pill[data-tip] { cursor:help; }
+/* A pill trailing a name gets air between them; pills that OPEN a line
+   (habit, forces) stay flush left, so this is opt-in rather than on .pill. */
+.pill.spaced { margin-left:6px; }
 /* Two columns at desktop width, one on a laptop or phone. minmax is set
    past a third of the container on purpose: three columns of these cards
    leaves an empty slot far more often than it fills one. */

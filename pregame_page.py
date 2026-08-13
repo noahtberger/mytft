@@ -347,7 +347,7 @@ def render(games, set_number, who, puuid, scouted=None):
     def pill(conf):
         cls = {"confirmed": "ready", "solid": "ready",
                "early read": "part", "hunch": "blank"}[conf]
-        return (f'<span class="pill {cls}" '
+        return (f'<span class="pill {cls} spaced" '
                 f'data-tip="{PILL_TIPS[conf]}">{conf}</span>')
 
     # The meta reads the pool's newest patch; "how you play" reads YOUR
@@ -397,7 +397,7 @@ def render(games, set_number, who, puuid, scouted=None):
                 if show_pill and r["confidence"] in ("hunch", "early read")
                 else "")
         if fit_name and r["comp"] == fit_name:
-            flag += (f' <span class="pill ready" '
+            flag += (f' <span class="pill ready spaced" '
                      f'data-tip="{PILL_TIPS["fits you"]}">fits you</span>')
         carries = ""
         if show_carries and r.get("carries"):
