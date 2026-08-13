@@ -97,7 +97,7 @@ SHAPE = {
     "lines_built": "traits committed",
     "rerolled":    "cheap units 3-starred",
     "maxed_line":  "traits finished",
-    "style_sum":   "bronze/silver/gold, summed",
+    "active_traits": "traits active",
     "top_cost":    "priciest unit",
     "unitemised":  "units holding no items",
 }
@@ -119,9 +119,8 @@ METRIC_TIPS = {
     "rerolled":    "Cheap units (1-3 gold) taken to 3 stars.",
     "maxed_line":  "Traits at their own last breakpoint - a finished "
                    "vertical.",
-    "style_sum":   "Every active trait graded by color - bronze 1, silver "
-                   "2, gold 3, prismatic 4 - added up. Three golds, a "
-                   "silver and four bronzes is 15.",
+    "active_traits": "Traits lit on the final board, splashes included - "
+                     "the count in the trait panel.",
     "top_cost":    "The most expensive unit fielded.",
     "unitemised":  "Units holding no items at all.",
 }
@@ -143,7 +142,7 @@ BY_PLAN = {
 }
 # Only asked of a board whose identity IS a trait - "did you finish it" is not
 # a question you can put to a flat Five Cost board or a pure reroll carry.
-VERTICAL = ["maxed_line", "style_sum"]
+VERTICAL = ["maxed_line", "active_traits"]
 
 MIN_MINE = 8     # your boards in a comp before it is worth a card at all
 MIN_CELL = 8     # either side of any split needs this many boards
@@ -422,7 +421,7 @@ def describe(f):
     if f["kind"] == "shape":
         d = f["differs"]
         way = "more" if d["gap"] > 0 else "fewer"
-        if f["key"] in ("avg_cost", "carry_tier", "top_cost", "style_sum"):
+        if f["key"] in ("avg_cost", "carry_tier", "top_cost"):
             way = "higher" if d["gap"] > 0 else "lower"
         # The raw means and the gap can point opposite ways, and that is not a
         # bug: the means are what everyone actually fielded, the gap holds the
@@ -487,8 +486,8 @@ PHRASE = {
                     "You 3-star about {n} more cheap units."),
     "maxed_line":  ("You finish about {n} fewer traits than they do.",
                     "You finish about {n} more traits than they do."),
-    "style_sum":   ("Your summed trait colors run about {n} lower.",
-                    "Your summed trait colors run about {n} higher."),
+    "active_traits": ("You run about {n} fewer traits active.",
+                      "You run about {n} more traits active."),
     "top_cost":    ("Your priciest unit is usually cheaper than theirs.",
                     "Your priciest unit is usually pricier than theirs."),
     "unitemised":  ("You leave about {n} fewer units without items.",
@@ -509,7 +508,7 @@ BOARD_PHRASE = {
     "lines_built": "You committed to {v} traits",
     "rerolled":    "You 3-starred {v} cheap units",
     "maxed_line":  "You finished {v} traits",
-    "style_sum":   "Your bronze/silver/gold traits summed to {v}",
+    "active_traits": "You had {v} traits active",
     "top_cost":    "Your priciest unit was {v} gold",
     "unitemised":  "{v} of your units held no items",
 }

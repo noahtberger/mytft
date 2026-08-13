@@ -54,7 +54,7 @@ DB_PATH = Path(__file__).with_name("boards.db")
 # Bump when comps.parts(), tft.playstyle() or the columns below change what
 # a row MEANS. A stamp mismatch triggers a rebuild instead of mixing two
 # models in one table.
-MODEL_VERSION = "6"
+MODEL_VERSION = "7"
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS stamp (key TEXT PRIMARY KEY, value TEXT);
@@ -92,7 +92,7 @@ CREATE TABLE IF NOT EXISTS boards (
     -- tell them apart.
     big_2star      INTEGER,
     maxed_line     INTEGER,
-    style_sum      INTEGER,
+    active_traits  INTEGER,
     top_cost       INTEGER,
     unitemised     INTEGER,
     PRIMARY KEY (match_id, puuid)
@@ -164,7 +164,13 @@ def board_row(match_id, info, board, residual):
     maxed_line = sum(1 for t in traits
                      if t.get("tier_current")
                      and t["tier_current"] == t.get("tier_total"))
-    style_sum = sum(t.get("style") or 0 for t in traits)
+    # Plain count of lit traits, splashes included. This replaced the
+    # color-weighted sum (bronze 1 / silver 2 / gold 3 / prismatic 4): the
+    # sum screened stronger (z=3.5 against 2.7) but the two are r=0.88 -
+    # the same information twice - and the owner twice misread the summed
+    # version on the page. A metric that has to be asked about fails at its
+    # job regardless of its z.
+    active_traits = sum(1 for t in traits if t.get("tier_current"))
 
     name = board.get("riotIdGameName") or ""
     tag = board.get("riotIdTagline") or ""
@@ -182,7 +188,7 @@ def board_row(match_id, info, board, residual):
         prof["board_size"] if prof else None,
         sum(len(u.get("itemNames") or []) for u in units),
         carry_items, carry_tier,
-        big_2star, maxed_line, style_sum, top_cost, unitemised,
+        big_2star, maxed_line, active_traits, top_cost, unitemised,
     )
     return row, items
 
