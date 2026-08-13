@@ -96,7 +96,7 @@ SHAPE = {
     "carry_tier":  "carry star level",
     "lines_built": "traits committed",
     "rerolled":    "cheap units 3-starred",
-    "maxed_line":  "traits finished",
+    "uniques":     "uniques fielded",
     "active_traits": "traits active",
     "top_cost":    "priciest unit",
     "unitemised":  "units holding no items",
@@ -117,8 +117,8 @@ METRIC_TIPS = {
     "lines_built": "Traits taken past the splash stage - a commitment, "
                    "not two units.",
     "rerolled":    "Cheap units (1-3 gold) taken to 3 stars.",
-    "maxed_line":  "Traits at their own last breakpoint - a finished "
-                   "vertical.",
+    "uniques":     "Traits a single special unit turns on whole - the "
+                   "one-off specials.",
     "active_traits": "Traits lit on the final board, splashes included - "
                      "the count in the trait panel.",
     "top_cost":    "The most expensive unit fielded.",
@@ -140,9 +140,12 @@ BY_PLAN = {
     comps.FAST9:          ["big_2star", "avg_cost", "board_size"],
     None:                 ["board_size", "avg_cost", "big_units"],
 }
-# Only asked of a board whose identity IS a trait - "did you finish it" is not
-# a question you can put to a flat Five Cost board or a pure reroll carry.
-VERTICAL = ["maxed_line", "active_traits"]
+# Only asked of a board whose identity IS a trait. These used to be "did you
+# finish the vertical" questions until that was measured: capping a real
+# multi-breakpoint vertical carries nothing (z=0.3), and the old maxed_line
+# metric's whole signal was the uniques it was accidentally counting - 87% of
+# "finished" traits finish by existing (r=0.95 with a plain uniques count).
+VERTICAL = ["uniques", "active_traits"]
 
 MIN_MINE = 8     # your boards in a comp before it is worth a card at all
 MIN_CELL = 8     # either side of any split needs this many boards
@@ -484,8 +487,8 @@ PHRASE = {
                     "You commit to about {n} more traits."),
     "rerolled":    ("You 3-star about {n} fewer cheap units.",
                     "You 3-star about {n} more cheap units."),
-    "maxed_line":  ("You finish about {n} fewer traits than they do.",
-                    "You finish about {n} more traits than they do."),
+    "uniques":     ("You field about {n} fewer uniques.",
+                    "You field about {n} more uniques."),
     "active_traits": ("You run about {n} fewer traits active.",
                       "You run about {n} more traits active."),
     "top_cost":    ("Your priciest unit is usually cheaper than theirs.",
@@ -507,7 +510,7 @@ BOARD_PHRASE = {
     "carry_tier":  "Your carry finished at {v} star",
     "lines_built": "You committed to {v} traits",
     "rerolled":    "You 3-starred {v} cheap units",
-    "maxed_line":  "You finished {v} traits",
+    "uniques":     "You fielded {v} uniques",
     "active_traits": "You had {v} traits active",
     "top_cost":    "Your priciest unit was {v} gold",
     "unitemised":  "{v} of your units held no items",

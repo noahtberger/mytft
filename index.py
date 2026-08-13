@@ -54,7 +54,7 @@ DB_PATH = Path(__file__).with_name("boards.db")
 # Bump when comps.parts(), tft.playstyle() or the columns below change what
 # a row MEANS. A stamp mismatch triggers a rebuild instead of mixing two
 # models in one table.
-MODEL_VERSION = "7"
+MODEL_VERSION = "8"
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS stamp (key TEXT PRIMARY KEY, value TEXT);
@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS boards (
     -- and "four 2-star 4-costs" are different boards and nothing here could
     -- tell them apart.
     big_2star      INTEGER,
-    maxed_line     INTEGER,
+    uniques        INTEGER,
     active_traits  INTEGER,
     top_cost       INTEGER,
     unitemised     INTEGER,
@@ -157,13 +157,16 @@ def board_row(match_id, info, board, residual):
             items.append((match_id, board["puuid"], unit, cost, u["tier"],
                           it, int(unit == carry)))
 
-    # A trait is "maxed" when it reached its own last breakpoint - the
-    # difference between finishing a vertical and stopping one unit short,
-    # which lines_built cannot see because it counts lines rather than depth.
+    # Uniques: traits a single special unit turns on whole (tier_total 1).
+    # This column was "maxed_line" - traits at their own last breakpoint -
+    # until the user asked what "finished" meant and whether it was useful.
+    # Measured: 87% of "finished" traits were uniques finishing by existing,
+    # the honest finished-a-real-vertical version carries nothing (z=0.3),
+    # and the whole z=3.0 signal was the uniques (r=0.95). The column now
+    # counts the thing it was actually measuring, under its true name.
     traits = board.get("traits") or []
-    maxed_line = sum(1 for t in traits
-                     if t.get("tier_current")
-                     and t["tier_current"] == t.get("tier_total"))
+    uniques = sum(1 for t in traits
+                  if t.get("tier_current") and t.get("tier_total") == 1)
     # Plain count of lit traits, splashes included. This replaced the
     # color-weighted sum (bronze 1 / silver 2 / gold 3 / prismatic 4): the
     # sum screened stronger (z=3.5 against 2.7) but the two are r=0.88 -
@@ -188,7 +191,7 @@ def board_row(match_id, info, board, residual):
         prof["board_size"] if prof else None,
         sum(len(u.get("itemNames") or []) for u in units),
         carry_items, carry_tier,
-        big_2star, maxed_line, active_traits, top_cost, unitemised,
+        big_2star, uniques, active_traits, top_cost, unitemised,
     )
     return row, items
 
