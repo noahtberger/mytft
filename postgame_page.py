@@ -149,9 +149,13 @@ def version_card(set_number, puuid, match_id, identity):
             continue
         v = f["you"]
         n = f"{v:.0f}" if float(v) == int(v) else f"{v:.1f}"
-        side = (f'more than {f["below"] * 100:.0f}% of theirs'
+        # Rank language, because "77% of theirs had more" took a sentence to
+        # parse and "less than 77% of theirs" reads as arithmetic. The max()
+        # keeps a board past the 99.5th percentile from printing "top 0%".
+        side = (f'top {max(1, round((1 - f["below"]) * 100))}% of their boards'
                 if f["high"] else
-                f'{f["above"] * 100:.0f}% of theirs had more')
+                f'bottom {max(1, round((1 - f["above"]) * 100))}% of their '
+                f'boards')
         m = f["matters"]
         if m and m["real"]:
             side += (" &middot; the better side"

@@ -549,10 +549,13 @@ def plain(f):
         shown = (f"{value:.0f}" if float(value) == int(value)
                  else f"{value:.1f}")
         text = BOARD_PHRASE[f["key"]].format(v=shown)
+        # Same rank language as the tiles, so the two forms cannot drift.
         if f["high"]:
-            text += f" - more than {f['below'] * 100:.0f}% of their boards."
+            text += (f" - top {max(1, round((1 - f['below']) * 100))}% "
+                     f"of their boards.")
         else:
-            text += f" - {f['above'] * 100:.0f}% of their boards had more."
+            text += (f" - bottom {max(1, round((1 - f['above']) * 100))}% "
+                     f"of their boards.")
         m = f["matters"]
         if m and m["real"]:
             # matters["gap"] is high-minus-low on place_residual and a LOWER
