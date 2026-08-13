@@ -329,34 +329,27 @@ def render(games, set_number, who, puuid, scouted=None):
     on_patch = (f"of your patch-{my_patch} games" if my_patch else
                 "of your recent games")
 
+    # "For you" used to be its own card, and half of it was the meta's top
+    # row restated - by construction: recommend() sorts the same rows by the
+    # same pessimistic bound, so its "best" was always the list's first
+    # entry. The user caught it: "it's basically just stuff that u can see
+    # from the meta." The half the meta CANNOT say - which of these comps
+    # fits the plan you actually play - survives as a pill on that comp's
+    # row and one line under the list.
     rec = comps.recommend(patch_games, set_number, m["comps"])
-    if rec:
-        lines = []
-        b = rec["best"]
-        lines.append(
-            f'<p class="tip"><strong>Strongest right now: {esc(b["comp"])} '
-            f'&mdash; avg {b["avg"]:.2f} over {b["n"]} boards.</strong>'
-            f'<span>{pill(b["confidence"])} &middot; Usual carries: '
-            f'{esc(", ".join(b["carries"][:3]))}</span></p>')
+    fit_name = rec["fit"]["comp"] if rec and rec["fit"] else None
+    fit_note = ""
+    if fit_name:
         f = rec["fit"]
-        if f and f["comp"] != b["comp"]:
-            lines.append(
-                f'<p class="tip"><strong>Closest to how you play: '
-                f'{esc(f["comp"])} &mdash; avg {f["avg"]:.2f} over '
-                f'{f["n"]} boards.</strong>'
-                f'<span>{pill(f["confidence"])} &middot; You play '
-                f'{esc(rec["top_plan"] or "")} in {rec["share"]:.0f}% '
-                f'{on_patch} &middot; Carries '
-                f'{esc(", ".join(f["carries"][:3]))}</span></p>')
-        elif rec["top_plan"]:
-            lines.append(
-                f'<p class="fine">That also fits you: You play '
-                f'{esc(rec["top_plan"])} in {rec["share"]:.0f}% '
-                f'{on_patch}.</p>')
-        foryou = "".join(lines)
-    else:
-        foryou = ('<p class="fine" style="margin:0">Not enough boards in '
-                  'the pool yet. Seed some ladder games below.</p>')
+        best_name = rec["best"]["comp"]
+        opener = ("The top comp is also yours"
+                  if fit_name == best_name else
+                  f'Fits how you play: <strong>{esc(fit_name)}</strong>')
+        fit_note = (
+            f'<p class="fine" style="margin:10px 0 0">{opener} &mdash; you '
+            f'play {esc(rec["top_plan"] or "")} in {rec["share"]:.0f}% '
+            f'{on_patch}. Its usual carries: '
+            f'{esc(", ".join(f["carries"][:3]))}.</p>')
 
     plan_rows = "".join(
         f'<li><span>{esc(p["plan"])}</span>'
@@ -364,13 +357,19 @@ def render(games, set_number, who, puuid, scouted=None):
         f'<span class="k"> &middot; {p["n"]}</span></span></li>'
         for p in m["plans"])
 
-    def comp_row(r, show_pill=True):
+    def comp_row(r, show_pill=True, show_carries=False):
         # A row earns a flag when its sample is still thin - solid rows
         # speak for themselves.
         flag = (" " + pill(r["confidence"])
                 if show_pill and r["confidence"] in ("hunch", "early read")
                 else "")
-        return (f'<li><span>{esc(r["comp"])}{flag}</span>'
+        if fit_name and r["comp"] == fit_name:
+            flag += ' <span class="pill ready">fits you</span>'
+        carries = ""
+        if show_carries and r.get("carries"):
+            carries = (f'<br><span class="k" style="font-size:11.5px">'
+                       f'{esc(", ".join(r["carries"][:3]))}</span>')
+        return (f'<li><span>{esc(r["comp"])}{flag}{carries}</span>'
                 f'<span class="v">{r["avg"]:.2f}'
                 f'<span class="k"> &middot; {r["n"]}</span></span></li>')
 
@@ -401,9 +400,12 @@ def render(games, set_number, who, puuid, scouted=None):
               '- seed the pool below.</p>')
     more = ""
     if len(named) > len(top):
+        # Carries show here rather than on the face - the "usual carries"
+        # info the For you card used to hold, now per comp for all of them.
         more = (f'<details><summary>All {len(named)} comps with 10+ '
                 f'boards</summary><ul class="rowlist" style="margin-top:10px">'
-                f'{"".join(comp_row(r) for r in named)}</ul></details>')
+                f'{"".join(comp_row(r, show_carries=True) for r in named)}'
+                f'</ul></details>')
     seed_form = f"""<form class="scoutbox" method="post" action="/seed"
   style="margin-top:14px">
   <input type="hidden" name="p" value="{esc(puuid)}">
@@ -467,13 +469,10 @@ def render(games, set_number, who, puuid, scouted=None):
     automatically needs a helper on the PC running League &mdash; on the
     list.</p>
   </div>
-  <div class="card full">
-    <h3>For you</h3>
-    {foryou}
-  </div>
   <div class="card">
     <h3>The meta &middot; {f'{patch_word} {m["patch"]} &middot; ' if m["patch"] else ""}{m["boards"]} boards</h3>
     {strong}
+    {fit_note}
     {more}
     {fold("How each plan places here",
           f'<ul class="rowlist" style="margin-top:8px">{plan_rows}</ul>')}
