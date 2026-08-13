@@ -497,9 +497,8 @@ def render(games, set_number, who, puuid, scouted=None):
   <span class="sub">{overall['games']} ranked games &middot; avg
   {overall['avg']:.2f} &middot; {overall['top4']:.0f}% top 4</span>
 </div>
-{purpose("Read this one before you hit find match. What has been working "
-         "for you, what has been costing you, and what is strong right now "
-         "in the lobbies you actually get put in.")}
+{purpose("What works for you, what doesn&rsquo;t, and the meta in your "
+         "own lobbies.")}
 <div class="grid">
   <div class="card full">
     <h3>What wins you games{wins_answer}</h3>
