@@ -124,6 +124,18 @@ def purpose(text):
     return f'<p class="purpose">{text}</p>'
 
 
+def fold(summary, html):
+    """Any markup, folded away until somebody wants it.
+
+    why() is this with a paragraph wrapper, and is the right one for prose.
+    This one takes lists and tables, which cannot go inside a <p> - a <ul>
+    nested in a paragraph closes it early, and the browser silently reparents
+    everything after it.
+    """
+    return (f'<details class="why"><summary>{summary}</summary>'
+            f'{html}</details>')
+
+
 def why(summary, text):
     """An explanation, folded away until somebody wants it.
 
@@ -138,8 +150,7 @@ def why(summary, text):
     matters because build_site.py's page has to survive being mailed to
     somebody as a single file.
     """
-    return (f'<details class="why"><summary>{summary}</summary>'
-            f'<p class="fine">{text}</p></details>')
+    return fold(summary, f'<p class="fine">{text}</p>')
 
 
 def plural(n, word, many=None):

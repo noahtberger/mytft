@@ -26,7 +26,7 @@ import comps
 import pregame as pre
 import scout
 import tftdata as tft
-from theme import (BRAND, CSS, app_bar, esc, new_game_watcher, plural,
+from theme import (BRAND, CSS, app_bar, esc, fold, new_game_watcher, plural,
                    purpose, stale_names_banner, why)
 
 
@@ -90,6 +90,15 @@ def plan_row(row, best_plan):
             f'top 4 {100 * row["top4"]:.0f}%</span></span></li>')
 
 
+def plan_summary(shown):
+    """The label on the fold: what is inside, not "show more".
+
+    Named so somebody can decide whether to open it without opening it - a
+    summary that says "details" makes you click to find out whether you cared.
+    """
+    return f'All {plural(len(shown), "plan")}, with the numbers'
+
+
 def plan_card(record):
     """Which way of spending gold actually wins this player games.
 
@@ -149,7 +158,7 @@ def plan_card(record):
                      f'{esc(spread["top"])}, at {100 * spread["share"]:.0f}% '
                      f'of games. That is a finding, not a gap in the data: '
                      f'playing something different every game is a style.</p>')
-        return head + table
+        return head + fold(plan_summary(shown), table)
 
     if best.get("coarse"):
         # The coarse split answers a different question, so it says so
@@ -183,7 +192,13 @@ def plan_card(record):
             f'not listed: the board never showed a plan at all, which is '
             f'almost always a game that ended early.</p>'
             if skipped else "")
-    return head + table + drift + note
+    # The verdict is the card; the per-plan records are the working. Feedback
+    # from players who are not the author: "the actual statistics like fast 9
+    # win rate, avg, lvl 7 reroll could all be hidden behind a drop down".
+    # They are right that a table of every plan is not what somebody wants in
+    # the seconds before they queue, and the sentence above it already carries
+    # the answer.
+    return head + fold(plan_summary(shown), table + drift + note)
 
 
 def style_card(games, set_number):
@@ -374,11 +389,12 @@ def render(games, set_number, who, puuid, scouted=None):
   <input type="hidden" name="p" value="{esc(puuid)}">
   <input type="hidden" name="n" value="{esc(who)}">
   <button type="submit">Seed from the top of the ladder</button>
-</form>
-<p class="fine">Pulls recent games from the ladder&rsquo;s best players
-into the pool - a few minutes, and the read above gets sharper. Numbers
-are average placement over how many boards; hunch &lt;10, early read 10+,
-solid 30+, confirmed 100+.</p>"""
+</form>""" + why(
+        "What seeding does, and how to read the numbers",
+        "Pulls recent games from the ladder&rsquo;s best players into the "
+        "pool - a few minutes, and the read above gets sharper. Numbers are "
+        "average placement over how many boards; hunch &lt;10, early read "
+        "10+, solid 30+, confirmed 100+.")
     n_patches = len(m.get("patches") or [])
     patch_word = "patch" if n_patches <= 1 else "patches"
     patch_note = f"{patch_word} {m['patch']} only - " if m["patch"] else ""
@@ -439,8 +455,8 @@ solid 30+, confirmed 100+.</p>"""
     <h3>The meta &middot; {f'{patch_word} {m["patch"]} &middot; ' if m["patch"] else ""}{m["boards"]} boards</h3>
     {strong}
     {more}
-    <p class="fine">The ways to spend gold:</p>
-    <ul class="rowlist" style="margin-top:8px">{plan_rows}</ul>
+    {fold("The ways to spend gold",
+          f'<ul class="rowlist" style="margin-top:8px">{plan_rows}</ul>')}
     {details}
   </div>
   <div class="card">
