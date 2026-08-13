@@ -194,11 +194,12 @@ def plan_card(record):
     # Reuses the stats page's own .stats/.stat tiles rather than inventing
     # a second look for the same idea. The context sentence that used to
     # follow the verdict moves into the fold, above the table.
-    # "Win rate" is the word players actually use, and in TFT it means 1st
-    # place - which is exactly what this card ranks by, deliberately not
-    # top 4. The first draft said "1sts on it" and the user called it: "it
-    # sounds weird, its just unnatural". The hover tip pins down the
-    # precise meaning so the natural label costs nothing.
+    # "1st place", not "win rate" and not "1sts on it" - both prior drafts,
+    # both the user's calls. "1sts on it" was unnatural, and "win rate"
+    # collides with what win means in this game: top 4 is the win - Riot's
+    # own `win` field says so, LP says so, and the post-game page colors
+    # top 4 as a win. A label that half the audience reads as top-4 rate
+    # under a number that is strictly 1st-place rate is a confident lie.
     if best.get("coarse"):
         context = ('No single plan has enough games to read on its own, so '
                    'this is the coarser question: rolling for 3-stars, or '
@@ -208,10 +209,10 @@ def plan_card(record):
                    'changes is how often the game ends with you on top.')
     head = (f'<div class="stats" style="margin:0 0 12px">'
             f'<div class="stat"><span class="n">{100 * best["first"]:.0f}%'
-            f'</span><span class="k" data-tip="Games that ended 1st - '
-            f'not top 4.">win rate</span></div>'
+            f'</span><span class="k" data-tip="How often this plan ends '
+            f'the game in 1st.">1st place</span></div>'
             f'<div class="stat"><span class="n">{100 * best["others"]:.0f}%'
-            f'</span><span class="k" data-tip="Your win rate on every '
+            f'</span><span class="k" data-tip="1st-place rate across every '
             f'other plan combined.">everything else</span></div>'
             f'<div class="stat"><span class="n">{best["n"]}</span>'
             f'<span class="k" data-tip="Your games on this plan.">games'
