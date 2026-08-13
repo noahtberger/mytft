@@ -160,23 +160,34 @@ def plan_card(record):
                      f'playing something different every game is a style.</p>')
         return head + fold(plan_summary(shown), table)
 
+    # The verdict as a stat pair rather than a sentence - the user's call,
+    # measuring reading time: "what if i just put like fast 9 1st place:
+    # 28%". The rule that keeps it honest is that the PAIR is the claim.
+    # 28% alone is any tracker's win-rate widget; 28-against-7 is a finding.
+    # A lone number never ships without its baseline beside it, and the
+    # no-verdict path above keeps its sentence - a big confident number
+    # would manufacture a verdict the model declined to reach.
+    #
+    # Reuses the stats page's own .stats/.stat tiles rather than inventing
+    # a second look for the same idea. The context sentence that used to
+    # follow the verdict moves into the fold, above the table.
     if best.get("coarse"):
-        # The coarse split answers a different question, so it says so
-        # rather than borrowing the specific plan's voice.
-        head = (f'<p class="tip"><strong>{esc(best["plan"])} is where your '
-                f'1sts come from &mdash; {100 * best["first"]:.0f}% of those '
-                f'games, against {100 * best["others"]:.0f}% of the rest.'
-                f'</strong><span>Over {best["n"]} games. No single plan '
-                f'below has enough games to read on its own, so this is the '
-                f'coarser question: rolling for 3-stars, or levelling to the '
-                f'big units.</span></p>')
+        label = f'1sts when {best["plan"]}'
+        context = ('No single plan has enough games to read on its own, so '
+                   'this is the coarser question: rolling for 3-stars, or '
+                   'levelling to the big units.')
     else:
-        head = (f'<p class="tip"><strong>{esc(best["plan"])} is where your '
-                f'1sts come from &mdash; {100 * best["first"]:.0f}% of those '
-                f'games, against {100 * best["others"]:.0f}% of everything '
-                f'else.</strong><span>Over {best["n"]} games. Your average '
-                f'placement barely moves between plans; what changes is how '
-                f'often the game ends with you on top.</span></p>')
+        label = f'1sts on {best["plan"]}'
+        context = ('Your average placement barely moves between plans; what '
+                   'changes is how often the game ends with you on top.')
+    head = (f'<div class="stats" style="margin:0 0 12px">'
+            f'<div class="stat"><span class="n">{100 * best["first"]:.0f}%'
+            f'</span><span class="k">{esc(label)}</span></div>'
+            f'<div class="stat"><span class="n">{100 * best["others"]:.0f}%'
+            f'</span><span class="k">everything else</span></div>'
+            f'<div class="stat"><span class="n">{best["n"]}</span>'
+            f'<span class="k">games on it</span></div></div>')
+    context_note = f'<p class="fine" style="margin:0 0 10px">{context}</p>'
 
     drift = ""
     if record["now"] is not None:
@@ -196,9 +207,9 @@ def plan_card(record):
     # from players who are not the author: "the actual statistics like fast 9
     # win rate, avg, lvl 7 reroll could all be hidden behind a drop down".
     # They are right that a table of every plan is not what somebody wants in
-    # the seconds before they queue, and the sentence above it already carries
-    # the answer.
-    return head + fold(plan_summary(shown), table + drift + note)
+    # the seconds before they queue, and the tiles above already carry the
+    # answer.
+    return head + fold(plan_summary(shown), context_note + table + drift + note)
 
 
 def style_card(games, set_number):
