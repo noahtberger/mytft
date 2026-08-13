@@ -447,6 +447,11 @@ details summary:hover { color:var(--ink); }
 .grid { display:grid; gap:14px; align-items:start;
         grid-template-columns:repeat(auto-fit,minmax(420px,1fr)); }
 .grid .full { grid-column:1/-1; }
+/* Two cards sharing one grid cell, stacked. The tall meta card fills the
+   left column; the short plan list and the folded playstyle stub together
+   fill the right, instead of the stub claiming a full-width row of its own
+   for one line of toggle. */
+.grid .stack { display:grid; gap:14px; align-items:start; }
 .card { background:var(--panel); border:1px solid var(--line);
         border-radius:4px; padding:16px 18px; }
 .card > h3 { font-family:var(--mono); font-size:10.5px; letter-spacing:.14em;

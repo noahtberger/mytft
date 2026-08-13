@@ -483,15 +483,17 @@ def render(games, set_number, who, puuid, scouted=None):
     {more}
     {details}
   </div>
-  <div class="card">
-    <h3>How each plan places</h3>
-    <ul class="rowlist" style="margin:0">{plan_rows}</ul>
-    <p class="fine">Same {m["boards"]} boards as the meta, grouped by plan
-    instead of comp.</p>
-  </div>
-  <div class="card full">
-    <h3>How you play</h3>
-    {style}
+  <div class="stack">
+    <div class="card">
+      <h3>How each plan places</h3>
+      <ul class="rowlist" style="margin:0">{plan_rows}</ul>
+      <p class="fine">Same {m["boards"]} boards as the meta, grouped by plan
+      instead of comp.</p>
+    </div>
+    <div class="card">
+      <h3>How you play</h3>
+      {style}
+    </div>
   </div>
 </div>
 """
