@@ -18,6 +18,9 @@ import tftdata as tft
 PLATFORM = "https://na1.api.riotgames.com"       # spectator lives on the platform host
 REGIONAL = "https://americas.api.riotgames.com"  # account + match on the regional one
 RANKED_QUEUE = 1100
+# Seconds to wait before re-trying a 401. A key issued seconds ago is not
+# live yet; this is the gap between pasting one and it working.
+KEY_SETTLE = 4
 SLEEP = 1.25          # seconds between match downloads (dev/personal key: 100 per 2 min)
 
 FORBIDDEN = object()  # sentinel: Riot said 403 and the caller wants to handle it
@@ -64,10 +67,18 @@ def riot_get(url, allow_404=False, allow_403=False, **params):
     that endpoint simply isn't in your key's permissions. Reporting the second
     as "your key is invalid" sends you off to generate a fresh key that will
     fail in exactly the same way.
+
+    A 401 is retried once. A dev key expires daily, so pasting a fresh one and
+    immediately using it is the single most common thing that happens here -
+    and for a few seconds after it is issued Riot has not propagated it yet
+    and answers 401. Failing straight to "check it copied whole" sends you
+    hunting for a typo in a key that is perfectly fine and works on the next
+    attempt. Verified: the same key 401'd, then returned 200 moments later.
     """
     import requests  # imported lazily so offline callers need no dependency
 
     params["api_key"] = api_key()
+    retried_401 = False
     while True:
         response = requests.get(url, params=params, timeout=15)
 
@@ -80,9 +91,16 @@ def riot_get(url, allow_404=False, allow_403=False, **params):
         if response.status_code == 403 and allow_403:
             return FORBIDDEN
 
+        if response.status_code == 401 and not retried_401:
+            retried_401 = True
+            time.sleep(KEY_SETTLE)
+            continue
         if response.status_code == 401:
-            raise RiotError("Riot doesn't recognise that API key. Check it "
-                            "copied whole.")
+            raise RiotError(
+                "Riot doesn't recognise that API key, twice in a row. Either "
+                "it copied short, or it was regenerated again after you "
+                "pasted it - the site invalidates the previous key each time "
+                "you press REGENERATE.")
         if response.status_code == 403:
             raise RiotError("Riot understood your key and refused (403). "
                             "Either it expired - dev keys last 24 hours - or "
