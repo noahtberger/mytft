@@ -194,10 +194,11 @@ def plan_card(record):
     # Reuses the stats page's own .stats/.stat tiles rather than inventing
     # a second look for the same idea. The context sentence that used to
     # follow the verdict moves into the fold, above the table.
-    # "1sts on it" rather than "1sts on Fast 9": the plan's name now sits
-    # big in the card heading, and repeating it in a 10px label under a
-    # 27px number demotes it back to fine print - the exact complaint.
-    label = "1sts on it"
+    # "Win rate" is the word players actually use, and in TFT it means 1st
+    # place - which is exactly what this card ranks by, deliberately not
+    # top 4. The first draft said "1sts on it" and the user called it: "it
+    # sounds weird, its just unnatural". The hover tip pins down the
+    # precise meaning so the natural label costs nothing.
     if best.get("coarse"):
         context = ('No single plan has enough games to read on its own, so '
                    'this is the coarser question: rolling for 3-stars, or '
@@ -207,11 +208,14 @@ def plan_card(record):
                    'changes is how often the game ends with you on top.')
     head = (f'<div class="stats" style="margin:0 0 12px">'
             f'<div class="stat"><span class="n">{100 * best["first"]:.0f}%'
-            f'</span><span class="k">{esc(label)}</span></div>'
+            f'</span><span class="k" data-tip="Games that ended 1st - '
+            f'not top 4.">win rate</span></div>'
             f'<div class="stat"><span class="n">{100 * best["others"]:.0f}%'
-            f'</span><span class="k">everything else</span></div>'
+            f'</span><span class="k" data-tip="Your win rate on every '
+            f'other plan combined.">everything else</span></div>'
             f'<div class="stat"><span class="n">{best["n"]}</span>'
-            f'<span class="k">games on it</span></div></div>')
+            f'<span class="k" data-tip="Your games on this plan.">games'
+            f'</span></div></div>')
     context_note = f'<p class="fine" style="margin:0 0 10px">{context}</p>'
 
     drift = ""
