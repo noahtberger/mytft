@@ -211,9 +211,15 @@ def plan_card(record):
             f'<div class="stat"><span class="n">{100 * best["first"]:.0f}%'
             f'</span><span class="k" data-tip="How often this plan ends '
             f'the game in 1st.">1st place</span></div>'
+            # "on everything else", not "everything else": without the "on"
+            # the 7% reads as a share of games ("7% of my games were other
+            # stuff") rather than a rate. With it the row reads as one
+            # sentence - 1st place 28%, 7% on everything else. The tip says
+            # "games", not "plans", because the baseline deliberately
+            # includes no-plan games - see plan_record.
             f'<div class="stat"><span class="n">{100 * best["others"]:.0f}%'
-            f'</span><span class="k" data-tip="1st-place rate across every '
-            f'other plan combined.">everything else</span></div>'
+            f'</span><span class="k" data-tip="Your 1st-place rate across '
+            f'all your other games.">on everything else</span></div>'
             f'<div class="stat"><span class="n">{best["n"]}</span>'
             f'<span class="k" data-tip="Your games on this plan.">games'
             f'</span></div></div>')
