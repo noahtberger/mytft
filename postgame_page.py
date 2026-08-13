@@ -354,9 +354,8 @@ def render(games, level_par, set_number, idx, who, puuid):
   <h1>{headline}</h1>
   <span class="sub">{when} &middot; patch {esc(g["_patch"])}</span>
 </div>
-{purpose("One game, pulled apart. Your board against the seven that were "
-         "in the lobby with you - same patch, same players, same items "
-         "dropping - so the comparison needs no adjusting.")}
+{purpose("One game, pulled apart: what happened, and what to take into "
+         "the next one.")}
 {picker}
 <div class="grid" style="margin-top:20px">
   {margin}
