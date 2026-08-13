@@ -97,9 +97,33 @@ SHAPE = {
     "lines_built": "traits committed",
     "rerolled":    "cheap units 3-starred",
     "maxed_line":  "traits finished",
-    "style_sum":   "trait value on the board",
+    "style_sum":   "bronze/silver/gold, summed",
     "top_cost":    "priciest unit",
     "unitemised":  "units holding no items",
+}
+
+# What each metric actually counts, said on hover wherever a label alone
+# has to carry it. Exists because the user read "trait value" on a card and
+# had to ask - a label that needs asking about is jargon, and the page has
+# a tooltip runtime already.
+METRIC_TIPS = {
+    "avg_cost":    "Average gold cost of the units on the final board.",
+    "big_units":   "Units costing 4 or 5 gold.",
+    "big_2star":   "4- and 5-cost units at 2 stars or better.",
+    "board_size":  "Units fielded on the final board.",
+    "items_held":  "Items across the whole board.",
+    "carry_items": "Items on the most-itemised unit.",
+    "carry_tier":  "The carry&rsquo;s star level.",
+    "lines_built": "Traits taken past the splash stage - a commitment, "
+                   "not two units.",
+    "rerolled":    "Cheap units (1-3 gold) taken to 3 stars.",
+    "maxed_line":  "Traits at their own last breakpoint - a finished "
+                   "vertical.",
+    "style_sum":   "Every active trait graded by color - bronze 1, silver "
+                   "2, gold 3, prismatic 4 - added up. Three golds, a "
+                   "silver and four bronzes is 15.",
+    "top_cost":    "The most expensive unit fielded.",
+    "unitemised":  "Units holding no items at all.",
 }
 
 # What each kind of board is worth being asked about. Keyed off comps' own
@@ -463,8 +487,8 @@ PHRASE = {
                     "You 3-star about {n} more cheap units."),
     "maxed_line":  ("You finish about {n} fewer traits than they do.",
                     "You finish about {n} more traits than they do."),
-    "style_sum":   ("Your board picks up about {n} less trait value.",
-                    "Your board picks up about {n} more trait value."),
+    "style_sum":   ("Your summed trait colors run about {n} lower.",
+                    "Your summed trait colors run about {n} higher."),
     "top_cost":    ("Your priciest unit is usually cheaper than theirs.",
                     "Your priciest unit is usually pricier than theirs."),
     "unitemised":  ("You leave about {n} fewer units without items.",
@@ -485,7 +509,7 @@ BOARD_PHRASE = {
     "lines_built": "You committed to {v} traits",
     "rerolled":    "You 3-starred {v} cheap units",
     "maxed_line":  "You finished {v} traits",
-    "style_sum":   "Your board picked up {v} trait value",
+    "style_sum":   "Your bronze/silver/gold traits summed to {v}",
     "top_cost":    "Your priciest unit was {v} gold",
     "unitemised":  "{v} of your units held no items",
 }

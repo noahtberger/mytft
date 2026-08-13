@@ -158,7 +158,9 @@ def version_card(set_number, puuid, match_id, identity):
                      if f["high"] == (m["gap"] < 0) else
                      f' &middot; other side worth ~{abs(m["gap"]):.1f} places')
         tiles += (f'<div class="stat"><span class="n">{n}</span>'
-                  f'<span class="k">{esc(ver.SHAPE[f["key"]])}</span>'
+                  f'<span class="k" '
+                  f'data-tip="{ver.METRIC_TIPS[f["key"]]}">'
+                  f'{esc(ver.SHAPE[f["key"]])}</span>'
                   f'<span class="pm" style="display:block;margin-top:2px">'
                   f'{side}</span></div>')
     if tiles:

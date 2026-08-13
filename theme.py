@@ -441,8 +441,8 @@ details summary:hover { color:var(--ink); }
                text-transform:uppercase; color:var(--muted); cursor:pointer; }
 .why summary:hover { color:var(--ink); }
 .why .fine { margin:8px 0 0; }
-/* A pill that explains itself on hover says so with the cursor. */
-.pill[data-tip] { cursor:help; }
+/* Anything that explains itself on hover says so with the cursor. */
+.pill[data-tip], .stat .k[data-tip] { cursor:help; }
 /* A pill trailing a name gets air between them; pills that OPEN a line
    (habit, forces) stay flush left, so this is opt-in rather than on .pill. */
 .pill.spaced { margin-left:6px; }
