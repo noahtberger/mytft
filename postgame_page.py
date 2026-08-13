@@ -98,13 +98,42 @@ def version_card(set_number, puuid, match_id, identity):
     if not study:
         return None
 
-    # Findings with a consequence first, then the rest of what stood out.
-    # Three at most: this is a card somebody reads on the way back to queue.
-    real = [f for f in study["found"]
-            if ver.real_board(f) or ver.real_choice(f)]
-    rest = [f for f in study["found"]
-            if f not in real and ver.worth_saying(f)]
-    shown = (real + rest)[:3]
+    # The outcome decides which side of the story gets told - the user's
+    # rule: "if i lose, the board i played should have negative stats, and
+    # if i win, positive". A losing board shows what sat on the side that
+    # usually loses this comp; a winning board, the reverse. Without this
+    # the card read as a trophy case over an 8th place.
+    #
+    # The guard against manufacturing a story: the side each metric "usually
+    # loses" on comes from the field's own placement split, never from this
+    # game, and a finding's kicker still claims a consequence only when that
+    # split clears its bar. Leans select; only proof speaks. Anti-aligned
+    # findings are not shown as tiles, but if they are ALL that stood out,
+    # the card says so instead of going quiet - "the shape sat on the
+    # winning side and lost anyway" is the most useful sentence this card
+    # can produce.
+    top4 = board["placement"] <= 4
+
+    def lean(f):
+        """+1 this finding sits on the side that usually wins the comp,
+        -1 the side that usually loses, 0 when the field gives no direction."""
+        if f["kind"] == "board":
+            m = f["matters"]
+            if not m:
+                return 0
+            return 1 if f["high"] == (m["gap"] < 0) else -1
+        return -1 if f["effect"]["gap"] > 0 else 1
+
+    found = [f for f in study["found"]
+             if ver.real_board(f) or ver.real_choice(f) or ver.worth_saying(f)]
+    want = 1 if top4 else -1
+    aligned = [f for f in found if lean(f) == want]
+    # Proven consequences outrank leans; the sort is stable so strength
+    # order from study_board holds within each group.
+    aligned.sort(key=lambda f: not (ver.real_board(f) or ver.real_choice(f)))
+    neutral = [f for f in found if lean(f) == 0]
+    against = [f for f in found if lean(f) == -want]
+    shown = (aligned + neutral)[:3]
 
     # Board findings render as tiles - the same value-plus-kicker grammar as
     # the pre-game verdict, because "3.5 gold a unit, more than 94% of
@@ -138,19 +167,32 @@ def version_card(set_number, puuid, match_id, identity):
     # "This one looked normal" is a real answer and a good one - it means the
     # game was not lost on the shape of the board. It has to be said out loud,
     # though: dropping the card would read as the app having no opinion.
-    if not shown:
+    if not shown and against:
+        # Everything unusual sat on the wrong side of the story. After a
+        # loss that is the most useful sentence this card can produce.
+        lines = [("Everything that stood out about this board sits on the "
+                  "side that usually wins this comp - the "
+                  f"{pg.ordinal(board['placement'])} didn't come from the "
+                  "shape of it.")
+                 if not top4 else
+                 ("Everything that stood out sits on the side that usually "
+                  "loses this comp - this one was won in spite of the "
+                  "shape.")]
+    elif not shown:
         lines = ["This board sat in the middle of the pack on everything "
                  "measured - whatever went wrong, it was not the shape of it."]
     items = "".join(f'<li><span>{esc(t)}</span></li>' for t in lines)
     listed = (f'<ul class="rowlist" style="margin:0">{items}</ul>'
               if items else "")
+    picked = (f' Picked for the {"winning" if top4 else "losing"} side of '
+              f'the pack first.' if shown else "")
     return f"""
   <div class="card full">
     <h3>This board, next to the {esc(identity)} boards in your lobbies</h3>
     {tiles}
     {listed}
     <p class="fine">Against {study["field"]} {esc(identity)} boards from games
-    you were in, each compared at the round it died on.</p>
+    you were in, each compared at the round it died on.{picked}</p>
   </div>"""
 
 
