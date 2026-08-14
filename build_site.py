@@ -30,8 +30,8 @@ from pathlib import Path
 
 import rank as rank_mod
 import tftdata as tft
-from theme import (BRAND, CSS, SCRIPT, app_bar, esc, fit, plural,
-                   stale_names_banner)
+from theme import (BRAND, CSS, SCRIPT, app_bar, esc, fit, fold, plural,
+                   stale_names_banner, why)
 
 OUT_DIR = Path("site")
 TARGET = tft.MIN_ACTIONABLE
@@ -742,9 +742,11 @@ if style_rows:
   <figure>
     {playstyle_chart(style_rows)}
     <figcaption>Each row compares you with the other seven players in your
-    games &mdash; the real numbers sit under each name. A bar past the dashed
-    line is a real habit; a short grey bar means no real difference. A notch
-    means the bar runs off the scale. {summary}</figcaption>
+    games &mdash; the real numbers sit under each name. {summary}
+    {why("How to read the bars",
+         "A bar past the dashed line is a real habit; a short grey bar "
+         "means no real difference. A notch means the bar runs off the "
+         "scale.")}</figcaption>
   </figure>
 </section>""")
 
@@ -757,7 +759,7 @@ body.append(f"""
     {stat(n_games, "ranked games")}
     {stat(f"{overall['avg']:.2f}", "avg place", f"± {overall['moe']:.2f}")}
     {stat(f"{overall['top4']:.0f}%", "top 4 rate")}
-    {stat(f"{100 * overall['wins'] / n_games:.0f}%", "win rate",
+    {stat(f"{100 * overall['wins'] / n_games:.0f}%", "1st place",
           f"{plural(overall['wins'], 'first')}")}
     {stat(f"{trend:+.2f}", "recent form", form_note) if has_form
      else stat("—", "recent form", "needs more games")}
@@ -791,18 +793,22 @@ if rank_svg or form_svg:
   <figure style="margin-top:26px">
     {rank_svg}
     <figcaption>Every rank reading since {esc(since)}, when this copy started
-    keeping them. Riot serves only your current rank and no history, so
-    nothing before that date exists to draw &mdash; this graph grows from
-    here.</figcaption>
+    keeping them.
+    {why("Why it starts there",
+         "Riot serves only your current rank and no history, so nothing "
+         "before that date exists to draw &mdash; this graph grows from "
+         "here.")}</figcaption>
   </figure>""")
     if form_svg:
         blocks.append(f"""
   <figure style="margin-top:26px">
     {form_svg}
-    <figcaption>Rolling 20-game average placement, oldest game on the
-    left. This is what a rank graph would show if Riot kept one &mdash; where
-    you finished is the only thing every game records. Dashed verticals are
-    the points where your style changed.</figcaption>
+    <figcaption>Rolling 20-game average placement, oldest game on the left.
+    Dashed verticals are the points where your style changed.
+    {why("Why this stands in for a rank graph",
+         "Where you finished is the only thing every game records &mdash; "
+         "this is what an LP graph would show if Riot kept one.")}
+    </figcaption>
   </figure>""")
     body.append(f"""
 <section>
@@ -811,6 +817,36 @@ if rank_svg or form_svg:
   <p class="lede">Whether the numbers moved, and when.</p>
   {''.join(blocks)}
 </section>""")
+
+# The blind-spots table folds into the comps section rather than standing as
+# its own h2 - same topic, one section fewer, and "what you've never touched"
+# is a detail of "what you've played", not a peer of it. Built here because
+# the section f-string below needs it ready.
+blind_items = "".join(
+    f'<tr><td>{esc(l)}</td><td class="num">{rate:.1f}%</td>'
+    f'<td class="num">{sp}</td>'
+    f'<td><span class="pill blank">no data</span></td></tr>'
+    for l, rate, sp in blind_real)
+blind_fold = ""
+if blind_real or blind_rare:
+    rare_note = (f'<ul class="notes"><li>Too rare in your lobbies to be worth '
+                 f'chasing: {esc(", ".join(blind_rare))}.</li></ul>'
+                 if blind_rare else "")
+    blind_table = f"""<div class="tablewrap" style="margin-top:10px">
+    <table>
+      <thead><tr><th>Comp</th><th class="num">Lobby builds it</th>
+      <th class="num">You splashed it</th><th>Your record</th></tr></thead>
+      <tbody>{blind_items}</tbody>
+    </table>
+  </div>""" if blind_real else (
+        '<p class="fine">None &mdash; you have built every comp your '
+        'lobbies build, at least once.</p>')
+    blind_fold = fold(
+        f"Comps you&rsquo;ve never built"
+        + (f" ({len(blind_real)})" if blind_real else ""),
+        '<p class="fine" style="margin:8px 0 0">Comps your lobbies play '
+        'that you have zero games on. Not advice to force them &mdash; '
+        'just where your data is blank.</p>' + blind_table + rare_note)
 
 if coverage_rows:
     # "Closest to a verdict" means most games among lines that have NOT got
@@ -840,9 +876,11 @@ if coverage_rows:
   trait breakpoint or four units, not a two-unit splash.</p>
   <figure>
     {coverage_chart(coverage_rows)}
-    <figcaption>Bars fill toward the {TARGET} games a comp needs before its
-    average means anything. {verdict_line} The percentage on the right is how
-    often other players in your lobbies build it.</figcaption>
+    <figcaption>{verdict_line}
+    {why("How to read the bars",
+         f"Bars fill toward the {TARGET} games a comp needs before its "
+         f"average means anything. The percentage on the right is how "
+         f"often other players in your lobbies build it.")}</figcaption>
   </figure>
   <ul class="notes">
     {f'<li><strong>Closest to enough games:</strong> {esc(closest[0])} at '
@@ -852,35 +890,18 @@ if coverage_rows:
       {esc(under[0])} &mdash; your lobbies build it in {under[2]:.1f}% of
       boards, you have {plural(under[1], "game")} on it.</li>
   </ul>
+  {blind_fold}
 </section>""")
 
-blind_items = "".join(
-    f'<tr><td>{esc(l)}</td><td class="num">{rate:.1f}%</td>'
-    f'<td class="num">{sp}</td>'
-    f'<td><span class="pill blank">no data</span></td></tr>'
-    for l, rate, sp in blind_real)
-
-if blind_real or blind_rare:
-    rare_note = (f'<ul class="notes"><li>Too rare in your lobbies to be worth '
-                 f'chasing: {esc(", ".join(blind_rare))}.</li></ul>'
-                 if blind_rare else "")
-    table = f"""<div class="tablewrap">
-    <table>
-      <thead><tr><th>Comp</th><th class="num">Lobby builds it</th>
-      <th class="num">You splashed it</th><th>Your record</th></tr></thead>
-      <tbody>{blind_items}</tbody>
-    </table>
-  </div>""" if blind_real else (
-        '<p class="lede">None &mdash; you have built every comp your lobbies '
-        'build, at least once.</p>')
+# A fresh account can have blind spots before it has coverage; the fold
+# normally lives inside the comps section, so give it a roof only when that
+# section did not render.
+if blind_fold and not coverage_rows:
     body.append(f"""
 <section>
   <p class="eyebrow">Blind spots</p>
-  <h2>Comps you&rsquo;ve never built</h2>
-  <p class="lede">Comps your lobbies play that you have zero games on. Not
-  advice to force them &mdash; just where your data is blank.</p>
-  {table}
-  {rare_note}
+  <h2>Where your data is blank</h2>
+  {blind_fold}
 </section>""")
 
 if divergence:
@@ -896,9 +917,10 @@ if divergence:
   </div>
   <figure>
     {dumbbell_chart(divergence)}
-    <figcaption>Playing off-meta is not automatically wrong &mdash; a comp you
-    know well can beat one everyone forces. The biggest gaps are simply where
-    you and your lobbies disagree.</figcaption>
+    <figcaption>The biggest gaps are where you and your lobbies disagree.
+    {why("Is disagreeing bad?",
+         "Playing off-meta is not automatically wrong &mdash; a comp you "
+         "know well can beat one everyone forces.")}</figcaption>
   </figure>
 </section>""")
 
@@ -942,8 +964,10 @@ if gap_rows:
   <p class="lede">{lede}</p>
   <figure>
     {gap_chart(gap_rows)}
-    <figcaption>The dot is how much better or worse you place with it; the
-    bar around the dot is the range luck alone could produce. {reading}</figcaption>
+    <figcaption>{reading}
+    {why("How to read the dots",
+         "The dot is how much better or worse you place with it; the bar "
+         "around the dot is the range luck alone could produce.")}</figcaption>
   </figure>
   <ul class="notes">{contested_note}{spread_note}</ul>
 </section>""")
@@ -986,7 +1010,7 @@ body.append(f"""
 <section>
   <p class="eyebrow">Method</p>
   <h2>How these numbers work</h2>
-  <ul class="notes">
+  {fold("The rules, in full", f'''<ul class="notes">
     <li><strong>{TARGET} games minimum</strong> before a number is trusted.
       Under that, an average placement can be off by 1.5 places on luck
       alone.</li>
@@ -1003,7 +1027,7 @@ body.append(f"""
       small enough to be luck is reported as no difference, not hidden.</li>
     <li>These games span patches {esc(", ".join(patches))}, and patches can
       move results by more than most gaps on this page.</li>
-  </ul>
+  </ul>''')}
   <footer>
     Built from {n_games} saved match files by <code>build_site.py</code>.
     Regenerate after fetching new games:
@@ -1034,7 +1058,7 @@ OUT_DIR.mkdir(exist_ok=True)
 <script>{SCRIPT}</script>
 </body>
 </html>
-""")
+""", encoding="utf-8")
 
 # The same page as a fragment, for a host that supplies its own <head>.
 (OUT_DIR / "artifact.html").write_text(f"""<title>{BRAND} &middot; Set {set_number} &middot; {esc(WHO)}</title>
@@ -1044,7 +1068,7 @@ OUT_DIR.mkdir(exist_ok=True)
 </div>
 <div id="tip" role="status" aria-live="polite"></div>
 <script>{SCRIPT}</script>
-""")
+""", encoding="utf-8")
 
 print(f"Built {OUT_DIR}/index.html and {OUT_DIR}/artifact.html for {WHO} "
       f"from {n_games} set-{set_number} games.")

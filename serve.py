@@ -380,7 +380,11 @@ def build_stats(puuid, label):
                 else:
                     os.environ[key] = was
 
-    page = (out / "index.html").read_text()
+    # utf-8 explicitly: build_site writes utf-8 explicitly, and on Windows a
+    # bare read_text() decodes as cp1252 - every dash on the page arrives as
+    # mojibake. The pair has to name the same encoding or the stats page
+    # only renders correctly on the Mac.
+    page = (out / "index.html").read_text(encoding="utf-8")
     STATS_CACHE[(puuid, label)] = (newest, page)
     return page
 
