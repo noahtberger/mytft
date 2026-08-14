@@ -646,6 +646,18 @@ if os.environ.get("TFT_LINKS"):
 # serves it.
 body.append(stale_names_banner(set_number))
 
+# The numbers people actually open the page for, first and biggest - the
+# user's call: "what stats do you think people will care about the most? i
+# propose we put that in a simplified manner at the top". Rank leads because
+# it is the first thing every player asks and every site shows; then the
+# performance row. This IS the Results row, moved rather than copied - two
+# identical rows on one page is noise, so the Results section keeps only its
+# chart now.
+last_rank = rank_mod.last_for(games[0]["puuid"])
+rank_tile = (stat(f"{last_rank['lp']} LP",
+                  f"{last_rank['tier'].title()} {last_rank['div']}",
+                  f"{last_rank['wins']}-{last_rank['losses']}")
+             if last_rank else "")
 body.append(f"""
 <header class="masthead">
   <div class="who">{esc(WHO)} &middot; Set {set_number} ranked</div>
@@ -654,6 +666,16 @@ body.append(f"""
   every number sized against how many games are behind it. Read it when you
   want to know what is true about your play rather than what to do next
   game.</p>
+  <div class="stats">
+    {rank_tile}
+    {stat(n_games, "ranked games")}
+    {stat(f"{overall['avg']:.2f}", "avg place", f"± {overall['moe']:.2f}")}
+    {stat(f"{overall['top4']:.0f}%", "top 4 rate")}
+    {stat(f"{100 * overall['wins'] / n_games:.0f}%", "1st place",
+          f"{plural(overall['wins'], 'first')}")}
+    {stat(f"{trend:+.2f}", "recent form", form_note) if has_form
+     else stat("—", "recent form", "needs more games")}
+  </div>
   <div class="verdict">
     <p class="eyebrow">Summary</p>
     <p style="margin:0">Across {n_games} ranked games, {headline}. You fully
@@ -754,16 +776,8 @@ body.append(f"""
 <section>
   <p class="eyebrow">Results</p>
   <h2>Winrate and placements</h2>
-  <p class="lede">Where you finish, across every ranked game of the set.</p>
-  <div class="stats">
-    {stat(n_games, "ranked games")}
-    {stat(f"{overall['avg']:.2f}", "avg place", f"± {overall['moe']:.2f}")}
-    {stat(f"{overall['top4']:.0f}%", "top 4 rate")}
-    {stat(f"{100 * overall['wins'] / n_games:.0f}%", "1st place",
-          f"{plural(overall['wins'], 'first')}")}
-    {stat(f"{trend:+.2f}", "recent form", form_note) if has_form
-     else stat("—", "recent form", "needs more games")}
-  </div>
+  <p class="lede">Where you finish, across every ranked game of the set.
+  The headline numbers sit at the top of the page.</p>
   <figure style="margin-top:26px">
     {placement_chart(placements)}
     <figcaption>Top 4 gains LP, bottom 4 loses it &mdash; that break is the
