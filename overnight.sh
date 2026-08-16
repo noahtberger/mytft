@@ -1,23 +1,52 @@
 #!/bin/sh
-# Wait for the running crawl to hit its own time limit, then start another
-# window so the night is not spent idle. The first run saves its queue on the
-# way out, so the second picks up mid-stride rather than reseeding.
+# Keep crawling until a wall-clock deadline, restarting if the crawl dies.
 #
-# Both runs stop by themselves when the API key expires - a dead key raises,
-# the crawler writes its state and exits, and this script ends. Nothing here
-# needs to know when that happens.
+# The first attempt at this file simply chained a second window behind the
+# first. That was not enough: a ReadTimeout to americas killed a run 83
+# minutes in and the night went idle. riot.py now waits out a dropped
+# connection, but a crawl that runs for sixteen hours will find new ways to
+# fall over, and none of them are worth losing a night of a patch that
+# cannot be re-crawled later.
 #
-#   sh overnight.sh <pid-of-running-crawl> <hours-for-the-second-run>
+# So: restart on any early exit, and tell apart the two reasons a crawl
+# stops early. A crash lasts minutes and is worth retrying. An expired API
+# key fails in seconds, every time, and no amount of retrying will fix it -
+# a dev key lasts 24 hours and only a human can paste a new one. Three
+# instant failures in a row is that, so stop and say so.
+#
+#   sh overnight.sh <hours>
 
-PID="$1"
-HOURS="${2:-10}"
+HOURS="${1:-12}"
 cd "$(dirname "$0")" || exit 1
 
-while ps -p "$PID" > /dev/null 2>&1; do
-    sleep 60
+END=$(( $(date +%s) + $(printf '%.0f' "$(echo "$HOURS * 3600" | bc)") ))
+INSTANT=0
+
+while [ "$(date +%s)" -lt "$END" ]; do
+    LEFT=$(( END - $(date +%s) ))
+    STARTED=$(date +%s)
+
+    .venv/bin/python crawl.py --hours "$(echo "scale=3; $LEFT / 3600" | bc)" \
+        >> corpus/crawl.log 2>&1
+    RAN=$(( $(date +%s) - STARTED ))
+
+    [ "$(date +%s)" -ge "$END" ] && break
+
+    if [ "$RAN" -lt 60 ]; then
+        INSTANT=$(( INSTANT + 1 ))
+        if [ "$INSTANT" -ge 3 ]; then
+            echo "--- gave up at $(date '+%H:%M'): three instant failures, the" \
+                 "API key has almost certainly expired. Paste a fresh one into" \
+                 ".riot_key and run: sh overnight.sh 8 ---" >> corpus/crawl.log
+            exit 1
+        fi
+    else
+        INSTANT=0
+    fi
+
+    echo "--- crawl stopped after ${RAN}s, restarting at $(date '+%H:%M') ---" \
+        >> corpus/crawl.log
+    sleep 10
 done
 
-echo "--- first window done, starting $HOURS more at $(date '+%H:%M') ---" \
-    >> corpus/crawl.log
-.venv/bin/python crawl.py --hours "$HOURS" >> corpus/crawl.log 2>&1
-echo "--- second window done at $(date '+%H:%M') ---" >> corpus/crawl.log
+echo "--- reached the deadline at $(date '+%H:%M') ---" >> corpus/crawl.log

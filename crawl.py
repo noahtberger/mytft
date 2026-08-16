@@ -30,6 +30,7 @@ and a patch for two weeks; a patch nobody crawled has no data, ever.
 import gzip
 import json
 import re
+import signal
 import sys
 import time
 from collections import deque
@@ -164,7 +165,22 @@ def status():
     print(f"\n  {len(queue):,} players queued, {len(visited):,} already walked")
 
 
+def stop_politely():
+    """Make `kill` behave like Ctrl-C, so a supervisor can stop us cleanly.
+
+    A crawl started in the background has SIGINT ignored - that is what a
+    non-interactive shell does to background jobs - so the only signal left
+    to stop it with is SIGTERM, which by default kills Python outright and
+    skips the save on the way out. Raising KeyboardInterrupt from the
+    handler routes a TERM into the same exit path everything else uses.
+    """
+    def interrupt(_signal, _frame):
+        raise KeyboardInterrupt
+    signal.signal(signal.SIGTERM, interrupt)
+
+
 def crawl(deadline):
+    stop_politely()
     queue, visited, set_number = load_state()
     seen = load_seen()
 
