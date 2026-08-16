@@ -79,8 +79,28 @@ def riot_get(url, allow_404=False, allow_403=False, **params):
 
     params["api_key"] = api_key()
     retried_401 = False
+    dropped = 0
     while True:
-        response = requests.get(url, params=params, timeout=15)
+        try:
+            response = requests.get(url, params=params, timeout=15)
+        except requests.exceptions.RequestException as blip:
+            # The connection itself failed - a read timeout, a reset, a DNS
+            # hiccup. Every status code Riot can return was handled below and
+            # this was not, so one dropped packet in an eight-hour crawl took
+            # the whole thing down and left the night idle. Observed: a
+            # ReadTimeout to americas killed a run 83 minutes in.
+            #
+            # Transport failures are transient in a way a 403 is not, so they
+            # are worth waiting out rather than reporting. Backs off 2, 4, 8,
+            # 16, 32 seconds and only then admits defeat, because a machine
+            # that has genuinely lost the network will not get it back inside
+            # a minute either.
+            dropped += 1
+            if dropped > 5:
+                raise RiotError(f"Lost the network to Riot, six times over "
+                                f"a minute: {blip}") from blip
+            time.sleep(2 ** dropped)
+            continue
 
         if response.status_code == 429:
             time.sleep(int(response.headers.get("Retry-After", 5)))
