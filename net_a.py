@@ -47,6 +47,7 @@ import torch.nn as nn
 
 from dataset import CORPUS, INVARIANT, OUT, Vocab
 
+THIN = 1000          # boards a trait must be built on before it is worth quoting
 EPOCHS = 60
 BATCH = 256          # lobbies, not boards
 HIDDEN = 128
@@ -220,11 +221,11 @@ def baseline(split, feature):
     return max(a, b)
 
 
-def load(train_patch=None, test_patch=None):
+def load(train_patch=None, test_patch=None, seed=SEED):
     data = np.load(OUT)
     vocab = Vocab.load()
-    torch.manual_seed(SEED)
-    rng = np.random.default_rng(SEED)
+    torch.manual_seed(seed)
+    rng = np.random.default_rng(seed)
 
     if train_patch:
         index = vocab.tables["patches"]
@@ -277,7 +278,7 @@ def train(model, train_split, test_split, quiet=False):
     return best[0]
 
 
-def trait_report(model, data, vocab, split):
+def trait_deltas(model, vocab, split):
     """What the model thinks each trait is worth, by asking it.
 
     Not a correlation. For every board that did NOT commit to a trait, the
@@ -330,6 +331,11 @@ def trait_report(model, data, vocab, split):
             rows.append((delta, shift.mean().item(), names[trait], int(off.sum())))
 
     rows.sort()
+    return rows
+
+
+def trait_report(model, data, vocab, split):
+    rows = trait_deltas(model, vocab, split)
     print(f"\n  {'trait':<26}{'boards':>8}{'strength':>11}{'placement':>11}")
     for delta, shift, name, n in rows:
         print(f"  {name[:24]:<26}{n:>8,}{shift:>+11.3f}{delta:>+11.2f}")
@@ -350,6 +356,65 @@ def trait_report(model, data, vocab, split):
               "half and half.")
 
 
+def stability(vocab, seeds, train_patch=None, test_patch=None):
+    """Train the whole thing several times over and keep only what agrees.
+
+    A network starts from random weights, so two runs on identical data give
+    two slightly different answers. One run cannot tell a trait that really
+    costs you a quarter of a placement from a trait the model happened to
+    feel that way about this morning - and a table that cannot tell those
+    apart is a table of coin flips with names attached.
+
+    The split is redrawn per seed as well as the weights, because the
+    question worth answering is "if I ran this pipeline again, how much would
+    it move" - and which boards landed in the test set is part of that.
+
+    Anything whose spread crosses zero is dropped. The model does not know
+    which way that trait goes, so it does not get an opinion on it.
+    """
+    pooled = {}
+    for run, seed in enumerate(seeds, start=1):
+        _, _, train_split, test_split = load(train_patch, test_patch, seed=seed)
+        model = BoardNet(vocab.size("champs"), vocab.size("items"),
+                         vocab.size("traits"), vocab.size("patches")).to(DEVICE)
+        accuracy = train(model, train_split, test_split, quiet=True)
+        print(f"  seed {seed:<4} pairwise {accuracy:>6.1%}", flush=True)
+        for delta, _, name, _ in trait_deltas(model, vocab, test_split):
+            pooled.setdefault(name, []).append(delta)
+        # How often the trait was actually built, which agreeing seeds do not
+        # tell you. Five runs rule out the model having been in a mood; they
+        # cannot conjure evidence that was never there, and a trait built on
+        # 243 boards is thin however confidently the network says otherwise.
+        built = {name: int((test_split["traits"][:, :, index] >= 2).sum())
+                 for index, name in
+                 ((i, n) for n, i in vocab.tables["traits"].items())}
+
+    rows = []
+    for name, deltas in pooled.items():
+        low, high = min(deltas), max(deltas)
+        rows.append((sum(deltas) / len(deltas), low, high, name,
+                     low > 0 or high < 0, built.get(name, 0)))
+    rows.sort()
+
+    print(f"\n  {'trait':<20}{'placement':>11}{'range over seeds':>22}"
+          f"{'built':>8}   verdict")
+    for mean, low, high, name, agrees, n in rows:
+        thin = " (thin)" if agrees and n < THIN else ""
+        print(f"  {name[:18]:<20}{mean:>+11.2f}{f'{low:+.2f} to {high:+.2f}':>22}"
+              f"{n:>8,}   {'holds' if agrees else 'noise'}{thin}")
+
+    kept = [r for r in rows if r[4]]
+    solid = [r for r in kept if r[5] >= THIN]
+    print(f"\n  {len(kept)} of {len(rows)} traits point the same way in all "
+          f"{len(seeds)} runs,\n  and {len(solid)} of those were built often "
+          f"enough to lean on.")
+    if solid:
+        print("  Believable, best first: "
+              + ", ".join(f"{n} ({m:+.2f})" for m, _, _, n, _, _ in solid))
+    print("  Everything marked noise moved sign between runs - one training "
+          "run\n  would have reported it as a finding anyway.")
+
+
 def main():
     args = sys.argv[1:]
     if not OUT.exists():
@@ -362,6 +427,17 @@ def main():
             train_patch, test_patch = args[spot + 1], args[spot + 2]
         except IndexError:
             sys.exit("--transfer needs two patches, like: --transfer 16.15 16.16")
+
+    if "--seeds" in args:
+        spot = args.index("--seeds")
+        try:
+            count = int(args[spot + 1])
+        except (IndexError, ValueError):
+            sys.exit("--seeds needs a number, like: --seeds 5")
+        vocab = Vocab.load()
+        print(f"Training {count} times to see which traits survive a reroll.\n")
+        return stability(vocab, [SEED + i for i in range(count)],
+                         train_patch, test_patch)
 
     data, vocab, train_split, test_split = load(train_patch, test_patch)
     print(f"{len(train_split['placement']):,} training lobbies, "
