@@ -18,6 +18,7 @@ Run:  python crawl.py                 crawl until you stop it
       python crawl.py --hours 4       crawl for four hours and stop
       python crawl.py --seed          top up the queue from the ladder again
       python crawl.py --status        what is on disk, no network
+      python crawl.py --watch         a live count, refreshed in place
 
 Stopping is always safe. Ctrl-C, a four-hour limit, and a key that expired
 at 3am all take the same exit: write the queue down and say where it got to.
@@ -148,6 +149,36 @@ def seed(queue, visited):
     return added
 
 
+def watch(every=20):
+    """A live count, for leaving open in a corner and glancing at.
+
+    Rate is measured between refreshes rather than averaged from the start,
+    because the average hides exactly the thing worth watching: a crawl that
+    is quietly decaying towards nothing looks fine in a cumulative number
+    for hours. The night this was written, one decayed from 2,022 an hour to
+    138 and the cumulative figure never dropped below four figures.
+    """
+    was = None
+    while True:
+        total = sum(count for _, count in shard_counts())
+        line = f"{total:,} matches   {total * 8:,} boards"
+        if was is not None:
+            rate = (total - was) * 3600 / every
+            line += f"   {rate:,.0f}/hr"
+        print(f"\r  {line}          ", end="", flush=True)
+        was = total
+        time.sleep(every)
+
+
+def shard_counts():
+    """(patch, matches) for every shard, newest patch last."""
+    out = []
+    for path in sorted(CORPUS.glob("*.jsonl.gz")):
+        with gzip.open(path, "rt", encoding="utf-8") as handle:
+            out.append((path.stem.replace(".jsonl", ""), sum(1 for _ in handle)))
+    return out
+
+
 def status():
     """What is on disk, without touching the network."""
     if not CORPUS.exists():
@@ -267,9 +298,16 @@ def main():
     args = sys.argv[1:]
     if "--status" in args:
         return status()
+    if "--watch" in args:
+        try:
+            return watch()
+        except KeyboardInterrupt:
+            print()
+            return
 
     unknown = [a for a in args
-               if a.startswith("-") and a not in ("--seed", "--hours", "--status")]
+               if a.startswith("-")
+               and a not in ("--seed", "--hours", "--status", "--watch")]
     if unknown:
         sys.exit(f"Unknown option: {' '.join(unknown)}")
 
