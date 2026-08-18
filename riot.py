@@ -11,6 +11,7 @@ whole reason it is a module and not a copy inside each script.
 import json
 import os
 import time
+from collections import deque
 from pathlib import Path
 
 import tftdata as tft
@@ -21,7 +22,13 @@ RANKED_QUEUE = 1100
 # Seconds to wait before re-trying a 401. A key issued seconds ago is not
 # live yet; this is the gap between pasting one and it working.
 KEY_SETTLE = 4
-SLEEP = 1.25          # seconds between match downloads (dev/personal key: 100 per 2 min)
+SLEEP = 0.0           # pacing now lives in the limiter below, not in the callers
+
+# Riot publishes the key's budget on every response: "100:120,20:1" is a
+# hundred requests per two minutes and twenty per second. These are the dev
+# key's, kept only as a starting guess - the first response replaces them.
+LIMITS = [(20, 1), (100, 120)]
+_SENT = deque()       # when we sent recent requests, for the sliding window
 
 FORBIDDEN = object()  # sentinel: Riot said 403 and the caller wants to handle it
 
@@ -54,6 +61,57 @@ def api_key():
     return key
 
 
+def note_limits(header):
+    """Adopt whatever budget Riot just said we have.
+
+    A personal or production key has a bigger one than a dev key, and the
+    difference is the difference between a night's crawl and a fortnight's.
+    Reading it off the response means upgrading the key is the whole
+    upgrade - no constant in here needs editing to match.
+    """
+    global LIMITS
+    try:
+        parsed = [(int(count), int(window)) for count, window in
+                  (rule.split(":") for rule in header.split(","))]
+    except (AttributeError, ValueError):
+        return
+    if parsed:
+        LIMITS = parsed
+
+
+def wait_for_slot():
+    """Block until one more request cannot break any of the published limits.
+
+    A fixed sleep between requests cannot do this job. Tuned to 1.25s it ran
+    at 96 requests per 120 against a cap of 100 - 96% of the budget, no
+    headroom - and the first time it tipped over, Riot answered 429 with a
+    Retry-After of up to two minutes. Two minutes is worth ninety-six
+    requests, so one trip cost more than the margin saved all hour, and an
+    overnight crawl decayed from 2,022 matches an hour to 185.
+
+    Keeping the send times and waiting for the oldest to age out of the
+    window instead spends the budget almost exactly, and never trips.
+    """
+    while True:
+        now = time.monotonic()
+        longest = max(window for _, window in LIMITS)
+        while _SENT and now - _SENT[0] > longest:
+            _SENT.popleft()
+
+        wait = 0.0
+        for allowed, window in LIMITS:
+            recent = [sent for sent in _SENT if now - sent < window]
+            if len(recent) >= allowed:
+                # The oldest of the last `allowed` has to fall out of the
+                # window before there is room for another.
+                wait = max(wait, window - (now - recent[-allowed]))
+
+        if wait <= 0:
+            _SENT.append(now)
+            return
+        time.sleep(min(wait, 5.0) + 0.01)
+
+
 def riot_get(url, allow_404=False, allow_403=False, **params):
     """GET a Riot endpoint, retrying politely on a rate limit.
 
@@ -82,6 +140,7 @@ def riot_get(url, allow_404=False, allow_403=False, **params):
     dropped = 0
     while True:
         try:
+            wait_for_slot()
             response = requests.get(url, params=params, timeout=15)
         except requests.exceptions.RequestException as blip:
             # The connection itself failed - a read timeout, a reset, a DNS
@@ -102,7 +161,13 @@ def riot_get(url, allow_404=False, allow_403=False, **params):
             time.sleep(2 ** dropped)
             continue
 
+        note_limits(response.headers.get("X-App-Rate-Limit"))
+
         if response.status_code == 429:
+            # Should now be rare enough to be worth noticing. If these show
+            # up in a log, the limiter's idea of the budget is wrong.
+            print(f"  (429 - waiting "
+                  f"{response.headers.get('Retry-After', 5)}s)", flush=True)
             time.sleep(int(response.headers.get("Retry-After", 5)))
             continue
 
