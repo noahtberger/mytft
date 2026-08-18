@@ -145,7 +145,7 @@ def matches_on_disk():
         yield json.loads(path.read_text())
 
 
-def encode(participant, vocab):
+def encode(participant, vocab, uniques=()):
     """One board -> (unit ids, item ids, trait tiers, invariant features).
 
     A unit's index folds in its star level, so a 1-star Fizz and a 3-star
@@ -187,10 +187,29 @@ def encode(participant, vocab):
         # restate how long you survived.
         value += (cost + 1) * 3 ** (star - 1)
 
+    # Traits are keyed by display name, not by Riot's id, and that is what
+    # folds the variants together: TFT17_Stargazer_Wolf and its siblings are
+    # three flavours of one trait and were being counted as three traits, so
+    # the model saw a third of the evidence for each of them.
+    #
+    # Unique traits are dropped for the reason tftdata already gives - they
+    # belong to exactly one champion, so "did you commit to it" is a fact
+    # about whether that champion was on the board and not a choice about a
+    # line. Left in, they dominated the trait report with rows that were
+    # really just "Blitzcrank is good" under another name.
     traits = {}
     for trait in participant["traits"]:
-        if trait.get("tier_current", 0) > 0:
-            traits[vocab.index("traits", trait["name"])] = trait["tier_current"]
+        if trait.get("tier_current", 0) <= 0:
+            continue
+        name, _ = tft.variant_of(trait["name"])
+        if name is None:
+            name = tft.display(trait["name"], "traits")
+        if name in uniques:
+            continue
+        index = vocab.index("traits", name)
+        # Two flavours of one trait can both be lit; the board committed as
+        # hard as the harder of them.
+        traits[index] = max(traits.get(index, 0), trait["tier_current"])
 
     tiers = list(traits.values())
     invariant = np.array([
@@ -209,6 +228,7 @@ def encode(participant, vocab):
 
 def build(set_number=None):
     vocab = Vocab.load()
+    uniques = ()
     rows_units, rows_items, rows_traits, rows_scalars = [], [], [], []
     patches, placements, lobbies = [], [], []
     kept = skipped = 0
@@ -218,12 +238,17 @@ def build(set_number=None):
         game_set = info.get("tft_set_number") or 0
         if set_number is None:
             set_number = game_set
+            uniques = tft.unique_traits(set_number)
+            if not uniques:
+                print(f"  (names.json lists no unique traits for set "
+                      f"{set_number} - run fetch_names.py, or every "
+                      f"one-champion trait will be reported as a line)")
         if game_set != set_number:
             skipped += 1
             continue
 
         patch = vocab.index("patches", crawl.patch_of(info))
-        table = [encode(p, vocab) for p in info["participants"]]
+        table = [encode(p, vocab, uniques) for p in info["participants"]]
 
         # How many other people in this lobby were on your line. It has to be
         # computed here because it is the one feature that is not a property
