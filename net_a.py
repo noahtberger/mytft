@@ -290,10 +290,17 @@ def trait_report(model, data, vocab, split):
     It is still an idealisation. Lighting a trait in a real game means
     swapping units in, and here nothing else moves - so read it as "worth
     trading a slot for", not as free.
+
+    Nothing in the invariant vector is allowed to move with it, and the first
+    version of this got that wrong. Switching a trait on also bumped
+    traits_committed, which is one of the survivorship features the model
+    quite correctly reads as "this board lived a long time" - so every trait
+    inherited the benefit of having one more finished trait, and twenty of
+    twenty-two came back looking helpful. Placement is a fixed 1-to-8 split;
+    a table where almost everything helps is arithmetically impossible and
+    was measuring board development wearing each trait's name in turn.
     """
     names = {v: k for k, v in vocab.tables["traits"].items()}
-    committed = INVARIANT.index("traits_committed")
-    best_tier = INVARIANT.index("best_trait_tier")
 
     model.eval()
     index = torch.arange(len(split["placement"]))
@@ -312,10 +319,6 @@ def trait_report(model, data, vocab, split):
             moved["traits"][:, :, trait] = torch.where(
                 off, torch.full_like(off, 2, dtype=torch.long),
                 moved["traits"][:, :, trait])
-            moved["invariant"][:, :, committed] += off.float()
-            moved["invariant"][:, :, best_tier] = torch.maximum(
-                moved["invariant"][:, :, best_tier],
-                off.float() * 2)
             after = forward(model, moved, index)
 
             shift = (after - base)[off]
@@ -329,9 +332,22 @@ def trait_report(model, data, vocab, split):
     rows.sort()
     print(f"\n  {'trait':<26}{'boards':>8}{'strength':>11}{'placement':>11}")
     for delta, shift, name, n in rows:
-        print(f"  {name.replace('TFT17_', '')[:24]:<26}{n:>8,}"
-              f"{shift:>+11.3f}{delta:>+11.2f}")
+        print(f"  {name[:24]:<26}{n:>8,}{shift:>+11.3f}{delta:>+11.2f}")
     print("\n  Negative placement is better - the trait moves you up the lobby.")
+
+    # The sanity check that the first version of this failed. Placement is a
+    # fixed 1-to-8 split, so a trait cannot help everyone: roughly half of
+    # these should be harmful. If they are not, something is leaking board
+    # development into the counterfactual again and the ranking above is
+    # decoration - say so here rather than letting it be quoted as a finding.
+    helpful = sum(1 for delta, *_ in rows if delta < 0)
+    print(f"  {helpful} of {len(rows)} traits help, "
+          f"{len(rows) - helpful} hurt.")
+    if rows and not 0.25 <= helpful / len(rows) <= 0.75:
+        print("  ^ that split is lopsided enough to distrust: a trait cannot "
+              "help\n    everyone when placements are a fixed 1-to-8 split. "
+              "Treat the\n    table above as unreliable until this is nearer "
+              "half and half.")
 
 
 def main():
