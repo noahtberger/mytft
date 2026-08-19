@@ -36,6 +36,7 @@ and cannot be retrofitted, so it goes in now.
 Run:  python net_a.py                       train and score
       python net_a.py --traits              what the model thinks of traits
       python net_a.py --transfer 17.8 17.9   train on one patch, test the next
+      python net_a.py --relaunch 17.7 17.8 17.9   rehearse launch day
 """
 
 import json
@@ -187,6 +188,18 @@ def normalise(train, *others):
     for split in (train, *others):
         split["invariant"] = (split["invariant"] - mean) / sd
     return mean, sd
+
+
+def normalise_to(split, stats):
+    """Standardise `split` with constants normalise() already returned.
+
+    A trunk carried across a set boundary only means anything if the
+    features arriving on the far side are on the scale it was fitted to.
+    Re-standardising the new set on itself would quietly move the ground
+    under it and make the head start look worse than it is.
+    """
+    mean, sd = stats
+    split["invariant"] = (split["invariant"] - mean) / sd
 
 
 def forward(model, batch, index):
@@ -425,10 +438,106 @@ def stability(vocab, seeds, train_patch=None, test_patch=None):
           "run\n  would have reported it as a finding anyway.")
 
 
+def relaunch(train_patches, new_patch, sizes=(50, 100, 250, 500, 1000, 2000)):
+    """Rehearse the 26th of August: keep the trunk, burn the names, refit.
+
+    The whole trunk/head split is a bet - that a network which already knows
+    how TFT works relearns a set's worth of fresh champions faster than one
+    starting from nothing, on a morning when everybody is starting from
+    nothing. reset_head() has been sitting in this file untested since the
+    day it was written, which is a poor state for the one code path launch
+    day depends on.
+
+    This is the closest rehearsal the data allows, and it understates the
+    problem: the names on the far side of this boundary are the SAME names,
+    so the fresh head relearns a vocabulary the trunk has already seen
+    alongside. What it does measure honestly is the mechanism - whether a
+    pretrained trunk gets a cold head off the ground faster - and that is
+    the part that has to hold when the names really do change.
+
+    The curve is what matters, not any single point. Launch day is the far
+    left of it: a few hundred lobbies, everyone equally blind.
+    """
+    data = np.load(OUT)
+    vocab = Vocab.load()
+    index = vocab.tables["tft_patches"]
+    for name in (*train_patches, new_patch):
+        if name not in index:
+            sys.exit(f"No patch {name} in the corpus. "
+                     f"Have: {', '.join(sorted(index))}")
+
+    rows = lambda names: np.where(np.isin(
+        data["tft_patch"], [index[n] for n in names]))[0]
+    old = lobbies(data, rows(train_patches))
+
+    # The new set, split into a fixed test half and a pool to refit from.
+    # The test half never moves, so every point on the curve is scored on
+    # the same lobbies and only the amount of fresh data changes.
+    fresh = rows([new_patch])
+    ids = np.unique(data["lobby"][fresh])
+    np.random.default_rng(SEED).shuffle(ids)
+    held = ids[:len(ids) // 2]
+    pool = ids[len(ids) // 2:]
+    pick = lambda chosen: fresh[np.isin(data["lobby"][fresh], chosen)]
+    test = lobbies(data, pick(held))
+
+    # One normalisation for everything, taken from the old set. The trunk is
+    # about to be reused on the far side of a boundary, so it has to meet
+    # the features on the scale it was trained on - that is the whole point
+    # of it being the half that survives.
+    stats = normalise(old, test)
+    for split in (old, test):
+        for key in split:
+            split[key] = split[key].to(DEVICE)
+
+    build = lambda: BoardNet(vocab.size("champs"), vocab.size("items"),
+                             vocab.size("traits"), vocab.size("patches")).to(DEVICE)
+
+    print(f"pretraining on {'+'.join(train_patches)}: "
+          f"{len(old['placement']):,} lobbies")
+    torch.manual_seed(SEED)
+    pretrained = build()
+    before = train(pretrained, old, test, quiet=True)
+    print(f"  pretrained model, straight onto {new_patch}: {before:.1%}")
+    print(f"\n  {new_patch} refit, scored on {len(test['placement']):,} "
+          f"held-out lobbies")
+    print(f"  {'lobbies':>8}{'trunk kept':>13}{'from scratch':>15}{'gain':>8}")
+
+    keep = {k: v.clone() for k, v in pretrained.state_dict().items()}
+    for size in sizes:
+        if size > len(pool):
+            break
+        slice_ = lobbies(data, pick(pool[:size]))
+        normalise_to(slice_, stats)
+        for key in slice_:
+            slice_[key] = slice_[key].to(DEVICE)
+
+        # Warm: the trunk keeps everything it learned, the head forgets
+        # every name. This is exactly what happens on launch morning.
+        torch.manual_seed(SEED)
+        warm = build()
+        warm.load_state_dict(keep)
+        warm.reset_head()
+        warm_score = train(warm, slice_, test, quiet=True)
+
+        torch.manual_seed(SEED)
+        cold_score = train(build(), slice_, test, quiet=True)
+        print(f"  {size:>8,}{warm_score:>12.1%}{cold_score:>14.1%}"
+              f"{warm_score - cold_score:>+8.1%}")
+
+
 def main():
     args = sys.argv[1:]
     if not OUT.exists():
         sys.exit("No dataset yet. Run: python dataset.py")
+
+    if "--relaunch" in args:
+        spot = args.index("--relaunch")
+        names = [a for a in args[spot + 1:] if not a.startswith("-")]
+        if len(names) < 2:
+            sys.exit("--relaunch needs the patches to pretrain on and the one "
+                     "to land on, like: --relaunch 17.7 17.8 17.9")
+        return relaunch(names[:-1], names[-1])
 
     train_patch = test_patch = None
     if "--transfer" in args:
