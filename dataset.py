@@ -92,10 +92,15 @@ class Vocab:
     and the loss would look like a bug in the network.
     """
 
-    KINDS = ("champs", "traits", "items", "patches")
+    KINDS = ("champs", "traits", "items", "patches", "tft_patches")
 
     def __init__(self, tables=None):
         self.tables = tables or {kind: {} for kind in self.KINDS}
+        # A vocabulary written before a kind existed is missing that key.
+        # Add it empty rather than crashing, so an existing corpus keeps
+        # loading and only the new column starts from nothing.
+        for kind in self.KINDS:
+            self.tables.setdefault(kind, {})
 
     @classmethod
     def load(cls):
@@ -230,7 +235,7 @@ def build(set_number=None):
     vocab = Vocab.load()
     uniques = ()
     rows_units, rows_items, rows_traits, rows_scalars = [], [], [], []
-    patches, placements, lobbies = [], [], []
+    patches, tft_patches, placements, lobbies = [], [], [], []
     kept = skipped = 0
 
     for lobby, match in enumerate(matches_on_disk()):
@@ -247,7 +252,12 @@ def build(set_number=None):
             skipped += 1
             continue
 
+        # Two different numbers for the same fortnight, kept side by side.
+        # patch is the client build out of game_version; tft_patch is what
+        # the patch notes call it, and is the one that joins to a published
+        # list of trait changes. See crawl.TFT_PATCHES.
         patch = vocab.index("patches", crawl.patch_of(info))
+        tft_patch = vocab.index("tft_patches", crawl.tft_patch_of(info))
         table = [encode(p, vocab, uniques) for p in info["participants"]]
 
         # How many other people in this lobby were on your line. It has to be
@@ -268,6 +278,7 @@ def build(set_number=None):
             rows_traits.append(traits)
             rows_scalars.append(invariant)
             patches.append(patch)
+            tft_patches.append(tft_patch)
             placements.append(info["participants"][seat]["placement"])
             # Which lobby a board came from. The eight boards in a match
             # competed for one set of placements, so they are not eight
@@ -296,6 +307,7 @@ def build(set_number=None):
         traits=trait_matrix,
         invariant=np.stack(rows_scalars),
         patch=np.array(patches, dtype=np.int32),
+        tft_patch=np.array(tft_patches, dtype=np.int32),
         placement=np.array(placements, dtype=np.int8),
         lobby=np.array(lobbies, dtype=np.int32),
         set_number=np.array([set_number]),
@@ -306,7 +318,8 @@ def build(set_number=None):
     print(f"  {vocab.size('champs') - 1:,} champion+star combinations")
     print(f"  {vocab.size('traits') - 1:,} traits")
     print(f"  {vocab.size('items') - 1:,} items")
-    print(f"  {vocab.size('patches') - 1:,} patches")
+    print(f"  {vocab.size('patches') - 1:,} client builds, "
+          f"{vocab.size('tft_patches') - 1:,} TFT patches")
     print(f"  {OUT} is {OUT.stat().st_size / 1e6:.1f} MB")
 
 
@@ -319,12 +332,15 @@ def status():
         data = np.load(OUT)
         print(f"\n{len(data['placement']):,} boards, "
               f"{len(set(data['lobby'].tolist())):,} lobbies")
-        counts = np.bincount(data["patch"])
-        for index, count in enumerate(counts):
-            if count:
-                name = next((k for k, v in vocab.tables["patches"].items()
-                             if v == index), "?")
-                print(f"  {name:>8}  {count:>8,} boards")
+        for kind, column in (("tft_patches", "tft_patch"), ("patches", "patch")):
+            if column not in data:
+                continue
+            print(f"\n  by {'TFT patch' if column == 'tft_patch' else 'client build'}:")
+            names = {v: k for k, v in vocab.tables[kind].items()}
+            counts = np.bincount(data[column])
+            for index, count in enumerate(counts):
+                if count:
+                    print(f"  {names.get(index, '?'):>8}  {count:>8,} boards")
 
 
 if __name__ == "__main__":

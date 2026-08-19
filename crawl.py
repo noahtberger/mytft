@@ -28,6 +28,7 @@ night, and the games you miss are gone. Riot keeps match history for a while
 and a patch for two weeks; a patch nobody crawled has no data, ever.
 """
 
+import datetime as dt
 import gzip
 import json
 import re
@@ -59,6 +60,57 @@ def patch_of(info):
     """
     found = re.search(r"(\d+)\.(\d+)", info.get("game_version", ""))
     return found.group(0) if found else "unknown"
+
+
+# TFT numbers its own patches by set: 17.9 is the ninth patch of Set 17, and
+# the counter rolls over to 18.1 when the next set lands. That is the number
+# printed on the patch notes, so it is the only one that can be joined to a
+# list of which traits Riot actually changed.
+#
+# It is not the number in game_version. That one is the League client build
+# ("16.16"), whose major version follows the calendar year, and it drifts
+# across a TFT patch boundary because a client build outlives a balance
+# change. The two agree often enough to be mistaken for each other and not
+# often enough to be used interchangeably.
+#
+# Release days, from the official notes, newest first. A game belongs to the
+# last patch released on or before it was played. Anything earlier than the
+# oldest entry is "unknown" rather than guessed: a wrong label here would
+# quietly credit a trait change to the wrong fortnight, which is the exact
+# error this field exists to prevent. Append new patches as they ship.
+TFT_PATCHES = (
+    ("2026-08-11", "17.9"),
+    ("2026-07-28", "17.8"),
+    ("2026-07-14", "17.7"),
+    ("2026-06-23", "17.6"),
+    ("2026-06-09", "17.5"),
+    ("2026-05-27", "17.4"),
+    ("2026-05-12", "17.3"),
+    ("2026-04-28", "17.2"),
+    ("2026-04-14", "17.1"),     # Set 17 launch
+    ("2026-03-31", "16.8"),
+    ("2026-03-17", "16.7"),
+    ("2026-03-03", "16.6"),
+)
+
+
+def tft_patch_of(info):
+    """Which TFT patch a match was played on - '17.9', not '16.16'.
+
+    Decided by when the game was played, not by the client build string,
+    because the build is the thing that drifts. Riot rolls a patch out over
+    a day or so across regions, so a game inside that window can land on
+    either side; at a fortnight's cadence that is a rounding error, but it
+    is why this is not exact for the handful of games played on release day.
+    """
+    played = info.get("gameCreation") or info.get("game_datetime")
+    if not played:
+        return "unknown"
+    day = dt.datetime.fromtimestamp(played / 1000, dt.timezone.utc).date()
+    for released, name in TFT_PATCHES:
+        if day >= dt.date.fromisoformat(released):
+            return name
+    return "unknown"
 
 
 def shard(patch):

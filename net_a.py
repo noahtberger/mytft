@@ -35,7 +35,7 @@ and cannot be retrofitted, so it goes in now.
 
 Run:  python net_a.py                       train and score
       python net_a.py --traits              what the model thinks of traits
-      python net_a.py --transfer 16.15 16.16   train on one patch, test the next
+      python net_a.py --transfer 17.8 17.9   train on one patch, test the next
 """
 
 import json
@@ -228,13 +228,23 @@ def load(train_patch=None, test_patch=None, seed=SEED):
     rng = np.random.default_rng(seed)
 
     if train_patch:
-        index = vocab.tables["patches"]
-        for name in (train_patch, test_patch):
-            if name not in index:
-                sys.exit(f"No patch {name} in the corpus. Have: "
-                         f"{', '.join(sorted(index))}")
-        train = lobbies(data, np.where(data["patch"] == index[train_patch])[0])
-        test = lobbies(data, np.where(data["patch"] == index[test_patch])[0])
+        # A patch has two names: "17.9" is what the notes call it and what
+        # you want to type, "16.16" is the client build the corpus is
+        # sharded on. Whichever vocabulary recognises the name picks the
+        # column, so both spellings work and neither has to be remembered.
+        for kind, column in (("tft_patches", "tft_patch"), ("patches", "patch")):
+            index = vocab.tables.get(kind, {})
+            if column in data and train_patch in index and test_patch in index:
+                break
+        else:
+            known = sorted(vocab.tables.get("tft_patches") or
+                           vocab.tables.get("patches", {}))
+            sys.exit(f"No patch {train_patch} / {test_patch} in the corpus. "
+                     f"Have: {', '.join(known)}"
+                     + ("\n(rebuild with: python dataset.py)"
+                        if "tft_patch" not in data else ""))
+        train = lobbies(data, np.where(data[column] == index[train_patch])[0])
+        test = lobbies(data, np.where(data[column] == index[test_patch])[0])
     else:
         every = np.unique(data["lobby"])
         rng.shuffle(every)
