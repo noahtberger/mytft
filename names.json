@@ -1,5 +1,5 @@
 {
-  "version": "16.15.1",
+  "version": "16.16.1",
   "traits": {
     "TFTTutorial_Assassin": "Assassin",
     "TFTTutorial_Blademaster": "Blademaster",
@@ -610,6 +610,13 @@
       "Soul Killer",
       "Virus"
     ],
+    "18": [
+      "Attuned",
+      "Brawler",
+      "Lunar",
+      "Spellweaver",
+      "Sprykin"
+    ],
     "13": [
       "High Roller",
       "Junker King"
@@ -710,6 +717,44 @@
       "TFT14_Vanguard",
       "TFT14_ViegoUniqueTrait",
       "TFT14_Virus"
+    ],
+    "18": [
+      "DA_18_Adaptor",
+      "DA_18_ApexPredator",
+      "DA_18_Battlemage",
+      "DA_18_Blackthorn",
+      "DA_18_Blossom",
+      "DA_18_Brawler",
+      "DA_18_Caustic",
+      "DA_18_Coven",
+      "DA_18_Defender",
+      "DA_18_Eclipse",
+      "DA_18_Elderwood",
+      "DA_18_Executioner",
+      "DA_18_Fae",
+      "DA_18_Greenfather",
+      "DA_18_Hunter",
+      "DA_18_Inferno",
+      "DA_18_Invoker",
+      "DA_18_Lunar",
+      "DA_18_LuxUniqueTrait",
+      "DA_18_Maokai_UniqueTrait",
+      "DA_18_Rapidfire",
+      "DA_18_Rival",
+      "DA_18_Slayer",
+      "DA_18_Solar",
+      "DA_18_Spellweaver",
+      "DA_18_Sprykin",
+      "DA_18_Summoner",
+      "DA_18_Vanguard",
+      "DA_18_ZyraUniqueTrait",
+      "DA_AluneUniqueTrait18",
+      "DA_DravenUniqueTrait18",
+      "DA_Emerald18",
+      "DA_FloraFatalis18",
+      "DA_Juggernaut18",
+      "DA_Primal18",
+      "DA_Riftbeast18"
     ],
     "13": [
       "TFT13_Academy",
