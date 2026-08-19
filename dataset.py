@@ -256,7 +256,13 @@ def build(set_number=None):
         # patch is the client build out of game_version; tft_patch is what
         # the patch notes call it, and is the one that joins to a published
         # list of trait changes. See crawl.TFT_PATCHES.
-        patch = vocab.index("patches", crawl.patch_of(info))
+        # tft_patch_of, not patch_of. The shard filenames use the client
+        # build because that is what a crawl can know without a calendar,
+        # but a build outlives a balance change: build 16.15 holds 6,607
+        # games of TFT 17.8 and 1,034 of 17.9. Training on a build boundary
+        # puts post-patch games in the pre-patch split, which biases every
+        # cross-patch question towards "the patch changed nothing".
+        patch = vocab.index("patches", crawl.tft_patch_of(info))
         tft_patch = vocab.index("tft_patches", crawl.tft_patch_of(info))
         table = [encode(p, vocab, uniques) for p in info["participants"]]
 

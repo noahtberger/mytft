@@ -579,6 +579,89 @@ def transfer(vocab, earlier, later):
     return held - moved
 
 
+def compare(vocab, first, second, runs=3):
+    """Measure the trait table on two patches and ask what actually moved.
+
+    Aggregate accuracy is a blunt instrument for this: it is dominated by
+    common boards, so a trait played on one board in a hundred could be
+    repriced from best to worst without shifting it a tenth of a point.
+    Reading the table off each patch separately looks straight at the thing
+    a balance patch is supposed to change.
+
+    Two things have to be controlled or the answer is noise wearing a hat.
+
+    Seed wobble, because two models trained on identical data disagree by
+    about a tenth of a placement, and a trait that moved by less than that
+    has not moved. Each patch is measured several times over and a trait
+    only counts as shifted when the two sets of readings do not overlap.
+
+    Sample size, because the patches are not equally crawled - 16.15 has
+    half again as many lobbies as 16.16 - and a table read off more data is
+    steadier for reasons with nothing to do with balance. Both sides are cut
+    to the smaller patch's lobby count.
+    """
+    data = np.load(OUT)
+    index = vocab.tables["patches"]
+    for name in (first, second):
+        if name not in index:
+            sys.exit(f"No patch {name} in the corpus. Have: "
+                     f"{', '.join(sorted(index))}")
+
+    counts = {p: len(np.unique(data["lobby"][data["patch"] == index[p]]))
+              for p in (first, second)}
+    take = min(counts.values())
+    print(f"  {first}: {counts[first]:,} lobbies, {second}: "
+          f"{counts[second]:,} - both cut to {take:,}, {runs} runs each\n")
+
+    tables = {}
+    for patch in (first, second):
+        pooled = {}
+        for run in range(runs):
+            seed = SEED + run
+            rng = np.random.default_rng(seed)
+            torch.manual_seed(seed)
+            rows = np.where(data["patch"] == index[patch])[0]
+            every = np.unique(data["lobby"][rows])
+            rng.shuffle(every)
+            every = every[:take]
+            cut = int(len(every) * 0.8)
+            pick = lambda ids: rows[np.isin(data["lobby"][rows], ids)]
+            tr = lobbies(data, pick(every[:cut]))
+            te = lobbies(data, pick(every[cut:]))
+            normalise(tr, te)
+            for split in (tr, te):
+                for key in split:
+                    split[key] = split[key].to(DEVICE)
+            model = BoardNet(vocab.size("champs"), vocab.size("items"),
+                             vocab.size("traits"), vocab.size("patches")).to(DEVICE)
+            accuracy = train(model, tr, te, quiet=True)
+            print(f"  {patch} run {run + 1}  pairwise {accuracy:>6.1%}", flush=True)
+            for delta, _, name, _ in trait_deltas(model, vocab, te):
+                pooled.setdefault(name, []).append(delta)
+        tables[patch] = pooled
+
+    rows = []
+    for name in set(tables[first]) & set(tables[second]):
+        a, b = tables[first][name], tables[second][name]
+        mean_a, mean_b = sum(a) / len(a), sum(b) / len(b)
+        apart = max(a) < min(b) or max(b) < min(a)
+        rows.append((abs(mean_b - mean_a), mean_a, mean_b, name, apart))
+    rows.sort(reverse=True)
+
+    print(f"\n  {'trait':<20}{first:>10}{second:>10}{'moved':>9}   verdict")
+    for _, mean_a, mean_b, name, apart in rows:
+        print(f"  {name[:18]:<20}{mean_a:>+10.2f}{mean_b:>+10.2f}"
+              f"{mean_b - mean_a:>+9.2f}   {'MOVED' if apart else '-'}")
+
+    moved = [r for r in rows if r[4]]
+    print(f"\n  {len(moved)} of {len(rows)} traits moved by more than the "
+          f"spread across {runs} runs.")
+    if not moved:
+        print("  Nothing moved. Either the patch changed nothing this method\n"
+              "  can see, or there is nothing here for a patch model to learn.")
+    return moved
+
+
 def main():
     args = sys.argv[1:]
     if not OUT.exists():
@@ -610,6 +693,13 @@ def main():
         print(f"Training {count} times to see which traits survive a reroll.\n")
         return stability(vocab, [SEED + i for i in range(count)],
                          train_patch, test_patch)
+
+    if "--compare" in args:
+        spot = args.index("--compare")
+        try:
+            return compare(Vocab.load(), args[spot + 1], args[spot + 2])
+        except IndexError:
+            sys.exit("--compare needs two patches, like: --compare 16.15 16.16")
 
     if train_patch:
         return transfer(Vocab.load(), train_patch, test_patch)
