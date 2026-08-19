@@ -17,6 +17,7 @@ gitignored, disposable, and read only by the model.
 Run:  python crawl.py                 crawl until you stop it
       python crawl.py --hours 4       crawl for four hours and stop
       python crawl.py --seed          top up the queue from the ladder again
+      python crawl.py --seed --wide   reach into Diamond/Emerald/Platinum too
       python crawl.py --status        what is on disk, no network
       python crawl.py --watch         a live count, refreshed in place
 
@@ -45,7 +46,20 @@ STATE = CORPUS / "state.json"
 SEEN = CORPUS / "seen.txt"          # match ids already written, one per line
 
 TIERS = ("challenger", "grandmaster", "master")
-GAMES_PER_PLAYER = 20   # recent games only: this samples a patch, not a career
+
+# Where to seed from when the apex tiers are empty. They are empty exactly
+# once per set, on the morning it launches: TFT soft-resets ranks, so on the
+# 26th of August there is no Challenger and no Grandmaster, and a crawler
+# that only knows those three names seeds nobody on the one day the data is
+# worth most. These are read a division at a time and there are plenty.
+DIVISIONS = (("DIAMOND", "I"), ("DIAMOND", "II"),
+             ("EMERALD", "I"), ("EMERALD", "II"),
+             ("PLATINUM", "I"), ("PLATINUM", "II"))
+ENOUGH_SEEDS = 500      # below this the apex tiers count as empty
+PAGES_PER_DIVISION = 5  # 205 players a page, so five is about a thousand each
+
+GAMES_PER_PLAYER = 200  # Riot's cap per request. See seed_window() for why
+                        # asking for the maximum is cheaper, not greedier.
 QUEUE_CAP = 200_000     # stop enqueueing beyond this so state.json stays sane
 REPORT_EVERY = 25       # matches between progress lines
 
@@ -171,7 +185,7 @@ def save_state(queue, visited, set_number):
     }))
 
 
-def seed(queue, visited):
+def seed(queue, visited, wide=False):
     """Fill the queue from the top three ranked tiers.
 
     High elo first is not snobbery, it is signal. The question the model is
@@ -180,6 +194,12 @@ def seed(queue, visited):
     the ladder on its own as it snowballs through lobbies, which is fine -
     it is the starting point that decides the average, not the tail.
     """
+    # Seeds go to the FRONT. A re-seed is a deliberate "go and look at
+    # these", and the queue it joins holds ninety thousand players snowballed
+    # out of lobbies already crawled - the exact exhausted neighbourhood the
+    # re-seed exists to escape. Appended to the back they would not be
+    # reached for weeks. The snowball inside crawl() still appends, because
+    # a lobby-mate is a lead rather than a decision.
     added = 0
     for tier in TIERS:
         try:
@@ -194,11 +214,69 @@ def seed(queue, visited):
                   f"Riot changed the shape of this endpoint again.")
             continue
         fresh = [p for p in found if p not in visited]
-        queue.extend(fresh)
+        queue.extendleft(fresh)
         added += len(fresh)
         print(f"  {tier}: {len(found)} players, {len(fresh)} new")
         time.sleep(riot.SLEEP)
+
+    if added >= ENOUGH_SEEDS and not wide:
+        return added
+
+    # Two ways to end up here. On set launch day the apex is genuinely empty
+    # and this is the only way to start at all. The other is exhaustion: the
+    # apex is about ten thousand players who mostly play each other, so once
+    # their recent games are collected, every further request returns ids
+    # already on disk and the crawl decays towards nothing. It did - to
+    # fourteen matches an hour, with the process perfectly healthy. Neither
+    # a rate limiter nor a retry can fix that; only more players can, and
+    # the divisional ladder has an order of magnitude more of them.
+    why = ("--wide asked for it" if added >= ENOUGH_SEEDS else
+           f"only {added} players in the apex tiers - normal on launch day")
+    print(f"  reaching into the divisional ladder ({why})")
+    for tier, division in DIVISIONS:
+        for page_number in range(1, PAGES_PER_DIVISION + 1):
+            try:
+                page = riot.riot_get(
+                    f"{riot.PLATFORM}/tft/league/v1/entries/{tier}/{division}",
+                    page=page_number)
+            except riot.RiotError as problem:
+                print(f"  {tier} {division} p{page_number}: {problem}")
+                break
+            if not page:
+                break       # ran off the end of this division
+            # Inactive players cost a request and return nothing, which is
+            # the exact failure being fixed. Riot flags them; believe it.
+            found = [e["puuid"] for e in page
+                     if e.get("puuid") and not e.get("inactive")]
+            fresh = [p for p in found if p not in visited]
+            queue.extendleft(fresh)
+            added += len(fresh)
+        print(f"  {tier} {division}: {added:,} queued so far")
+        if added >= ENOUGH_SEEDS and not wide:
+            break
     return added
+
+
+def seed_window():
+    """Epoch seconds for the start of the current TFT patch, or None.
+
+    Riot lets the id request filter by start time, and using it is the
+    difference between a crawl that scales and one that grinds. Without it
+    every id request comes back full of games from patches already crawled,
+    each of which costs a download to identify and throw away - and asking
+    for more ids per player makes that worse rather than better, because the
+    extra ones reach further into history.
+
+    With it, one request returns up to two hundred ids that are all from the
+    patch being sampled. The same request buys ten times the useful work,
+    which is the actual fix for a crawl decaying to fourteen matches an hour.
+    """
+    today = dt.datetime.now(dt.timezone.utc).date().isoformat()
+    for released, _ in TFT_PATCHES:
+        if released <= today:
+            return int(dt.datetime.fromisoformat(released)
+                       .replace(tzinfo=dt.timezone.utc).timestamp())
+    return None
 
 
 def watch(every=20):
@@ -287,9 +365,11 @@ def crawl(deadline):
                 continue
             visited.add(puuid)
 
+            since = seed_window()
             ids = riot.riot_get(
                 f"{riot.REGIONAL}/tft/match/v1/matches/by-puuid/{puuid}/ids",
-                start=0, count=GAMES_PER_PLAYER)
+                start=0, count=GAMES_PER_PLAYER,
+                **({"startTime": since} if since else {}))
             time.sleep(riot.SLEEP)
 
             for match_id in ids:
@@ -359,7 +439,8 @@ def main():
 
     unknown = [a for a in args
                if a.startswith("-")
-               and a not in ("--seed", "--hours", "--status", "--watch")]
+               and a not in ("--seed", "--hours", "--status", "--watch",
+                             "--wide")]
     if unknown:
         sys.exit(f"Unknown option: {' '.join(unknown)}")
 
@@ -378,7 +459,7 @@ def main():
     if "--seed" in args:
         queue, visited, set_number = load_state()
         print("Seeding from the ladder...")
-        added = seed(queue, visited)
+        added = seed(queue, visited, wide="--wide" in args)
         save_state(queue, visited, set_number)
         print(f"{added:,} players added, {len(queue):,} queued.")
         if deadline is None:
