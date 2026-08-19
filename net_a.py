@@ -526,6 +526,59 @@ def relaunch(train_patches, new_patch, sizes=(50, 100, 250, 500, 1000, 2000)):
               f"{warm_score - cold_score:>+8.1%}")
 
 
+def transfer(vocab, earlier, later):
+    """Train on one patch; score the patch it was trained on, and the next.
+
+    The comparison needs both halves or it says nothing. Train on 16.15 and
+    test on 16.16 alone and a poor score has two explanations - the patch
+    genuinely moved what is good, or one patch simply is not much training
+    data - and they are indistinguishable. So the earlier patch is split, a
+    fifth of it kept back, and the model is asked both questions from the
+    same weights.
+
+    The gap between those two numbers is what a patch costs you. It is also
+    the ceiling on any model that tries to predict a patch in advance: if a
+    network trained before the patch still scores as well after it, there
+    was nothing there to predict.
+    """
+    data = np.load(OUT)
+    index = vocab.tables["patches"]
+    for name in (earlier, later):
+        if name not in index:
+            sys.exit(f"No patch {name} in the corpus. Have: "
+                     f"{', '.join(sorted(index))}")
+
+    rng = np.random.default_rng(SEED)
+    torch.manual_seed(SEED)
+    rows = np.where(data["patch"] == index[earlier])[0]
+    every = np.unique(data["lobby"][rows])
+    rng.shuffle(every)
+    cut = int(len(every) * 0.8)
+    pick = lambda ids: rows[np.isin(data["lobby"][rows], ids)]
+
+    train_split = lobbies(data, pick(every[:cut]))
+    same = lobbies(data, pick(every[cut:]))
+    across = lobbies(data, np.where(data["patch"] == index[later])[0])
+    normalise(train_split, same, across)
+    for split in (train_split, same, across):
+        for key in split:
+            split[key] = split[key].to(DEVICE)
+
+    model = BoardNet(vocab.size("champs"), vocab.size("items"),
+                     vocab.size("traits"), vocab.size("patches")).to(DEVICE)
+    train(model, train_split, same, quiet=True)
+
+    held, _ = evaluate(model, same)
+    moved, _ = evaluate(model, across)
+    print(f"  trained on {earlier} ({len(train_split['placement']):,} lobbies)")
+    print(f"    tested on held-out {earlier:<8}{held:>7.1%}   "
+          f"({len(same['placement']):,} lobbies)")
+    print(f"    tested on {later:<16}{moved:>7.1%}   "
+          f"({len(across['placement']):,} lobbies)")
+    print(f"    the patch costs{held - moved:>+16.1%}")
+    return held - moved
+
+
 def main():
     args = sys.argv[1:]
     if not OUT.exists():
@@ -557,6 +610,9 @@ def main():
         print(f"Training {count} times to see which traits survive a reroll.\n")
         return stability(vocab, [SEED + i for i in range(count)],
                          train_patch, test_patch)
+
+    if train_patch:
+        return transfer(Vocab.load(), train_patch, test_patch)
 
     data, vocab, train_split, test_split = load(train_patch, test_patch)
     print(f"{len(train_split['placement']):,} training lobbies, "
