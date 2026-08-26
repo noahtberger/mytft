@@ -40,10 +40,12 @@ later asked must hold them fixed too, or it is measuring survival again.
 
 Run:  python dataset.py             build from everything on disk
       python dataset.py --status    what the vocabularies look like
+      TFT_SET=17 python dataset.py  build an older set instead of the newest
 """
 
 import gzip
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -123,6 +125,36 @@ class Vocab:
         return len(self.tables[kind]) + 1
 
 
+def newest_set():
+    """The highest set number anywhere on disk, or TFT_SET if it is set.
+
+    Every other script here reports on the newest set found, so that a set
+    launch needs no edit anywhere - the README makes a promise of it. This
+    one did not, and read whichever set the first shard happened to hold.
+    Shards sort by name, "16.15" sorts before "18.1", and Set 17 outnumbered
+    Set 18 by two thousand to one on launch day - so it would have quietly
+    rebuilt Set 17 every morning and skipped the new set as foreign data.
+
+    Costs one match read per shard rather than a second pass over the whole
+    corpus.
+    """
+    override = os.environ.get("TFT_SET")
+    if override:
+        return int(override)
+
+    best = 0
+    for shard in CORPUS.glob("*.jsonl.gz"):
+        with gzip.open(shard, "rt", encoding="utf-8") as handle:
+            first = handle.readline()
+        if first:
+            best = max(best, json.loads(first)["info"].get("tft_set_number") or 0)
+    for path in tft.match_files():
+        best = max(best, json.loads(path.read_text())["info"]
+                   .get("tft_set_number") or 0)
+        break
+    return best or None
+
+
 def matches_on_disk():
     """Every match we have, from the corpus shards and the two match folders.
 
@@ -150,7 +182,7 @@ def matches_on_disk():
         yield json.loads(path.read_text())
 
 
-def encode(participant, vocab, uniques=()):
+def encode(participant, vocab, uniques=(), peak=None):
     """One board -> (unit ids, item ids, trait tiers, invariant features).
 
     A unit's index folds in its star level, so a 1-star Fizz and a 3-star
@@ -162,6 +194,7 @@ def encode(participant, vocab, uniques=()):
     into a board-wide bag. Rageblade on the carry and Rageblade on the
     frontline are not the same board, and a bag cannot tell them apart.
     """
+    peak = {} if peak is None else peak
     units = np.zeros(MAX_UNITS, dtype=np.int32)
     items = np.zeros((MAX_UNITS, MAX_ITEMS), dtype=np.int32)
 
@@ -209,9 +242,11 @@ def encode(participant, vocab, uniques=()):
         name, _ = tft.variant_of(trait["name"])
         if name is None:
             name = tft.display(trait["name"], "traits")
-        if name in uniques:
-            continue
         index = vocab.index("traits", name)
+        # Uniqueness is confirmed against the boards rather than dropped on
+        # the file's say-so - see build(). A trait fielded with two units is
+        # not a one-champion trait no matter what names.json believes.
+        peak[index] = max(peak.get(index, 0), trait.get("num_units", 0))
         # Two flavours of one trait can both be lit; the board committed as
         # hard as the harder of them.
         traits[index] = max(traits.get(index, 0), trait["tier_current"])
@@ -232,8 +267,17 @@ def encode(participant, vocab, uniques=()):
 
 
 def build(set_number=None):
+    set_number = set_number or newest_set()
+    # Resolved here, not inside the loop. The loop only ever ran this when
+    # set_number arrived as None, and now it never does - so the suspect
+    # list stayed empty and nothing was filtered at all.
+    uniques = tft.unique_traits(set_number) if set_number else ()
+    if set_number and not uniques:
+        print(f"  (names.json lists no unique traits for set {set_number} - "
+              f"run fetch_names.py, or every one-champion trait will be "
+              f"reported as a line)")
     vocab = Vocab.load()
-    uniques = ()
+    peak = {}       # trait index -> most units ever seen carrying it
     rows_units, rows_items, rows_traits, rows_scalars = [], [], [], []
     patches, tft_patches, placements, lobbies = [], [], [], []
     kept = skipped = 0
@@ -244,10 +288,6 @@ def build(set_number=None):
         if set_number is None:
             set_number = game_set
             uniques = tft.unique_traits(set_number)
-            if not uniques:
-                print(f"  (names.json lists no unique traits for set "
-                      f"{set_number} - run fetch_names.py, or every "
-                      f"one-champion trait will be reported as a line)")
         if game_set != set_number:
             skipped += 1
             continue
@@ -264,7 +304,7 @@ def build(set_number=None):
         # cross-patch question towards "the patch changed nothing".
         patch = vocab.index("patches", crawl.tft_patch_of(info))
         tft_patch = vocab.index("tft_patches", crawl.tft_patch_of(info))
-        table = [encode(p, vocab, uniques) for p in info["participants"]]
+        table = [encode(p, vocab, uniques, peak) for p in info["participants"]]
 
         # How many other people in this lobby were on your line. It has to be
         # computed here because it is the one feature that is not a property
@@ -298,11 +338,29 @@ def build(set_number=None):
 
     # Traits become dense only now that the vocabulary is final. Doing it
     # per board would have needed the width before the last trait was seen.
+    # Drop the one-champion traits, but only the ones the boards agree are
+    # one-champion traits. names.json builds that list from Data Dragon's
+    # champion data, and on Set 18's launch day Data Dragon covered 5 of 36
+    # traits - so it called Brawler, Lunar, Sprykin and Spellweaver unique
+    # and this would have deleted four real traits without a word. All four
+    # had been fielded with six or seven units by then; a unique trait cannot
+    # exceed one. Believe the file about which traits to suspect, believe the
+    # boards about which ones actually are.
+    named = {index: name for name, index in vocab.tables["traits"].items()}
+    drop = {index for index, name in named.items()
+            if name in uniques and peak.get(index, 0) <= 1}
+    kept_back = sorted(named[i] for i in named
+                       if named[i] in uniques and i not in drop)
+    if kept_back:
+        print(f"  kept {len(kept_back)} trait(s) names.json calls unique but "
+              f"the boards field in numbers: {', '.join(kept_back)}")
+
     width = vocab.size("traits")
     trait_matrix = np.zeros((len(rows_traits), width), dtype=np.int8)
     for row, active in enumerate(rows_traits):
         for index, tier in active.items():
-            trait_matrix[row, index] = tier
+            if index not in drop:
+                trait_matrix[row, index] = tier
 
     vocab.save()
     CORPUS.mkdir(exist_ok=True)
