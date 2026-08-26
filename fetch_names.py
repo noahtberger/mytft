@@ -86,7 +86,27 @@ for entry in cdragon.get("setData", []):
     for champ in entry.get("champions", []):
         for trait in champ.get("traits") or []:
             owners[trait] = owners.get(trait, 0) + 1
-    unique_by_set[str(number)] = sorted(n for n, count in owners.items() if count == 1)
+    # A trait with one owner is unique - but only if the champion list is
+    # complete enough to be counting. Set 18 landed with champions for 5 of
+    # its 36 traits, so almost everything looked one-owner: it named Brawler,
+    # Lunar, Spellweaver and Sprykin unique, and every consumer of this list
+    # DROPS unique traits. Four ordinary multi-champion traits would have
+    # vanished from the site's roster and from the model's features without
+    # a word - the boards had already fielded Brawler with six units.
+    #
+    # The two errors are not equal. Wrongly calling a trait unique deletes a
+    # real one; wrongly omitting one leaves a harmless single-champion trait
+    # in the roster. So when coverage is thin, claim nothing. The same
+    # threshold guards trait_ids_by_set below, and for the same reason.
+    UNIQUE_NEEDS_COVERAGE = 0.8
+    owned = [t for t in entry.get("traits", []) if t.get("name") in owners]
+    if entry.get("traits") and len(owned) >= UNIQUE_NEEDS_COVERAGE * len(entry["traits"]):
+        unique_by_set[str(number)] = sorted(
+            n for n, count in owners.items() if count == 1)
+    else:
+        print(f"  ! set {number}: too little champion data to tell which "
+              f"traits are one-champion - claiming none")
+        unique_by_set[str(number)] = []
 
     # Only traits some champion actually carries. Riot files a few oddities
     # among a set's traits that no unit has and nobody can build toward -
