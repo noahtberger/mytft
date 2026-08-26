@@ -18,34 +18,111 @@ source; everything below works from saved match files.)
 when a new set launches nothing needs editing — fetch and play. To look
 back at an older set: `TFT_SET=17 .venv/bin/python stats.py`
 
-## Where this is right now (12 Aug 2026)
+## Where this is right now (26 Aug 2026)
 
-Set 18 lands **26 August**, which is the deadline that matters: comp data
-resets to zero for everyone, and playstyle is the only thing that carries
-over. Day one needs exactly one command, `python fetch_names.py`.
+Set 18 (Enchanted Wilds) launched today. Comp data reset to zero for
+everyone, playstyle carried over, and `fetch_names.py` was the one command
+day one needed — as predicted, though it needed fixing first (see below).
+
+Since 16 Aug there is a second thing in here alongside the tracker: a
+ladder crawler and a neural network that measures what traits are actually
+worth. It is a separate concern deliberately — the tracker is about you,
+the model is about everybody — and they share only `riot.py` and
+`tftdata.py`. `python stats.py` still runs on a fresh clone with nothing
+installed. Only the model needs torch.
 
 Working and shipped: the pre-game and post-game views, the "What wins you
-games" card (your own record per plan, ranked by rate of firsts rather than
-average placement), "How you play" (never blank — it states what you do and
-only marks a habit when it clears the bar), the comp model with Fast 8, a
-SQLite index over every board, and rank recording.
+games" card, "How you play", the comp model with Fast 8, a SQLite index
+over every board, rank recording, and now `crawl.py` / `dataset.py` /
+`net_a.py`.
+
+**What the crawl bought.** 137,680 boards, of which 130,120 are Set 17 and
+the rest is Set 18 accumulating. Three things came out of it:
+
+- **Most apparent trait strength is survivorship.** Level correlates -0.54
+  with placement: boards reaching level 10 average 2.06, boards dying at
+  level 6 average 7.15. So a trait that shows up on late boards looks
+  wonderful. In Set 17 the best trait by raw average was worth +0.03 once
+  compared against boards that got equally far, and the genuinely worst
+  trait had a middling average. Every public stats site reports the raw
+  number.
+- **Predicting a patch does not work, and this is now measured rather than
+  argued.** A model trained entirely before a patch ranks the boards after
+  it within 0.5%. Reading the trait table off each side separately — the
+  sensitive test — finds exactly one trait in 23 genuinely repriced. One
+  detectable change a fortnight is not a training set. Do not build this.
+- **The trunk transfers across a set boundary.** Net A is split so half of
+  it reads only set-invariant numbers. Reusing that half on Set 18 was
+  worth **+4 to +5%** against training from scratch, and worth more than
+  quadrupling the Set 18 corpus. Measured on launch day at 222 lobbies, one
+  seed — the direction is clear, the magnitude wants more seeds.
 
 Known-open, in rough priority order:
 
-- **The dev key expires every 24h.** Nothing live works without it, and
-  every day it lapses is rank history that Set 18 will never have.
-  A personal key was applied for on 8 Aug — chase it.
-- **The League client test.** `curl -k https://127.0.0.1:2999/liveclientdata/playerlist`
-  while actually in a TFT game. If it returns the eight Riot IDs, auto-scout
-  is possible and the lobby box stops being manual. Untested, and it is the
-  last unknown blocking a feature that was asked for.
-- **Item names** are not in `names.json`; `items.pretty()` un-camel-cases
-  raw API ids. Data Dragon has them — a small `fetch_names.py` addition.
-- **Items carry no measurable signal yet** at 4,102 boards. That is a
-  finding, not a bug: 2 of 33 clear the ordinary bar and chance predicts
-  1.7, and zero survive correction. More boards, not more statistics.
-- **`postgame.SOUP_COST`** duplicates `comps.FAST9_COST` without being
-  linked to it.
+- **The dev key still expires every 24h**, and the crawl stops dead with
+  it. A personal key was applied for on 8 Aug — chase it. The limiter reads
+  its budget off the response headers, so a better key is the whole upgrade
+  with nothing to edit.
+- **Set 18 needs ~40,000 boards** before any trait table is worth reading.
+  On Set 17 the trunk/head ablation gap was 0.5pp — noise — at 8,000 boards
+  and 1.9pp at 40,000. Currently a few thousand. The daily scheduled check
+  refuses to train below 25,000 for this reason.
+- **Wisps are invisible.** Set 18's headline mechanic does not appear in
+  match data at all, the way augments never did. If people buy Wisps that
+  suit their comp, some of what the model credits to a trait belongs to the
+  Wisp. Set 18 trait numbers deserve more salt than Set 17's did.
+- **Items are worth revisiting.** They carried no measurable signal at
+  4,102 boards — 2 of 33 cleared the bar against 1.7 predicted by chance.
+  There are now thirty times as many boards, and the model can ask the
+  better question: not what an item is worth, but what it is worth *on this
+  carry*, since items stay attached to the unit holding them.
+- **Item names** are still not in `names.json`; `items.pretty()`
+  un-camel-cases raw API ids.
+- **The League client test** is still untested: `curl -k
+  https://127.0.0.1:2999/liveclientdata/playerlist` while in a game.
+- **`postgame.SOUP_COST`** duplicates `comps.FAST9_COST` unlinked.
+
+## Learning what's strong
+
+Three files, none of which the tracker imports.
+
+`crawl.py` samples a patch rather than a person. It seeds from the ladder,
+downloads those games, and every game hands back seven more players to walk
+to next. Games land in `corpus/`, sharded by TFT patch, gzipped —
+deliberately not in `pool/`, because forty thousand strangers would quietly
+become "the meta" in reports that are supposed to be about you.
+
+`dataset.py` turns matches into arrays, and most of the thought in it is
+about what to leave out. `last_round`, `time_eliminated`,
+`players_eliminated` and `total_damage_to_players` are restatements of the
+placement; a network given `last_round` learns "died on 3-2 → eighth" in
+four minutes and knows nothing about traits. Level and gold are kept and
+conditioned on instead, which is what turns "did this board do well" into
+"among boards that got equally far, did this trait help".
+
+`net_a.py` scores a board. Not a placement — a number whose differences
+order a lobby, trained with a Plackett-Luce loss over all eight boards at
+once, because nobody gets 4th on their own. Trait strength is read out
+counterfactually: take thousands of boards without a trait, switch it on,
+hold everything else still, and measure the shift. Those boards never
+existed, which is the point — it is an experiment rather than an
+observation.
+
+Half the file is checks, and they have earned their keep:
+
+```bash
+.venv/bin/python net_a.py --ablate    # do the names beat board size alone?
+.venv/bin/python net_a.py --seeds 5   # retrain five times, drop what changes its mind
+.venv/bin/python net_a.py --compare 17.8 17.9   # what did a patch actually move?
+```
+
+`--ablate` is the gate. If knowing which champions and traits are on the
+board does not beat knowing only how developed it is, the trait table is a
+well-formatted random number generator. `--seeds` threw out 7 of 23 traits
+that a single run reported as findings. A guard under the trait table
+refuses the whole thing when too many traits look helpful at once —
+placements are a fixed 1-to-8 split, so they cannot all help, and that
+check has caught two real bugs.
 
 ## Running it on another computer
 
@@ -292,6 +369,11 @@ Occasional:
 | `pregame_page.py`  | the pre-game screen (leaks, lobby box, meta) as a page | – |
 | `serve.py`         | local web app: stats + post-game views per player | API key |
 | `riot.py`          | the API client: key, HTTP, match downloading | API key |
+| `crawl.py`         | crawl the ladder for training data, sharded by patch | API key |
+| `dataset.py`       | matches -> arrays for the model | numpy |
+| `net_a.py`         | the board-strength network, and the checks on it | torch |
+| `overnight.sh`     | supervise a long crawl, restart it when it falls over | |
+| `corpus/`          | crawled training data, gzipped per patch (gitignored) | |
 | `peek_live.py`     | inventory of Overwolf live logs in `live/` | – |
 | `matches/`         | **your** raw match JSON, named by match ID (committed) | |
 | `pool/`            | other players' matches, downloaded (gitignored) | |
@@ -372,6 +454,41 @@ background.
   "spread across N lines" quietly became the size of the whole set roster.
   `Counter` is safe (its `__missing__` returns 0 without inserting); `dict`
   with `.get()` is the fix for the rest.
+- **`game_version` is not the patch number.** It is the League client
+  build, and a build outlives a balance change: build 16.15 held 6,607
+  games of TFT 17.8 and 1,034 of 17.9. Deciding the patch by the date the
+  game was played is the only thing that lines up with the notes. Sharding
+  on the build silently mixed two patches either side of every boundary and
+  biased every cross-patch answer towards "nothing changed".
+- **Set 18 runs on Unreal, and its `game_version` has no digits in it** —
+  the literal string `TFT Unreal Version ?.?.?.?`. Any regex pulling a
+  version out of that field returns nothing. Anything keyed on it needs a
+  fallback that does not depend on Riot writing a number there.
+- **A wrong "unique trait" deletes a real one.** `names.json` builds that
+  list from Data Dragon's champion data, and on Set 18's launch day it
+  covered 5 of 36 traits — so it called Brawler, Lunar, Spellweaver and
+  Sprykin one-champion traits, and every consumer of that list drops them.
+  The boards had already fielded Brawler with six units. When the coverage
+  is thin, claim nothing: a stray one-champion trait in the roster is
+  harmless, a deleted real one is not.
+- **A fixed sleep cannot honour a rate limit.** Tuned to 1.25s it ran at 96
+  requests per 120 against a cap of 100 — and the first trip cost a
+  Retry-After worth ninety-six requests, so the margin saved all hour went
+  in one go. An overnight crawl decayed 2,022 → 138 matches an hour looking
+  perfectly healthy the whole time. Keep the send times, wait for the
+  oldest to age out, and believe the server's count over your own.
+- **A background job has SIGINT ignored** by the shell that started it, so
+  `kill -INT` does nothing and plain `kill` skips the save on the way out.
+  Anything long-running needs to treat SIGTERM as Ctrl-C.
+- **A rate that is averaged from the start hides its own collapse.** The
+  cumulative figure never dropped below four figures while the crawl died.
+  Measure between refreshes.
+- **If a model says every option helps, it is measuring something else.**
+  Placements are a fixed 1-to-8 split, so traits cannot all move you up. A
+  trait table came back 20-of-22 helpful because switching a trait on also
+  incremented a "traits completed" feature the model reads as survival. The
+  impossible-looking answer is the cheapest bug detector there is — assert
+  on it.
 - **"Active" is not "built".** A trait at `tier_current > 0` can be a 2-unit
   splash: Bastion was on 119 boards and truly built zero times. Any table
   that says "comp direction" has to use `committed_lines`, or say plainly
