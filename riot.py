@@ -21,7 +21,8 @@ REGIONAL = "https://americas.api.riotgames.com"  # account + match on the region
 RANKED_QUEUE = 1100
 # Seconds to wait before re-trying a 401. A key issued seconds ago is not
 # live yet; this is the gap between pasting one and it working.
-KEY_SETTLE = 4
+KEY_SETTLE = 5          # seconds between 401 retries
+KEY_TRIES = 6           # so a new key gets about half a minute to propagate
 SLEEP = 0.0           # pacing now lives in the limiter below, not in the callers
 
 # Riot publishes the key's budget on every response: "100:120,20:1" is a
@@ -77,6 +78,38 @@ def note_limits(header):
         return
     if parsed:
         LIMITS = parsed
+
+
+def note_usage(header):
+    """Believe Riot's count of what this key has spent, not our own.
+
+    wait_for_slot only knows the requests this process made. Riot counts
+    every caller on the key - the other terminal, a status check, a crawl
+    that restarted a minute ago with an empty memory of its own history.
+    Each of those is invisible locally, so the limiter thinks it has room it
+    does not have, spends it, and is handed a Retry-After of up to two
+    minutes. Observed on Set 18 launch morning: 111 second penalties while
+    the local tally read nearly empty.
+
+    The header arrives as "47:120,3:1" - what the server has counted in each
+    window. Where it exceeds what we remember sending, the difference is
+    somebody else's traffic, and padding our own record with it makes the
+    next wait long enough. Only ever pads upwards; a server count lower than
+    ours is a window that just rolled, and forgetting real sends there would
+    walk straight back into the limit.
+    """
+    try:
+        counts = {int(window): int(used) for used, window in
+                  (rule.split(":") for rule in header.split(","))}
+    except (AttributeError, ValueError):
+        return
+    now = time.monotonic()
+    for _, window in LIMITS:
+        theirs = counts.get(window)
+        if theirs is None:
+            continue
+        ours = sum(1 for sent in _SENT if now - sent < window)
+        _SENT.extend([now] * max(0, theirs - ours))
 
 
 def wait_for_slot():
@@ -136,7 +169,7 @@ def riot_get(url, allow_404=False, allow_403=False, **params):
     import requests  # imported lazily so offline callers need no dependency
 
     params["api_key"] = api_key()
-    retried_401 = False
+    tried_401 = 0
     dropped = 0
     while True:
         try:
@@ -162,6 +195,7 @@ def riot_get(url, allow_404=False, allow_403=False, **params):
             continue
 
         note_limits(response.headers.get("X-App-Rate-Limit"))
+        note_usage(response.headers.get("X-App-Rate-Limit-Count"))
 
         if response.status_code == 429:
             # Should now be rare enough to be worth noticing. If these show
@@ -176,8 +210,13 @@ def riot_get(url, allow_404=False, allow_403=False, **params):
         if response.status_code == 403 and allow_403:
             return FORBIDDEN
 
-        if response.status_code == 401 and not retried_401:
-            retried_401 = True
+        if response.status_code == 401 and tried_401 < KEY_TRIES:
+            # A freshly issued key is not live the instant it is issued, and
+            # "a few seconds" was optimistic: on Set 18 launch day one took
+            # roughly twelve, which one retry could not cover. The crawl gave
+            # up, the supervisor saw three fast failures, called the key dead
+            # and stopped - on a key that worked perfectly a minute later.
+            tried_401 += 1
             time.sleep(KEY_SETTLE)
             continue
         if response.status_code == 401:

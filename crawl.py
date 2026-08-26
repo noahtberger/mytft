@@ -65,7 +65,13 @@ REPORT_EVERY = 25       # matches between progress lines
 
 
 def patch_of(info):
-    """'Linux Version 16.15.712.9042 (Aug ...)' -> '16.15'.
+    """'Linux Version 16.15.712.9042 (Aug ...)' -> '16.15', or 'unknown'.
+
+    Kept for reading the old shards, and no longer used to name new ones.
+    Set 18 moved TFT to Unreal and the field became the literal string
+    "TFT Unreal Version ?.?.?.?" - no digits anywhere - so on launch morning
+    every match in the new set filed itself under "unknown". The date-based
+    tft_patch_of has no such dependency and is what shards are named by now.
 
     The whole corpus is sharded on this string, because a patch is the unit
     the model trains on: numbers that changed on Tuesday describe a different
@@ -409,7 +415,7 @@ def crawl(deadline):
                     rejected += 1
                     continue
 
-                append(patch_of(info), match)
+                append(tft_patch_of(info), match)
                 saved += 1
 
                 # Every match is eight players, seven of whom are new leads.
