@@ -93,6 +93,7 @@ def patch_of(info):
 # quietly credit a trait change to the wrong fortnight, which is the exact
 # error this field exists to prevent. Append new patches as they ship.
 TFT_PATCHES = (
+    ("2026-08-26", "18.1"),     # Set 18 launch
     ("2026-08-11", "17.9"),
     ("2026-07-28", "17.8"),
     ("2026-07-14", "17.7"),
@@ -388,10 +389,22 @@ def crawl(deadline):
                 game_set = info.get("tft_set_number") or 0
                 # The first game to arrive defines the set, the same way every
                 # other script here lets the data say which set we are in.
-                # On the morning Set 18 lands, that is the whole migration.
                 if set_number is None:
                     set_number = game_set
                     print(f"Crawling set {set_number}.")
+                # A newer set is a launch, not a mismatch. Without this the
+                # saved state pins the crawl to the set it was started on,
+                # and on the one morning that matters it downloads the new
+                # set's games, rejects every one, marks them seen so they are
+                # never retried, and reports a healthy-looking skip count.
+                # Verified the hard way: state.json still said 17 at 13:23 on
+                # the day Set 18 shipped.
+                if game_set > set_number:
+                    print(f"\nSet {game_set} has landed - was crawling "
+                          f"{set_number}. Switching, and forgetting which "
+                          f"players have been walked so their new games are "
+                          f"reachable.")
+                    set_number, visited = game_set, set()
                 if game_set != set_number or info.get("queue_id") != riot.RANKED_QUEUE:
                     rejected += 1
                     continue
