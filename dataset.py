@@ -62,11 +62,44 @@ MAX_UNITS = 12       # level 10 plus a Tactician's Crown, with room to spare
 MAX_ITEMS = 3        # Riot's own cap per unit
 PAD = 0              # index 0 is "nothing here" in every vocabulary
 
-# Riot's rarity numbers are not contiguous - 0,1,2,4,6 are the 1 through 5
-# costs and 9 is whatever the set is calling special this time. Mapped to
-# 0-5 so the cost histogram has a fixed width no matter which of them a set
-# happens to use.
-RARITY = {0: 0, 1: 1, 2: 2, 4: 3, 6: 4, 9: 5}
+# Riot's rarity numbers are an arbitrary encoding of cost, and the encoding
+# CHANGES BETWEEN SETS. Set 17 used 0,1,2,4,6 for the 1 through 5 costs
+# (plus 9 for oddities); Set 18 uses a contiguous 0,1,2,3,4. A map hardcoded
+# from one set is silently wrong on the next: against Set 18 it filed 91,587
+# four-costs - the largest group in the game - as one-costs, and five-costs
+# as four-costs, which corrupts the cost histogram and board_value, the
+# strongest feature the trunk has.
+#
+# So the order is derived rather than declared. Whatever distinct values a
+# set uses, sorted ascending, are cheapest to dearest - which is the one
+# thing true of every encoding Riot has shipped. rarity_order() samples the
+# corpus to learn them.
+RARITY_SLOTS = 6     # width of the cost histogram, generous for any set
+
+
+def rarity_order(set_number, sample=400):
+    """Map this set's rarity values to 0..n by reading a few hundred matches.
+
+    Only matches from the set being built. Shards sort by name, so "16.15"
+    comes before "18.1" and an unfiltered sample reads several thousand Set
+    17 games before it sees a Set 18 one - and learns the previous set's
+    encoding to apply to the new one, which is the exact bug this function
+    exists to prevent.
+
+    Cheaper than a second full pass and enough to see every value: a rarity
+    absent from four hundred matches is absent from the game.
+    """
+    seen, count = set(), 0
+    for match in matches_on_disk():
+        if (match["info"].get("tft_set_number") or 0) != set_number:
+            continue
+        for participant in match["info"]["participants"]:
+            for unit in participant["units"]:
+                seen.add(unit.get("rarity", 0))
+        count += 1
+        if count >= sample:
+            break
+    return {value: slot for slot, value in enumerate(sorted(seen))}
 
 # The set-invariant features, in order. Every one of these is a fact about
 # TFT's rules rather than about Set 17: interest caps at 5 gold, XP costs
@@ -182,7 +215,7 @@ def matches_on_disk():
         yield json.loads(path.read_text())
 
 
-def encode(participant, vocab, uniques=(), peak=None):
+def encode(participant, vocab, uniques=(), peak=None, rarity=None):
     """One board -> (unit ids, item ids, trait tiers, invariant features).
 
     A unit's index folds in its star level, so a 1-star Fizz and a 3-star
@@ -195,6 +228,7 @@ def encode(participant, vocab, uniques=(), peak=None):
     frontline are not the same board, and a bag cannot tell them apart.
     """
     peak = {} if peak is None else peak
+    rarity = {} if rarity is None else rarity
     units = np.zeros(MAX_UNITS, dtype=np.int32)
     items = np.zeros((MAX_UNITS, MAX_ITEMS), dtype=np.int32)
 
@@ -203,7 +237,7 @@ def encode(participant, vocab, uniques=(), peak=None):
     board = sorted(participant["units"],
                    key=lambda u: (-u.get("tier", 0), u["character_id"]))
 
-    costs = [0] * 6
+    costs = [0] * RARITY_SLOTS
     stars = [0] * 3
     total_items = most_items = value = 0
 
@@ -214,7 +248,7 @@ def encode(participant, vocab, uniques=(), peak=None):
         for hole, item in enumerate(held):
             items[slot, hole] = vocab.index("items", item)
 
-        cost = RARITY.get(unit.get("rarity", 0), 0)
+        cost = rarity.get(unit.get("rarity", 0), 0)
         costs[cost] += 1
         stars[star - 1] += 1
         total_items += len(held)
@@ -278,6 +312,9 @@ def build(set_number=None):
               f"reported as a line)")
     vocab = Vocab.load()
     peak = {}       # trait index -> most units ever seen carrying it
+    rarity = rarity_order(set_number)
+    print(f"  rarity encoding this set: "
+          f"{', '.join(f'{v}->{s+1}cost' for v, s in sorted(rarity.items()))}")
     rows_units, rows_items, rows_traits, rows_scalars = [], [], [], []
     patches, tft_patches, placements, lobbies = [], [], [], []
     kept = skipped = 0
@@ -304,7 +341,8 @@ def build(set_number=None):
         # cross-patch question towards "the patch changed nothing".
         patch = vocab.index("patches", crawl.tft_patch_of(info))
         tft_patch = vocab.index("tft_patches", crawl.tft_patch_of(info))
-        table = [encode(p, vocab, uniques, peak) for p in info["participants"]]
+        table = [encode(p, vocab, uniques, peak, rarity)
+                 for p in info["participants"]]
 
         # How many other people in this lobby were on your line. It has to be
         # computed here because it is the one feature that is not a property

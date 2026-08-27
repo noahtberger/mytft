@@ -1,7 +1,19 @@
 {
   "version": "16.17.1",
   "observed": {
-    "DA_CrimsonRaptor18": "Mama Beak"
+    "DA_CrimsonRaptor18": "Mama Beak",
+    "DA_Sentinel18": "Sentinel",
+    "DA_Brambleback18": "Brambleback",
+    "DA_Krug18": "Krug",
+    "DA_Scuttlecrab18": "Scuttle Crab",
+    "DA_Gromp18_AP": "Gromp",
+    "TFT18_Gromp": "Gromp",
+    "DA_Murkwolf18": "Murkwolf",
+    "DA_18_ElderDragon": "Elder Dragon",
+    "DA_Cinderling18": "Cinderling",
+    "DA_18_Sentry": "Pebbles",
+    "TFT18_Akali": "Akali",
+    "TFT18_MasterYi": "Master Yi"
   },
   "traits": {
     "TFTTutorial_Assassin": "Assassin",
