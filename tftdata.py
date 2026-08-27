@@ -83,7 +83,16 @@ def display(api_id, kind):
     stripped = re.sub(r"^\d+_", "", stripped)            # DA_18_ leftovers
     stripped = re.sub(r"\d+(?=_|$)", "", stripped)       # trailing 18
     spaced = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", stripped.replace("_", " "))
-    return re.sub(r"\s+", " ", spaced).strip() or api_id
+    tidied = re.sub(r"\s+", " ", spaced).strip()
+    # Marked, because tidying an id does not make it a name and this file
+    # already has a rule about that: TFT17_DRX is N.O.V.A. and _Wolf is The
+    # Boar, so no amount of splitting camelCase recovers what Riot calls a
+    # unit. DA_CrimsonRaptor18 reads as "Crimson Raptor" and may well be
+    # called something else entirely in game. Set 18 launched with neither
+    # Data Dragon nor Community Dragon carrying these twelve units, so there
+    # is nothing to look up yet - the marker says "re-run fetch_names.py"
+    # rather than quietly asserting a name nobody has verified.
+    return f"{tidied} (raw id)" if tidied else api_id
 
 
 def variant_of(api_id):
