@@ -67,7 +67,23 @@ def display(api_id, kind):
     name = NAMES.get(kind, {}).get(api_id)
     if name:
         return name
-    return api_id.split("_", 1)[1] if "_" in api_id else api_id
+
+    # No entry, so make the id readable rather than showing it raw. Set 18
+    # arrived with Data Dragon only half-built and twelve of its units
+    # missing, and the old fallback - drop everything before the first
+    # underscore - turned DA_Cinderling18 into "Cinderling18" and
+    # DA_18_ElderDragon into "18_ElderDragon".
+    #
+    # Riot writes the set number in three places and no two ids agree:
+    # DA_18_Sentry, DA_Cinderling18, TFT18_Akali. All three are stripped,
+    # then camelCase is split, so ElderDragon reads as Elder Dragon. Nothing
+    # here invents a name - it only tidies the one Riot gave us, and the
+    # moment fetch_names.py can see the unit the real name wins above.
+    stripped = re.sub(r"^(TFT|DA)\d*_", "", api_id)      # TFT18_ / DA_
+    stripped = re.sub(r"^\d+_", "", stripped)            # DA_18_ leftovers
+    stripped = re.sub(r"\d+(?=_|$)", "", stripped)       # trailing 18
+    spaced = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", stripped.replace("_", " "))
+    return re.sub(r"\s+", " ", spaced).strip() or api_id
 
 
 def variant_of(api_id):
