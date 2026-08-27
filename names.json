@@ -1,5 +1,8 @@
 {
   "version": "16.17.1",
+  "observed": {
+    "DA_CrimsonRaptor18": "Mama Beak"
+  },
   "traits": {
     "TFTTutorial_Assassin": "Assassin",
     "TFTTutorial_Blademaster": "Blademaster",

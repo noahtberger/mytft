@@ -131,8 +131,17 @@ for entry in cdragon.get("setData", []):
               f"{len(carried)}/{len(all_ids)} traits - keeping all of them")
         trait_ids_by_set[str(number)] = sorted(all_ids)
 
+# Hand-recorded names survive a rebuild. They exist because Riot's data
+# lags a launch, so they are exactly the entries a rebuild cannot supply -
+# dropping them would delete the only record of a name every time this runs.
+try:
+    observed = json.loads(Path("names.json").read_text()).get("observed", {})
+except (FileNotFoundError, ValueError):
+    observed = {}
+
 Path("names.json").write_text(json.dumps({
     "version": version,
+    "observed": observed,
     "traits": traits,
     "units": units,
     "variants": variants,

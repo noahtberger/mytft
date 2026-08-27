@@ -68,6 +68,16 @@ def display(api_id, kind):
     if name:
         return name
 
+    # Names seen in the client and written down by hand. Riot's data files
+    # lag a set launch by weeks - Set 18 shipped with twelve units missing
+    # from Data Dragon and Community Dragon both - and somebody who just
+    # played the game knows the name today. Below the official table, so a
+    # real name always wins the moment one exists, and preserved across
+    # fetch_names.py runs rather than overwritten by them.
+    seen = NAMES.get("observed", {}).get(api_id)
+    if seen:
+        return seen
+
     # No entry, so make the id readable rather than showing it raw. Set 18
     # arrived with Data Dragon only half-built and twelve of its units
     # missing, and the old fallback - drop everything before the first
