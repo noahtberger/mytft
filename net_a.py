@@ -395,6 +395,11 @@ def stability(vocab, seeds, train_patch=None, test_patch=None):
     Anything whose spread crosses zero is dropped. The model does not know
     which way that trait goes, so it does not get an opinion on it.
     """
+    whole = np.load(OUT)["traits"]
+    built = {name: int((whole[:, index] >= 2).sum())
+             for name, index in vocab.tables["traits"].items()
+             if index < whole.shape[1]}
+
     pooled = {}
     for run, seed in enumerate(seeds, start=1):
         _, _, train_split, test_split = load(train_patch, test_patch, seed=seed)
@@ -408,12 +413,17 @@ def stability(vocab, seeds, train_patch=None, test_patch=None):
         # tell you. Five runs rule out the model having been in a mood; they
         # cannot conjure evidence that was never there, and a trait built on
         # 243 boards is thin however confidently the network says otherwise.
-        built = {name: int((test_split["traits"][:, :, index] >= 2).sum())
-                 for index, name in
-                 ((i, n) for n, i in vocab.tables["traits"].items())}
 
     rows = []
     for name, deltas in pooled.items():
+        # A trait the current set never fields is a leftover from the last
+        # one. The vocabulary only ever extends - that is what stops
+        # embeddings renumbering under a trained model - so every Set 17
+        # trait is still in it, with an untrained embedding and no boards.
+        # Reporting them pads the table with 46 rows of noise and makes
+        # "23 of 69 hold" read as a finding about this set.
+        if built.get(name, 0) == 0:
+            continue
         low, high = min(deltas), max(deltas)
         rows.append((sum(deltas) / len(deltas), low, high, name,
                      low > 0 or high < 0, built.get(name, 0)))
