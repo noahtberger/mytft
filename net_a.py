@@ -48,6 +48,8 @@ import torch.nn as nn
 
 from dataset import CORPUS, INVARIANT, OUT, Vocab
 
+OPPONENTS = 2048     # boards sampled as the field a counterfactual is placed against
+CHUNK = 4096         # boards scored at once, so the working matrix stays bounded
 THIN = 1000          # boards a trait must be built on before it is worth quoting
 EPOCHS = 60
 BATCH = 256          # lobbies, not boards
@@ -332,7 +334,14 @@ def trait_deltas(model, vocab, split):
         base = forward(model, split, index)
         # An opponent pool to place the board against, so a strength
         # difference can be quoted as placements rather than as a bare number.
-        pool = base.flatten()
+        # Sampled, not the whole test split: expected placement is a mean
+        # over opponents and a couple of thousand of them settles it to far
+        # finer than the two decimals ever printed. Using all of them built
+        # a boards-by-boards matrix - 20,700 squared at Set 18's size, 1.7GB
+        # a go, twice per trait, seventy traits - which took the machine out.
+        everyone = base.flatten()
+        sample = everyone[torch.randperm(len(everyone), device=everyone.device)
+                          [:OPPONENTS]]
 
         rows = []
         for trait in range(1, split["traits"].shape[-1]):
@@ -353,10 +362,19 @@ def trait_deltas(model, vocab, split):
             del moved
 
             shift = (after - base)[off]
+
             # Expected placement is 1 + how many of a random seven outscore
             # you, which for a Plackett-Luce score is a sum of sigmoids.
-            place = lambda s: 1 + 7 * torch.sigmoid(
-                pool[None, :] - s[:, None]).mean(1)
+            # Chunked over the boards so the working matrix stays a few
+            # thousand by a few thousand however large the corpus grows.
+            def place(scores):
+                out = []
+                for start in range(0, len(scores), CHUNK):
+                    piece = scores[start:start + CHUNK]
+                    out.append(1 + 7 * torch.sigmoid(
+                        sample[None, :] - piece[:, None]).mean(1))
+                return torch.cat(out)
+
             delta = (place(after[off]) - place(base[off])).mean().item()
             rows.append((delta, shift.mean().item(), names[trait], int(off.sum())))
 
