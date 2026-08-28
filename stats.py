@@ -16,7 +16,7 @@ import tftdata as tft
 MIN_GAMES = 3       # don't report a trait/unit seen fewer times than this
 
 
-def print_table(title, groups, built=None):
+def print_table(title, groups, built=None, empty_because=None):
     """Print name/games/avg/top4 rows, best average placement first.
 
     `built` adds a column counting the games you actually COMMITTED to each
@@ -46,7 +46,13 @@ def print_table(title, groups, built=None):
                   f"{s['top4']:>5.0f}% {len(built.get(name, ())):>6}")
 
     if not rows:
-        print(f"  (nothing appeared {MIN_GAMES}+ times yet)")
+        # "not yet" is only true when more games would change it. When the
+        # roster this table draws from is empty, no amount of playing fills
+        # it, and saying otherwise sends someone off to grind for a row that
+        # cannot appear. Set 18 launched with Data Dragon covering 5 of its
+        # 36 traits, too thin to tell which traits belong to one champion,
+        # so names.json records none and this table has nothing to draw on.
+        print(f"  ({empty_because or f'nothing appeared {MIN_GAMES}+ times yet'})")
 
 
 games, _ = tft.load_games()
@@ -109,7 +115,12 @@ print("  'board' counts every game the trait was switched on, including a")
 print("  2-unit splash; 'built' counts the games you truly committed (second")
 print("  breakpoint, or 4+ units). Where those diverge, the avg belongs to the")
 print("  splash, not to the comp - run coverage.py for the built-only view.")
-print_table("BEST TRAITS - unique to one champion", unique_traits)
+print_table("BEST TRAITS - unique to one champion", unique_traits,
+            empty_because=(
+                None if tft.unique_traits(games[0]["_set"]) else
+                f"names.json knows no one-champion traits for set "
+                f"{games[0]['_set']} yet, so this table has nothing to draw "
+                f"on - re-run fetch_names.py once Riot fills the set in"))
 print_table("BEST UNITS", by_unit)
 
 # Variants (Stargazer constellations) are dealt to you, not chosen, so what
