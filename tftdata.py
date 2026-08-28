@@ -5,6 +5,7 @@ Riot's internal IDs into readable names, and compare a player against the
 other seven people in their lobby. That lives here so there's one copy.
 """
 
+import datetime as dt
 import json
 import os
 import re
@@ -56,6 +57,52 @@ def load_names():
 
 
 NAMES = load_names()
+
+
+# TFT numbers its own patches by set: 18.1 is the first patch of Set 18, and
+# that is the number printed on the patch notes. It is NOT the number in
+# game_version - that one is the League client build, it drifts across a
+# balance boundary, and since Set 18 moved TFT to Unreal it contains no
+# digits at all ("TFT Unreal Version ?.?.?.?"). Every report that pulled a
+# patch out of that string showed "?" for the whole of Set 18.
+#
+# Release days from the official notes, newest first. A game belongs to the
+# last patch released on or before it was played. Append new patches as they
+# ship - without the entry, a new patch's games are labelled as the previous
+# one and the two blend silently.
+TFT_PATCHES = (
+    ("2026-08-26", "18.1"),     # Set 18 launch
+    ("2026-08-11", "17.9"),
+    ("2026-07-28", "17.8"),
+    ("2026-07-14", "17.7"),
+    ("2026-06-23", "17.6"),
+    ("2026-06-09", "17.5"),
+    ("2026-05-27", "17.4"),
+    ("2026-05-12", "17.3"),
+    ("2026-04-28", "17.2"),
+    ("2026-04-14", "17.1"),     # Set 17 launch
+    ("2026-03-31", "16.8"),
+    ("2026-03-17", "16.7"),
+    ("2026-03-03", "16.6"),
+)
+
+
+def patch_of(info):
+    """Which TFT patch a match was played on - '18.1', not the client build.
+
+    Decided by the day it was played, because that is the only thing Riot
+    reports consistently: the build string is unreliable across a balance
+    boundary and empty of numbers since the Unreal move. Falls back to the
+    build only for games older than the table.
+    """
+    played = info.get("gameCreation") or info.get("game_datetime")
+    if played:
+        day = dt.date.fromtimestamp(played / 1000)
+        for released, name in TFT_PATCHES:
+            if day >= dt.date.fromisoformat(released):
+                return name
+    found = re.search(r"(\d+\.\d+)", info.get("game_version") or "")
+    return found.group(1) if found else "?"
 
 
 def display(api_id, kind):
@@ -927,10 +974,7 @@ def load_games(puuid=None, set_number=None):
         mine["_datetime"] = info["game_datetime"]
         mine["_match_id"] = match["metadata"]["match_id"]
         mine["_set"] = game_set
-        # game_version looks like "Version 16.12.706.1234 <Releases/16.12>";
-        # we want just the "16.12" major.minor patch number.
-        found = re.search(r"(\d+\.\d+)", info.get("game_version") or "")
-        mine["_patch"] = found.group(1) if found else "?"
+        mine["_patch"] = patch_of(info)
         mine["_lobby"] = info["participants"]
         games_by_set[game_set].append(mine)
 

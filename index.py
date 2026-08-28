@@ -204,10 +204,9 @@ def read_match(path):
     boards = info.get("participants") or []
     if not boards:
         return None
-    found = re.search(r"(\d+\.\d+)", info.get("game_version") or "")
     return (raw["metadata"]["match_id"],
             {"set_num": info.get("tft_set_number"),
-             "patch": found.group(1) if found else None,
+             "patch": tft.patch_of(info),
              "played_at": info.get("game_datetime")},
             boards)
 

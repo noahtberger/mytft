@@ -269,8 +269,7 @@ def meta(set_number=None):
         return _META_CACHE["value"]
 
     def patch_of(info):
-        found = re.search(r"(\d+\.\d+)", info.get("game_version") or "")
-        return found.group(1) if found else None
+        return tft.patch_of(info)
 
     def patch_key(name):
         return tuple(int(n) for n in name.split("."))
