@@ -339,11 +339,18 @@ def trait_deltas(model, vocab, split):
             off = split["traits"][:, :, trait] == 0
             if off.sum() < 200:
                 continue
-            moved = {k: v.clone() for k, v in split.items()}
+            # Only the trait column changes, so only it is copied. Cloning
+            # the whole split here allocated units, items, invariant, patch
+            # and placement afresh for every trait - about thirty-six full
+            # copies of a hundred thousand boards per seed, which on MPS
+            # (where free is lazy) was enough to wedge the machine.
+            column = split["traits"][:, :, trait]
+            moved = dict(split)
+            moved["traits"] = split["traits"].clone()
             moved["traits"][:, :, trait] = torch.where(
-                off, torch.full_like(off, 2, dtype=torch.long),
-                moved["traits"][:, :, trait])
+                off, torch.full_like(column, 2), column)
             after = forward(model, moved, index)
+            del moved
 
             shift = (after - base)[off]
             # Expected placement is 1 + how many of a random seven outscore
@@ -409,6 +416,14 @@ def stability(vocab, seeds, train_patch=None, test_patch=None):
         print(f"  seed {seed:<4} pairwise {accuracy:>6.1%}", flush=True)
         for delta, _, name, _ in trait_deltas(model, vocab, test_split):
             pooled.setdefault(name, []).append(delta)
+        # Hand back this seed's splits and weights before building the next.
+        # Five seeds each holding a full copy of the corpus on the GPU is
+        # five times more than is ever needed at once.
+        del model, train_split, test_split
+        if DEVICE == "mps":
+            torch.mps.empty_cache()
+        elif DEVICE == "cuda":
+            torch.cuda.empty_cache()
         # How often the trait was actually built, which agreeing seeds do not
         # tell you. Five runs rule out the model having been in a mood; they
         # cannot conjure evidence that was never there, and a trait built on
